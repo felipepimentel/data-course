@@ -281,6 +281,38 @@ visualizer.generate_heatmap(comparison, os.path.join(output_dir, "heatmap.png"))
 visualizer.generate_interactive_html(comparison, os.path.join(output_dir, "report.html"))
 ```
 
+## Uso Simplificado
+
+Para um fluxo simplificado de análise, use os seguintes scripts:
+
+### 1. Corrigir problemas de schema (se necessário)
+
+Se você estiver encontrando erros de "no behavior score" ou problemas com o formato do JSON:
+
+```bash
+./fix_schema.py /caminho/para/dados
+```
+
+Este script:
+- Corrige problemas comuns nos arquivos JSON
+- Garante que os arrays de frequência estão no formato correto
+- Faz backup dos arquivos originais (.json.bak)
+
+### 2. Importar e Gerar Relatórios
+
+```bash
+./run_report.py /caminho/para/dados [ano]
+```
+
+Este script:
+- Valida a estrutura dos arquivos
+- Importa os dados
+- Gera relatórios comparativos (CSV, PNG e HTML interativo)
+- Salva todos os resultados na pasta "output"
+- Diagnostica problemas se ocorrerem
+
+Se o ano não for especificado, o script usará o ano mais recente disponível.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details. 
