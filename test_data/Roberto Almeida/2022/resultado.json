@@ -1,0 +1,377 @@
+{
+  "success": true,
+  "status_code": 200,
+  "message": null,
+  "data": {
+    "conceito_ciclo_filho_descricao": "alinhado em relação ao grupo",
+    "nome_peer_group": null,
+    "direcionadores": [
+      {
+        "direcionador": "1. A gente trabalha para o cliente",
+        "pergunta_final": false,
+        "comportamentos": [
+          {
+            "comportamento": "você tem obstinação por encantar o cliente",
+            "pergunta_final": false,
+            "avaliacoes_grupo": [
+              {
+                "avaliador": "%todos",
+                "frequencia_colaborador": [
+                  0,
+                  6,
+                  16,
+                  51,
+                  23,
+                  4
+                ],
+                "frequencia_grupo": [
+                  5,
+                  6,
+                  27,
+                  48,
+                  14,
+                  0
+                ]
+              },
+              {
+                "avaliador": "%pares e parceiros",
+                "frequencia_colaborador": [
+                  2,
+                  10,
+                  12,
+                  50,
+                  27,
+                  0
+                ],
+                "frequencia_grupo": [
+                  2,
+                  4,
+                  33,
+                  44,
+                  18,
+                  -1
+                ]
+              }
+            ],
+            "avaliacoes_individuais": [
+              {
+                "avaliador": "autoavaliação",
+                "conceito": "pratico na maior parte das vezes",
+                "cor": "MAGENTA"
+              },
+              {
+                "avaliador": "gestor",
+                "conceito": "pratico às vezes",
+                "cor": "8628025"
+              }
+            ]
+          },
+          {
+            "comportamento": "você adota soluções simples para nossos clientes",
+            "pergunta_final": false,
+            "avaliacoes_grupo": [
+              {
+                "avaliador": "%todos",
+                "frequencia_colaborador": [
+                  5,
+                  3,
+                  24,
+                  44,
+                  18,
+                  5
+                ],
+                "frequencia_grupo": [
+                  3,
+                  6,
+                  32,
+                  47,
+                  11,
+                  0
+                ]
+              },
+              {
+                "avaliador": "%pares e parceiros",
+                "frequencia_colaborador": [
+                  7,
+                  5,
+                  17,
+                  43,
+                  19,
+                  9
+                ],
+                "frequencia_grupo": [
+                  0,
+                  7,
+                  36,
+                  48,
+                  7,
+                  2
+                ]
+              }
+            ],
+            "avaliacoes_individuais": [
+              {
+                "avaliador": "autoavaliação",
+                "conceito": "pratico às vezes",
+                "cor": "MAGENTA"
+              },
+              {
+                "avaliador": "gestor",
+                "conceito": "pratico na maior parte das vezes",
+                "cor": "8628025"
+              }
+            ]
+          },
+          {
+            "comportamento": "você promove experiências diferenciadas",
+            "pergunta_final": false,
+            "avaliacoes_grupo": [
+              {
+                "avaliador": "%todos",
+                "frequencia_colaborador": [
+                  1,
+                  7,
+                  23,
+                  43,
+                  21,
+                  5
+                ],
+                "frequencia_grupo": [
+                  3,
+                  15,
+                  37,
+                  38,
+                  7,
+                  0
+                ]
+              },
+              {
+                "avaliador": "%pares e parceiros",
+                "frequencia_colaborador": [
+                  -2,
+                  12,
+                  24,
+                  40,
+                  25,
+                  1
+                ],
+                "frequencia_grupo": [
+                  7,
+                  12,
+                  32,
+                  37,
+                  11,
+                  3
+                ]
+              }
+            ],
+            "avaliacoes_individuais": [
+              {
+                "avaliador": "autoavaliação",
+                "conceito": "pratico às vezes",
+                "cor": "MAGENTA"
+              },
+              {
+                "avaliador": "gestor",
+                "conceito": "pratico às vezes",
+                "cor": "8628025"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "direcionador": "2. Performance que transforma",
+        "pergunta_final": false,
+        "comportamentos": [
+          {
+            "comportamento": "você busca resultados sustentáveis",
+            "pergunta_final": false,
+            "avaliacoes_grupo": [
+              {
+                "avaliador": "%todos",
+                "frequencia_colaborador": [
+                  1,
+                  0,
+                  27,
+                  56,
+                  14,
+                  2
+                ],
+                "frequencia_grupo": [
+                  3,
+                  8,
+                  31,
+                  47,
+                  11,
+                  0
+                ]
+              },
+              {
+                "avaliador": "%pares e parceiros",
+                "frequencia_colaborador": [
+                  2,
+                  5,
+                  24,
+                  51,
+                  13,
+                  5
+                ],
+                "frequencia_grupo": [
+                  1,
+                  5,
+                  33,
+                  53,
+                  6,
+                  2
+                ]
+              }
+            ],
+            "avaliacoes_individuais": [
+              {
+                "avaliador": "autoavaliação",
+                "conceito": "pratico às vezes",
+                "cor": "MAGENTA"
+              },
+              {
+                "avaliador": "gestor",
+                "conceito": "pratico sempre",
+                "cor": "8628025"
+              }
+            ]
+          },
+          {
+            "comportamento": "você é eficiente e ágil nas entregas",
+            "pergunta_final": false,
+            "avaliacoes_grupo": [
+              {
+                "avaliador": "%todos",
+                "frequencia_colaborador": [
+                  4,
+                  7,
+                  25,
+                  46,
+                  16,
+                  4
+                ],
+                "frequencia_grupo": [
+                  3,
+                  11,
+                  30,
+                  39,
+                  12,
+                  3
+                ]
+              },
+              {
+                "avaliador": "%pares e parceiros",
+                "frequencia_colaborador": [
+                  9,
+                  3,
+                  22,
+                  48,
+                  19,
+                  0
+                ],
+                "frequencia_grupo": [
+                  6,
+                  13,
+                  28,
+                  37,
+                  11,
+                  5
+                ]
+              }
+            ],
+            "avaliacoes_individuais": [
+              {
+                "avaliador": "autoavaliação",
+                "conceito": "pratico às vezes",
+                "cor": "MAGENTA"
+              },
+              {
+                "avaliador": "gestor",
+                "conceito": "pratico às vezes",
+                "cor": "8628025"
+              }
+            ]
+          },
+          {
+            "comportamento": "você tem foco na melhoria contínua",
+            "pergunta_final": false,
+            "avaliacoes_grupo": [
+              {
+                "avaliador": "%todos",
+                "frequencia_colaborador": [
+                  3,
+                  5,
+                  17,
+                  48,
+                  23,
+                  5
+                ],
+                "frequencia_grupo": [
+                  1,
+                  14,
+                  39,
+                  33,
+                  8,
+                  5
+                ]
+              },
+              {
+                "avaliador": "%pares e parceiros",
+                "frequencia_colaborador": [
+                  6,
+                  8,
+                  20,
+                  43,
+                  20,
+                  4
+                ],
+                "frequencia_grupo": [
+                  5,
+                  12,
+                  40,
+                  32,
+                  11,
+                  1
+                ]
+              }
+            ],
+            "avaliacoes_individuais": [
+              {
+                "avaliador": "autoavaliação",
+                "conceito": "pratico na maior parte das vezes",
+                "cor": "MAGENTA"
+              },
+              {
+                "avaliador": "gestor",
+                "conceito": "pratico na maior parte das vezes",
+                "cor": "8628025"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "comentarios": [
+      {
+        "codigo": 4,
+        "texto": {
+          "comentario": "Superou expectativas em entregas técnicas, porém pode melhorar em trabalho em equipe."
+        },
+        "tipo": 0,
+        "nome_fonte": "gestor"
+      },
+      {
+        "codigo": 1,
+        "texto": {
+          "comentario": "Tem dificuldade em compartilhar conhecimento com a equipe."
+        },
+        "tipo": 1,
+        "nome_fonte": "par/parceiro"
+      }
+    ]
+  }
+}
