@@ -1,0 +1,18 @@
+{
+  "person": "john",
+  "year": "2022",
+  "evaluator": "manager",
+  "date": "2022-01-12",
+  "scores": {
+    "communication": 4.2,
+    "teamwork": 3.8,
+    "technical_skills": 4.5,
+    "problem_solving": 4.0,
+    "time_management": 3.5
+  },
+  "comments": {
+    "overall": "John has made solid contributions this year.",
+    "strengths": "Technical problem solving.",
+    "areas_for_improvement": "More focus on team collaboration and time management."
+  }
+} 

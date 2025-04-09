@@ -1,0 +1,149 @@
+{
+    "total_files": 14,
+    "valid_files": 0,
+    "fixed_files": 14,
+    "files_with_errors": [
+        "data/Ana Costa/2023/resultado.json",
+        "data/Ana Costa/2022/resultado.json",
+        "data/João Silva/2023/resultado.json",
+        "data/João Silva/2022/resultado.json",
+        "data/Maria Oliveira/2023/resultado.json",
+        "data/Maria Oliveira/2022/resultado.json",
+        "data/Carlos Pereira/2023/resultado.json",
+        "data/Carlos Pereira/2022/resultado.json",
+        "data/Pedro Santos/2023/resultado.json",
+        "data/Pedro Santos/2022/resultado.json",
+        "data/Roberto Almeida/2023/resultado.json",
+        "data/Roberto Almeida/2022/resultado.json",
+        "data/Patrícia Gomes/2023/resultado.json",
+        "data/Lúcia Fernandes/2023/resultado.json"
+    ],
+    "all_results": [
+        {
+            "file": "data/Ana Costa/2023/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Ana Costa/2022/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/João Silva/2023/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/João Silva/2022/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Maria Oliveira/2023/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Maria Oliveira/2022/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Carlos Pereira/2023/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Carlos Pereira/2022/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Pedro Santos/2023/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Pedro Santos/2022/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Roberto Almeida/2023/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Roberto Almeida/2022/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Patrícia Gomes/2023/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        },
+        {
+            "file": "data/Lúcia Fernandes/2023/resultado.json",
+            "valid": false,
+            "errors": [
+                "Validation error: 'frequencias' is a required property"
+            ],
+            "fixed": true,
+            "remaining_errors": []
+        }
+    ]
+}
