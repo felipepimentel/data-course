@@ -257,3 +257,189 @@ CAREER_INSIGHTS = {
         "- Buscar mentoria com profissionais de alto desempenho",
     ],
 }
+
+#############################################
+# Constantes para visualização e estilização
+#############################################
+
+# Cores para gráficos e visualizações
+CHART_COLORS = {
+    "primary": "#3498db",  # Azul principal
+    "secondary": "#e74c3c",  # Vermelho secundário
+    "neutral": "#95a5a6",  # Cinza neutro
+    "highlight": "#f39c12",  # Laranja destaque
+    "success": "#2ecc71",  # Verde sucesso
+    "reference": "#34495e",  # Azul escuro referência
+}
+
+# Mapeamento de cores para conceitos em gráficos
+CONCEPT_CHART_COLORS = {
+    "acima do grupo": "green",
+    "alinhado em relação ao grupo": "blue",
+    "abaixo do grupo": "red",
+    "default": "gray",
+}
+
+# Configurações para geração de gráficos
+CHART_CONFIG = {
+    # Tamanhos de figuras para diferentes tipos de gráficos
+    "figsize": {
+        "historical": (12, 8),
+        "category": (10, 6),
+        "radar": (8, 8),
+        "comparative": (14, 8),
+        "historical_detailed": (14, 14),
+    },
+    # Espessuras de linha para diferentes elementos
+    "linewidth": {
+        "primary": 2.5,
+        "secondary": 2.0,
+        "reference": 1.5,
+    },
+    # Tamanhos de marcadores para diferentes elementos
+    "markersize": {
+        "primary": 10,
+        "secondary": 8,
+        "highlight": 12,
+    },
+    # Tamanhos de texto para diferentes elementos
+    "fontsize": {
+        "title": 16,
+        "axis_label": 12,
+        "legend": 12,
+        "annotation": 11,
+        "tick": 10,
+    },
+    # Valores alfa para transparência
+    "alpha": {
+        "grid": 0.7,
+        "fill": 0.25,
+        "reference_line": 0.3,
+        "annotation_box": 0.8,
+    },
+    # Valores de referência usados em gráficos
+    "reference": {
+        "average_score": 2.5,
+    },
+}
+
+# Estilos para formatação de gráficos do radar
+RADAR_CHART_STYLE = {
+    "primary_color": "#3498db",
+    "secondary_color": "#e74c3c",
+    "primary_alpha": 0.25,
+    "secondary_alpha": 0.1,
+    "fontsize": 12,
+    "tick_color": "grey",
+    "tick_size": 8,
+}
+
+# Mapeamento de cores para diferenças de categoria em visualizações de timeline
+TIMELINE_COLOR_MAP = {
+    "acima do grupo": "rgb(0,128,0)",
+    "alinhado em relação ao grupo": "rgb(0,0,255)",
+    "abaixo do grupo": "rgb(255,0,0)",
+    "default": "rgb(128,128,128)",
+}
+
+# Configurações para caixas de anotação em gráficos
+ANNOTATION_BOX_STYLE = {
+    "boxstyle": "round,pad=0.3",
+    "fc": "white",
+    "ec": "gray",
+    "alpha": 0.8,
+}
+
+# Descritores de desempenho baseados na diferença com a média do grupo
+PERFORMANCE_DESCRIPTORS = {
+    "very_high": {
+        "threshold": 0.5,
+        "description": "significativamente acima da média do grupo",
+    },
+    "high": {
+        "threshold": 0.2,
+        "description": "acima da média do grupo",
+    },
+    "average": {
+        "threshold": -0.2,
+        "description": "alinhado com a média do grupo",
+    },
+    "low": {
+        "threshold": -0.5,
+        "description": "abaixo da média do grupo",
+    },
+    "very_low": {
+        "threshold": float("-inf"),
+        "description": "significativamente abaixo da média do grupo",
+    },
+}
+
+# Descritores de tendência baseados na diferença entre o primeiro e o último ano
+TREND_DESCRIPTORS = {
+    "significant_up": {
+        "threshold": 0.3,
+        "description": "ascendente significativa",
+    },
+    "up": {
+        "threshold": 0.1,
+        "description": "ascendente",
+    },
+    "stable": {
+        "threshold": -0.1,
+        "description": "estável",
+    },
+    "down": {
+        "threshold": -0.3,
+        "description": "descendente",
+    },
+    "significant_down": {
+        "threshold": float("-inf"),
+        "description": "descendente significativa",
+    },
+}
+
+#############################################
+# Constantes para planilhas e exportações
+#############################################
+
+# Cores para escalas de cores em planilhas Excel
+EXCEL_COLORS = {
+    # Cores para pontuações
+    "low_score": "FF6961",  # Vermelho para pontuações baixas
+    "mid_score": "FFFF99",  # Amarelo para pontuações médias
+    "high_score": "77DD77",  # Verde para pontuações altas
+    # Cores para diferenças
+    "negative": "FF0000",  # Vermelho para diferenças negativas
+    "neutral": "FFFF00",  # Amarelo para valor zero
+    "positive": "00FF00",  # Verde para diferenças positivas
+    # Cores para rankings e formatação
+    "top_rank": "92D050",  # Verde para top 3 no ranking
+    "alt_row": "F2F2F2",  # Cinza claro para linhas alternadas
+    "header": "366092",  # Azul escuro para cabeçalhos
+}
+
+# Configurações para formatação de cabeçalhos em planilhas
+EXCEL_HEADER_STYLE = {
+    "font": {
+        "bold": True,
+        "color": "FFFFFF",  # Branco
+        "size": 11,
+    },
+    "alignment": {
+        "horizontal": "center",
+        "vertical": "center",
+        "wrap_text": True,
+    },
+}
+
+# Configurações para regras de formatação condicional
+EXCEL_CONDITIONAL_FORMAT = {
+    # Configuração para escala de cores de pontuações (1-5)
+    "score_scale": {
+        "start_value": 1,
+        "mid_value": 3,
+        "end_value": 5,
+    },
+    # Configuração para largura padrão de colunas
+    "default_column_width": 20,
+}

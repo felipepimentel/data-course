@@ -9,7 +9,19 @@ import numpy as np
 
 # Import the analyzer class and constants
 from analyze_evaluations import EvaluationAnalyzer
-from constants import ACTION_PLAN_TEMPLATE, BEHAVIOR_RECOMMENDATIONS, CAREER_INSIGHTS
+from constants import (
+    ACTION_PLAN_TEMPLATE,
+    ANNOTATION_BOX_STYLE,
+    BEHAVIOR_RECOMMENDATIONS,
+    CAREER_INSIGHTS,
+    CHART_COLORS,
+    CHART_CONFIG,
+    CONCEPT_CHART_COLORS,
+    PERFORMANCE_DESCRIPTORS,
+    RADAR_CHART_STYLE,
+    TIMELINE_COLOR_MAP,
+    TREND_DESCRIPTORS,
+)
 
 
 class FeedbackGenerator:
@@ -60,7 +72,7 @@ class FeedbackGenerator:
     def generate_charts(self):
         """Generate all the charts needed for the report"""
         # Get a high-resolution historical chart
-        fig = plt.figure(figsize=(12, 8))
+        fig = plt.figure(figsize=CHART_CONFIG["figsize"]["historical"])
         years = self.data["Years"]
         person_scores = [self.data["Person Scores"].get(year, 0) for year in years]
         group_scores = [self.data["Group Scores"].get(year, 0) for year in years]
@@ -70,29 +82,25 @@ class FeedbackGenerator:
             person_scores,
             marker="o",
             linestyle="-",
-            linewidth=2.5,
-            markersize=10,
+            linewidth=CHART_CONFIG["linewidth"]["primary"],
+            markersize=CHART_CONFIG["markersize"]["primary"],
             label=f"{self.person}",
-            color="#3498db",
+            color=CHART_COLORS["primary"],
         )
         plt.plot(
             years,
             group_scores,
             marker="s",
             linestyle="--",
-            linewidth=2,
-            markersize=8,
+            linewidth=CHART_CONFIG["linewidth"]["secondary"],
+            markersize=CHART_CONFIG["markersize"]["secondary"],
             label="Grupo",
-            color="#e74c3c",
+            color=CHART_COLORS["secondary"],
         )
 
         for i, year in enumerate(years):
             concept = self.data["Concepts"].get(year, "")
-            color = {
-                "alinhado em relação ao grupo": "blue",
-                "acima do grupo": "green",
-                "abaixo do grupo": "red",
-            }.get(concept, "gray")
+            color = CONCEPT_CHART_COLORS.get(concept, CONCEPT_CHART_COLORS["default"])
 
             plt.scatter(year, person_scores[i], color=color, s=150, zorder=10)
             plt.annotate(
@@ -101,30 +109,39 @@ class FeedbackGenerator:
                 textcoords="offset points",
                 xytext=(0, 15),
                 ha="center",
-                fontsize=11,
-                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8),
+                fontsize=CHART_CONFIG["fontsize"]["annotation"],
+                bbox=ANNOTATION_BOX_STYLE,
             )
 
-        plt.grid(True, linestyle="--", alpha=0.7)
-        plt.title(f"Evolução de Desempenho - {self.person}", fontsize=16, pad=20)
-        plt.xlabel("Ano", fontsize=12)
-        plt.ylabel("Pontuação", fontsize=12)
-        plt.legend(fontsize=12)
+        plt.grid(True, linestyle="--", alpha=CHART_CONFIG["alpha"]["grid"])
+        plt.title(
+            f"Evolução de Desempenho - {self.person}",
+            fontsize=CHART_CONFIG["fontsize"]["title"],
+            pad=20,
+        )
+        plt.xlabel("Ano", fontsize=CHART_CONFIG["fontsize"]["axis_label"])
+        plt.ylabel("Pontuação", fontsize=CHART_CONFIG["fontsize"]["axis_label"])
+        plt.legend(fontsize=CHART_CONFIG["fontsize"]["legend"])
 
         # Make sure y axis starts from a reasonable value
         ymin, ymax = plt.ylim()
         plt.ylim(max(0, ymin - 0.5), ymax + 0.5)
 
         # Add horizontal lines for reference
-        plt.axhline(y=2.5, color="gray", linestyle="-", alpha=0.3)
+        plt.axhline(
+            y=CHART_CONFIG["reference"]["average_score"],
+            color="gray",
+            linestyle="-",
+            alpha=CHART_CONFIG["alpha"]["reference_line"],
+        )
         plt.text(
             years[0],
-            2.5,
+            CHART_CONFIG["reference"]["average_score"],
             "Média de Referência",
             verticalalignment="bottom",
             horizontalalignment="left",
             color="gray",
-            fontsize=10,
+            fontsize=CHART_CONFIG["fontsize"]["tick"],
         )
 
         plt.tight_layout()
@@ -139,7 +156,7 @@ class FeedbackGenerator:
         plt.close()
 
         # Generate category comparison chart
-        fig = plt.figure(figsize=(10, 6))
+        fig = plt.figure(figsize=CHART_CONFIG["figsize"]["category"])
 
         # Select important categories
         categories = [
@@ -155,12 +172,19 @@ class FeedbackGenerator:
             values = [cat_diffs[year][category] for year in years]
             plt.plot(years, values, marker="o", label=category)
 
-        plt.axhline(y=0, color="r", linestyle="-", alpha=0.3)
-        plt.grid(True, linestyle="--", alpha=0.6)
-        plt.title(f"Evolução das Categorias de Avaliação - {self.person}", fontsize=14)
-        plt.xlabel("Ano", fontsize=12)
-        plt.ylabel("Diferença do Grupo (%)", fontsize=12)
-        plt.legend(fontsize=10)
+        plt.axhline(
+            y=0, color="r", linestyle="-", alpha=CHART_CONFIG["alpha"]["reference_line"]
+        )
+        plt.grid(True, linestyle="--", alpha=CHART_CONFIG["alpha"]["grid"])
+        plt.title(
+            f"Evolução das Categorias de Avaliação - {self.person}",
+            fontsize=CHART_CONFIG["fontsize"]["title"],
+        )
+        plt.xlabel("Ano", fontsize=CHART_CONFIG["fontsize"]["axis_label"])
+        plt.ylabel(
+            "Diferença do Grupo (%)", fontsize=CHART_CONFIG["fontsize"]["axis_label"]
+        )
+        plt.legend(fontsize=CHART_CONFIG["fontsize"]["legend"])
         plt.tight_layout()
 
         # Save to BytesIO
@@ -213,7 +237,7 @@ class FeedbackGenerator:
             return
 
         # Create the radar chart
-        fig = plt.figure(figsize=(8, 8))
+        fig = plt.figure(figsize=CHART_CONFIG["figsize"]["radar"])
         ax = fig.add_subplot(111, polar=True)
 
         # Number of categories
@@ -231,35 +255,54 @@ class FeedbackGenerator:
         ax.plot(
             angles,
             person_scores,
-            linewidth=2,
+            linewidth=CHART_CONFIG["linewidth"]["primary"],
             linestyle="solid",
             label=f"{self.person}",
-            color="#3498db",
+            color=RADAR_CHART_STYLE["primary_color"],
         )
-        ax.fill(angles, person_scores, alpha=0.25, color="#3498db")
+        ax.fill(
+            angles,
+            person_scores,
+            alpha=RADAR_CHART_STYLE["primary_alpha"],
+            color=RADAR_CHART_STYLE["primary_color"],
+        )
 
         # Plot the group scores
         ax.plot(
             angles,
             group_scores,
-            linewidth=2,
+            linewidth=CHART_CONFIG["linewidth"]["secondary"],
             linestyle="--",
             label="Grupo",
-            color="#e74c3c",
+            color=RADAR_CHART_STYLE["secondary_color"],
         )
-        ax.fill(angles, group_scores, alpha=0.1, color="#e74c3c")
+        ax.fill(
+            angles,
+            group_scores,
+            alpha=RADAR_CHART_STYLE["secondary_alpha"],
+            color=RADAR_CHART_STYLE["secondary_color"],
+        )
 
         # Set category labels
-        plt.xticks(angles[:-1], direcionadores, fontsize=12)
+        plt.xticks(angles[:-1], direcionadores, fontsize=RADAR_CHART_STYLE["fontsize"])
 
         # Draw y-labels (scores)
         ax.set_rlabel_position(0)
         max_score = max(max(person_scores), max(group_scores))
-        plt.yticks([1, 2, 3, 4], ["1", "2", "3", "4"], color="grey", size=8)
+        plt.yticks(
+            [1, 2, 3, 4],
+            ["1", "2", "3", "4"],
+            color=RADAR_CHART_STYLE["tick_color"],
+            size=RADAR_CHART_STYLE["tick_size"],
+        )
         plt.ylim(0, max_score + 0.5)
 
         # Add title and legend
-        plt.title(f"Desempenho por Direcionador - {year}", size=15, pad=20)
+        plt.title(
+            f"Desempenho por Direcionador - {year}",
+            size=CHART_CONFIG["fontsize"]["title"],
+            pad=20,
+        )
         plt.legend(loc="upper right", bbox_to_anchor=(0.1, 0.1))
 
         # Save to BytesIO
@@ -294,20 +337,20 @@ class FeedbackGenerator:
         group_scores = [self.data["Group Scores"].get(year, 0) for year in years]
 
         # Calculate trend
-        trend = "estável"
+        trend = TREND_DESCRIPTORS["stable"]["description"]
         if len(years) > 1:
             first_year_diff = person_scores[0] - group_scores[0]
             last_year_diff = person_scores[-1] - group_scores[-1]
             trend_diff = last_year_diff - first_year_diff
 
-            if trend_diff > 0.3:
-                trend = "ascendente significativa"
-            elif trend_diff > 0.1:
-                trend = "ascendente"
-            elif trend_diff < -0.3:
-                trend = "descendente significativa"
-            elif trend_diff < -0.1:
-                trend = "descendente"
+            if trend_diff > TREND_DESCRIPTORS["significant_up"]["threshold"]:
+                trend = TREND_DESCRIPTORS["significant_up"]["description"]
+            elif trend_diff > TREND_DESCRIPTORS["up"]["threshold"]:
+                trend = TREND_DESCRIPTORS["up"]["description"]
+            elif trend_diff < TREND_DESCRIPTORS["significant_down"]["threshold"]:
+                trend = TREND_DESCRIPTORS["significant_down"]["description"]
+            elif trend_diff < TREND_DESCRIPTORS["down"]["threshold"]:
+                trend = TREND_DESCRIPTORS["down"]["description"]
 
         # Get latest concept and score
         latest_year = max(years)
@@ -316,17 +359,17 @@ class FeedbackGenerator:
         latest_group = self.data["Group Scores"].get(latest_year, 0)
 
         # Performance descriptors based on latest scores
-        performance_desc = ""
-        if latest_score > latest_group + 0.5:
-            performance_desc = "significativamente acima da média do grupo"
-        elif latest_score > latest_group + 0.2:
-            performance_desc = "acima da média do grupo"
-        elif latest_score < latest_group - 0.5:
-            performance_desc = "significativamente abaixo da média do grupo"
-        elif latest_score < latest_group - 0.2:
-            performance_desc = "abaixo da média do grupo"
-        else:
-            performance_desc = "alinhado com a média do grupo"
+        performance_desc = PERFORMANCE_DESCRIPTORS["average"]["description"]
+        diff = latest_score - latest_group
+
+        if diff > PERFORMANCE_DESCRIPTORS["very_high"]["threshold"]:
+            performance_desc = PERFORMANCE_DESCRIPTORS["very_high"]["description"]
+        elif diff > PERFORMANCE_DESCRIPTORS["high"]["threshold"]:
+            performance_desc = PERFORMANCE_DESCRIPTORS["high"]["description"]
+        elif diff < PERFORMANCE_DESCRIPTORS["very_low"]["threshold"]:
+            performance_desc = PERFORMANCE_DESCRIPTORS["very_low"]["description"]
+        elif diff < PERFORMANCE_DESCRIPTORS["low"]["threshold"]:
+            performance_desc = PERFORMANCE_DESCRIPTORS["low"]["description"]
 
         # Get latest comments
         latest_comments = self.get_comments_for_year(latest_year)
@@ -356,11 +399,7 @@ No ano mais recente ({latest_year}), obteve o conceito "**{latest_concept}**" co
             return ""
 
         # Map concepts to colors
-        color_map = {
-            "acima do grupo": "rgb(0,128,0)",
-            "alinhado em relação ao grupo": "rgb(0,0,255)",
-            "abaixo do grupo": "rgb(255,0,0)",
-        }
+        color_map = TIMELINE_COLOR_MAP
 
         # Create timeline nodes for each year
         timeline = """## Trajetória de Desempenho

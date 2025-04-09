@@ -13,7 +13,14 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 # Importar constantes
-from constants import CONCEPT_COLORS, FREQUENCY_LABELS, FREQUENCY_WEIGHTS
+from constants import (
+    CONCEPT_COLORS,
+    EXCEL_COLORS,
+    EXCEL_CONDITIONAL_FORMAT,
+    EXCEL_HEADER_STYLE,
+    FREQUENCY_LABELS,
+    FREQUENCY_WEIGHTS,
+)
 
 try:
     from pptx import Presentation
@@ -419,13 +426,21 @@ class ComparativeSpreadsheetGenerator:
         overview_df_cols = len(overview_sheet[1])
         overview_df_rows = overview_sheet.max_row
 
-        # Apply header formatting
+        # Apply header formatting using constants
         header_fill = PatternFill(
-            start_color="4472C4", end_color="4472C4", fill_type="solid"
+            start_color=EXCEL_COLORS["header"],
+            end_color=EXCEL_COLORS["header"],
+            fill_type="solid",
         )
-        header_font = Font(color="FFFFFF", bold=True)
+        header_font = Font(
+            color=EXCEL_HEADER_STYLE["font"]["color"],
+            bold=EXCEL_HEADER_STYLE["font"]["bold"],
+            size=EXCEL_HEADER_STYLE["font"]["size"],
+        )
         header_alignment = Alignment(
-            horizontal="center", vertical="center", wrap_text=True
+            horizontal=EXCEL_HEADER_STYLE["alignment"]["horizontal"],
+            vertical=EXCEL_HEADER_STYLE["alignment"]["vertical"],
+            wrap_text=EXCEL_HEADER_STYLE["alignment"]["wrap_text"],
         )
 
         for col_idx in range(1, overview_df_cols + 1):
@@ -475,12 +490,12 @@ class ComparativeSpreadsheetGenerator:
                 # Add green-yellow-red color scale
                 color_scale_rule = ColorScaleRule(
                     start_type="min",
-                    start_color="FF0000",  # Red for negative
+                    start_color=EXCEL_COLORS["negative"],
                     mid_type="num",
                     mid_value=0,
-                    mid_color="FFFF00",  # Yellow for zero
+                    mid_color=EXCEL_COLORS["neutral"],
                     end_type="max",
-                    end_color="00FF00",  # Green for positive
+                    end_color=EXCEL_COLORS["positive"],
                 )
                 overview_sheet.conditional_formatting.add(diff_range, color_scale_rule)
 
@@ -502,7 +517,9 @@ class ComparativeSpreadsheetGenerator:
                     formula=["3"],
                     stopIfTrue=True,
                     fill=PatternFill(
-                        start_color="92D050", end_color="92D050", fill_type="solid"
+                        start_color=EXCEL_COLORS["top_rank"],
+                        end_color=EXCEL_COLORS["top_rank"],
+                        fill_type="solid",
                     ),
                 )
                 overview_sheet.conditional_formatting.add(rank_range, top3_rule)
@@ -569,14 +586,20 @@ class ComparativeSpreadsheetGenerator:
                         # Add color scale for scores (1-5 scale)
                         color_scale_rule = ColorScaleRule(
                             start_type="num",
-                            start_value=1,
-                            start_color="FF6961",  # Red for low scores
+                            start_value=EXCEL_CONDITIONAL_FORMAT["score_scale"][
+                                "start_value"
+                            ],
+                            start_color=EXCEL_COLORS["low_score"],
                             mid_type="num",
-                            mid_value=3,
-                            mid_color="FFFF99",  # Yellow for middle scores
+                            mid_value=EXCEL_CONDITIONAL_FORMAT["score_scale"][
+                                "mid_value"
+                            ],
+                            mid_color=EXCEL_COLORS["mid_score"],
                             end_type="num",
-                            end_value=5,
-                            end_color="77DD77",  # Green for high scores
+                            end_value=EXCEL_CONDITIONAL_FORMAT["score_scale"][
+                                "end_value"
+                            ],
+                            end_color=EXCEL_COLORS["high_score"],
                         )
                         year_sheet.conditional_formatting.add(
                             behavior_range, color_scale_rule
@@ -600,12 +623,12 @@ class ComparativeSpreadsheetGenerator:
                             # Add green-yellow-red color scale for differences
                             diff_scale_rule = ColorScaleRule(
                                 start_type="min",
-                                start_color="FF0000",  # Red for negative
+                                start_color=EXCEL_COLORS["negative"],
                                 mid_type="num",
                                 mid_value=0,
-                                mid_color="FFFF00",  # Yellow for zero
+                                mid_color=EXCEL_COLORS["neutral"],
                                 end_type="max",
-                                end_color="00FF00",  # Green for positive
+                                end_color=EXCEL_COLORS["positive"],
                             )
                             year_sheet.conditional_formatting.add(
                                 diff_range, diff_scale_rule
@@ -613,7 +636,9 @@ class ComparativeSpreadsheetGenerator:
 
                 # Set column widths
                 for col_idx in range(1, year_df_cols + 1):
-                    year_sheet.column_dimensions[get_column_letter(col_idx)].width = 20
+                    year_sheet.column_dimensions[
+                        get_column_letter(col_idx)
+                    ].width = EXCEL_CONDITIONAL_FORMAT["default_column_width"]
 
                 # Add borders to all cells
                 thin_border = Border(
@@ -657,12 +682,12 @@ class ComparativeSpreadsheetGenerator:
                     # Add green-yellow-red color scale
                     color_scale_rule = ColorScaleRule(
                         start_type="min",
-                        start_color="FF0000",  # Red for negative
+                        start_color=EXCEL_COLORS["negative"],
                         mid_type="num",
                         mid_value=0,
-                        mid_color="FFFF00",  # Yellow for zero
+                        mid_color=EXCEL_COLORS["neutral"],
                         end_type="max",
-                        end_color="00FF00",  # Green for positive
+                        end_color=EXCEL_COLORS["positive"],
                     )
                     trends_sheet.conditional_formatting.add(var_range, color_scale_rule)
 
@@ -694,7 +719,9 @@ class ComparativeSpreadsheetGenerator:
 
             # Set column widths
             for col_idx in range(1, trends_df_cols + 1):
-                trends_sheet.column_dimensions[get_column_letter(col_idx)].width = 20
+                trends_sheet.column_dimensions[
+                    get_column_letter(col_idx)
+                ].width = EXCEL_CONDITIONAL_FORMAT["default_column_width"]
 
         # Add formatting to Comments sheet
         if "Comentários" in writer.sheets:
@@ -713,7 +740,9 @@ class ComparativeSpreadsheetGenerator:
 
             # Set column widths
             for col_idx in range(1, comments_df_cols + 1):
-                comments_sheet.column_dimensions[get_column_letter(col_idx)].width = 20
+                comments_sheet.column_dimensions[
+                    get_column_letter(col_idx)
+                ].width = EXCEL_CONDITIONAL_FORMAT["default_column_width"]
 
             # Add alternating row colors for readability
             for row_idx in range(2, comments_df_rows + 1):
@@ -721,7 +750,9 @@ class ComparativeSpreadsheetGenerator:
                     for col_idx in range(1, comments_df_cols + 1):
                         cell = comments_sheet.cell(row=row_idx, column=col_idx)
                         cell.fill = PatternFill(
-                            start_color="F2F2F2", end_color="F2F2F2", fill_type="solid"
+                            start_color=EXCEL_COLORS["alt_row"],
+                            end_color=EXCEL_COLORS["alt_row"],
+                            fill_type="solid",
                         )
 
     def generate_trends_sheet(self) -> pd.DataFrame:

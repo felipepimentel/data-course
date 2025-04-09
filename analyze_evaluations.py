@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # Importar as constantes
-from constants import FREQUENCY_LABELS, FREQUENCY_WEIGHTS
+from constants import CONCEPT_CHART_COLORS, FREQUENCY_LABELS, FREQUENCY_WEIGHTS
 
 
 class EvaluationAnalyzer:
@@ -393,16 +393,11 @@ class EvaluationAnalyzer:
         # Add markers for group average
         plt.plot(df["Person"], df["Group Average"], "ro-", label="Group Average")
 
-        # Color bars based on concept
-        colors = {
-            "alinhado em relação ao grupo": "blue",
-            "acima do grupo": "green",
-            "abaixo do grupo": "red",
-        }
-
+        # Color bars based on concept using CONCEPT_CHART_COLORS
         for i, concept in enumerate(df["Overall Concept"]):
-            default_color = "gray"
-            bars[i].set_color(colors.get(concept, default_color))
+            bars[i].set_color(
+                CONCEPT_CHART_COLORS.get(concept, CONCEPT_CHART_COLORS["default"])
+            )
 
         plt.xlabel("Person")
         plt.ylabel("Score")
@@ -498,11 +493,7 @@ class EvaluationAnalyzer:
 
         for i, year in enumerate(years):
             concept = data["Concepts"].get(year, "")
-            color = {
-                "alinhado em relação ao grupo": "blue",
-                "acima do grupo": "green",
-                "abaixo do grupo": "red",
-            }.get(concept, "gray")
+            color = CONCEPT_CHART_COLORS.get(concept, CONCEPT_CHART_COLORS["default"])
 
             plt.scatter(year, person_scores[i], color=color, s=100)
             plt.annotate(
@@ -541,11 +532,9 @@ class EvaluationAnalyzer:
             # Annotate points
             for i, year in enumerate(common_years):
                 concept = data["Concepts"].get(year, "")
-                color = {
-                    "alinhado em relação ao grupo": "blue",
-                    "acima do grupo": "green",
-                    "abaixo do grupo": "red",
-                }.get(concept, "gray")
+                color = CONCEPT_CHART_COLORS.get(
+                    concept, CONCEPT_CHART_COLORS["default"]
+                )
 
                 plt.scatter(year, filtered_common_person[i], color=color, s=100)
 
