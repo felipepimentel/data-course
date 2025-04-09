@@ -63,6 +63,78 @@ peopleanalytics --base-path /path/to/parent/directory list people
 
 Note: The parent directory is the one containing the expected structure elements (years or people).
 
+### Structure Adapter for Inverted Data Structure
+
+If your data is organized in the inverted structure (`<person>/<year>/result.json` instead of `<year>/<person>/result.json`), you can use the structure adapter:
+
+```bash
+# Create symlinks (no duplication of data)
+python structure_adapter.py symlink --source /path/to/data --target ~/.peopleanalytics
+
+# Or copy and convert structure (duplicates data)
+python structure_adapter.py convert --source /path/to/data --target ~/.peopleanalytics
+
+# Test the adapter directly
+python structure_adapter.py test --dir /path/to/data
+```
+
+For programmatic access to inverted structure:
+
+```python
+from structure_adapter import InvertedStructureAnalyzer
+
+# Use the adapter directly with inverted structure
+analyzer = InvertedStructureAnalyzer("/path/to/data")
+people = analyzer.get_all_people()
+```
+
+### Using ChatGPT to Adapt Your Data Structure
+
+If you have a custom data structure and need help adapting it, you can use ChatGPT to generate transformation scripts. Here's a prompt template:
+
+```
+I need to transform my evaluation data structure to work with the People Analytics tool.
+
+Current structure:
+[DESCRIBE YOUR CURRENT FOLDER/FILE STRUCTURE]
+Example: My files are organized as <person_name>/<year>/resultado.json
+
+Target structure:
+<year>/<person_name>/result.json
+
+Here's an example of my JSON data:
+```json
+{
+  "person": "João Silva",
+  "year": "2022",
+  "conceito_ciclo_filho_descricao": "Supera Expectativas",
+  "comportamentos": [
+    {
+      "nome": "Liderança",
+      "score": 4.2
+    },
+    {
+      "nome": "Comunicação",
+      "score": 4.5
+    }
+  ]
+}
+```
+
+Please provide:
+1. A Python script to transform my data structure
+2. Bash commands to reorganize my files
+3. Instructions on how to use the structure_adapter.py tool if applicable
+```
+
+Tips for using ChatGPT for data transformation:
+1. **Be specific** about your current structure and provide real examples
+2. **Share a sample JSON file** (with sensitive data anonymized)
+3. **Mention any special requirements** (e.g., keep original files, handle missing fields)
+4. **Ask for explanations** of the transformation logic, not just code
+
+ChatGPT can generate custom Python scripts, explain the transformation process, and even help debug issues during the transformation.
+
 ## Usage
 
 ### Command Line Interface
@@ -157,11 +229,14 @@ peopleanalytics visualize --type {radar,heatmap,interactive} --output PATH [--da
 **"No database" error**: This usually means the tool cannot find properly organized data. Either:
 1. Import your data using the pipeline command: `peopleanalytics pipeline import --directory /path/to/data`
 2. Specify the correct base path: `peopleanalytics --base-path /path/to/data list people`
+3. Use the structure adapter: `python structure_adapter.py symlink --source /path/to/data --target ~/.peopleanalytics`
 
 **Data not showing up**: Check that your file structure matches what the tool expects:
 ```
 <base_path>/<year>/<person_name>/result.json
 ```
+
+**Inverted structure problems**: If your data is in format `<person>/<year>/result.json`, use the structure adapter or specify `--base-path`.
 
 ### Python API
 
