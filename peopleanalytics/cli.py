@@ -10,6 +10,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Optional, Any
+import datetime
 
 import pandas as pd
 from rich.console import Console
@@ -283,6 +284,8 @@ class CLI:
         pipeline_parser.add_argument("--sequential", action="store_true", help="Run operations sequentially")
         pipeline_parser.add_argument("--output", help="Output file path for exports")
         pipeline_parser.add_argument("--output-dir", help="Output directory for backup")
+        pipeline_parser.add_argument("--verbose", action="store_true", help="Show verbose output including all errors")
+        pipeline_parser.add_argument("--error-report", help="Save detailed error report to specified file")
         
         # Parse arguments
         parsed_args = parser.parse_args(args)
@@ -895,6 +898,97 @@ class CLI:
                     
                     self.console.print(f"[green]Import completed: {results['success']} succeeded, {results['failed']} failed[/green]")
                     
+                    # Display detailed error information if there were failures
+                    if results['failed'] > 0 and 'error_details' in results:
+                        # Group errors by type
+                        error_types = {}
+                        for error in results['error_details']:
+                            error_type = error.get('error_type', 'unknown')
+                            if error_type not in error_types:
+                                error_types[error_type] = []
+                            error_types[error_type].append(error)
+                            
+                        # Print summary of error types
+                        self.console.print("[yellow]Error summary:[/yellow]")
+                        summary_table = Table(title="Error Types Summary")
+                        summary_table.add_column("Error Type", style="cyan")
+                        summary_table.add_column("Count", style="magenta")
+                        summary_table.add_column("Description", style="green")
+                        
+                        error_descriptions = {
+                            'json_decode': "JSON syntax errors in file",
+                            'encoding': "File encoding issues",
+                            'not_found': "Files not found",
+                            'permission': "Permission denied",
+                            'missing_fields': "Missing person or year information",
+                            'exists': "Files already exist (use --overwrite to replace)",
+                            'unexpected': "Unexpected errors",
+                            'unknown': "Unknown error types"
+                        }
+                        
+                        for error_type, errors in sorted(error_types.items(), key=lambda x: len(x[1]), reverse=True):
+                            description = error_descriptions.get(error_type, "Miscellaneous errors")
+                            summary_table.add_row(error_type, str(len(errors)), description)
+                            
+                        self.console.print(summary_table)
+                        
+                        # Show examples of each error type
+                        self.console.print("[yellow]Error examples by type:[/yellow]")
+                        
+                        for error_type, errors in error_types.items():
+                            type_table = Table(title=f"{error_type} Errors (showing {min(3, len(errors))} of {len(errors)})")
+                            type_table.add_column("File", style="cyan")
+                            type_table.add_column("Error", style="red")
+                            
+                            # Show at most 3 examples of each error type
+                            for error in errors[:min(3, len(errors))]:
+                                type_table.add_row(os.path.basename(error['file']), error['error'])
+                                
+                            self.console.print(type_table)
+                        
+                        # Show detailed errors if verbose
+                        if args.verbose:
+                            self.console.print("[yellow]Detailed error listing:[/yellow]")
+                            all_errors_table = Table(title="All Errors")
+                            all_errors_table.add_column("File", style="cyan")
+                            all_errors_table.add_column("Error", style="red")
+                            
+                            for error in results['error_details']:
+                                all_errors_table.add_row(error['file'], error['error'])
+                                
+                            self.console.print(all_errors_table)
+                        else:
+                            self.console.print(f"[yellow]Use --verbose to see all {len(results['error_details'])} detailed errors.[/yellow]")
+                        
+                        # Create a report file with all errors
+                        # Use custom error report file if specified
+                        if args.error_report or len(results['error_details']) > 10:
+                            error_file = args.error_report if hasattr(args, "error_report") and args.error_report else f"import_errors_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                            
+                            with open(error_file, 'w') as f:
+                                f.write(f"Import errors report - {datetime.datetime.now()}\n")
+                                f.write(f"Directory: {args.directory}\n")
+                                f.write(f"Pattern: {args.pattern or '*.json'}\n\n")
+                                
+                                # Write summary
+                                f.write("ERROR SUMMARY\n")
+                                f.write("============\n\n")
+                                for error_type, errors in error_types.items():
+                                    description = error_descriptions.get(error_type, "Miscellaneous errors")
+                                    f.write(f"{error_type}: {len(errors)} errors - {description}\n")
+                                f.write("\n\n")
+                                
+                                # Write details grouped by type
+                                f.write("DETAILED ERRORS BY TYPE\n")
+                                f.write("======================\n\n")
+                                for error_type, errors in error_types.items():
+                                    f.write(f"## {error_type} Errors ({len(errors)} total)\n\n")
+                                    for i, error in enumerate(errors, 1):
+                                        f.write(f"{i}. File: {error['file']}\n   Error: {error['error']}\n\n")
+                                    f.write("\n")
+                                    
+                                self.console.print(f"[green]Full error report saved to {error_file}[/green]")
+                
                 else:
                     self.console.print("[red]Error: Either --file or --directory must be specified for import operation[/red]")
             

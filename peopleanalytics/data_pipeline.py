@@ -44,19 +44,72 @@ class DataPipeline:
         """
         try:
             # Read and parse file
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            except json.JSONDecodeError as e:
+                return {
+                    'success': False,
+                    'file': file_path,
+                    'error': f'JSON parsing error: {str(e)}',
+                    'error_type': 'json_decode'
+                }
+            except UnicodeDecodeError as e:
+                return {
+                    'success': False,
+                    'file': file_path,
+                    'error': f'File encoding error: {str(e)}',
+                    'error_type': 'encoding'
+                }
+            except FileNotFoundError:
+                return {
+                    'success': False,
+                    'file': file_path,
+                    'error': 'File not found',
+                    'error_type': 'not_found'
+                }
+            except PermissionError:
+                return {
+                    'success': False,
+                    'file': file_path,
+                    'error': 'Permission denied',
+                    'error_type': 'permission'
+                }
                 
             # Extract person and year
             extracted_person = person or data.get('person')
             extracted_year = year or data.get('year')
             
             if not extracted_person or not extracted_year:
-                return {
-                    'success': False,
-                    'file': file_path,
-                    'error': 'Could not determine person or year from data'
-                }
+                # Attempt to extract from structure like <person>/<year>/result.json
+                try:
+                    parts = os.path.normpath(file_path).split(os.sep)
+                    if len(parts) >= 3:
+                        # Try to use the parent directories as person/year
+                        potential_year = parts[-2]  # Second last component
+                        potential_person = parts[-3]  # Third last component
+                        
+                        extracted_year = extracted_year or potential_year
+                        extracted_person = extracted_person or potential_person
+                except Exception:
+                    # If this fails, continue with the original values
+                    pass
+                
+                # If still no person/year, report error
+                if not extracted_person or not extracted_year:
+                    missing = []
+                    if not extracted_person:
+                        missing.append("person")
+                    if not extracted_year:
+                        missing.append("year")
+                        
+                    return {
+                        'success': False,
+                        'file': file_path,
+                        'error': f'Missing required fields: {", ".join(missing)}',
+                        'error_type': 'missing_fields',
+                        'data_keys': list(data.keys()) if isinstance(data, dict) else []
+                    }
                 
             # Create directory if it doesn't exist
             target_dir = os.path.join(self.base_path, extracted_year, extracted_person)
@@ -71,7 +124,8 @@ class DataPipeline:
                 return {
                     'success': False,
                     'file': file_path,
-                    'error': 'File already exists and overwrite is disabled'
+                    'error': 'File already exists and overwrite is disabled',
+                    'error_type': 'exists'
                 }
                 
             # Copy file
@@ -89,11 +143,12 @@ class DataPipeline:
             return {
                 'success': False,
                 'file': file_path,
-                'error': str(e)
+                'error': f'Unexpected error: {str(e)}',
+                'error_type': 'unexpected'
             }
             
     def ingest_directory(self, directory: str, pattern: str = "*.json", 
-                        overwrite: bool = False, parallel: bool = True) -> Dict[str, int]:
+                        overwrite: bool = False, parallel: bool = True) -> Dict[str, Any]:
         """Ingest all files in a directory.
         
         Args:
@@ -103,7 +158,7 @@ class DataPipeline:
             parallel: Whether to process files in parallel
             
         Returns:
-            Dictionary with counts of successes and failures
+            Dictionary with counts of successes and failures, and detailed errors
         """
         # Find all matching files
         files = glob.glob(os.path.join(directory, pattern))
@@ -117,10 +172,20 @@ class DataPipeline:
         success_count = sum(1 for r in results if r.get('success', False))
         failed_count = len(results) - success_count
         
+        # Collect error details
+        error_details = []
+        for result in results:
+            if not result.get('success', False):
+                error_details.append({
+                    'file': result.get('file', 'Unknown file'),
+                    'error': result.get('error', 'Unknown error')
+                })
+        
         return {
             'success': success_count,
             'failed': failed_count,
-            'total': len(results)
+            'total': len(results),
+            'error_details': error_details
         }
         
     def create_backup(self, output_dir: Optional[str] = None) -> str:
