@@ -13,7 +13,7 @@ python -m peopleanalytics --base-path ./test_data visualize --type radar --perso
 # Generate a heatmap comparing multiple people
 python -m peopleanalytics --base-path ./test_data visualize --type heatmap --year "2023" --output "./output/heatmap.png"
 
-# Generate an interactive HTML report
+# Generate an interactive HTML report with all command options consistent
 python -m peopleanalytics --base-path ./test_data visualize --type interactive --year "2023" --output "./output/report.html"
 ```
 
@@ -25,8 +25,8 @@ For even easier usage, use the `visualize.sh` script:
 # Generate a radar chart
 ./bin/visualize.sh --type radar --person "john" --year "2023"
 
-# Generate a heatmap
-./bin/visualize.sh --type heatmap --year "2023"
+# Generate a heatmap with custom output directory
+./bin/visualize.sh --type heatmap --year "2023" --output-directory "./reports"
 
 # Generate an interactive report (default type)
 ./bin/visualize.sh --year "2023"
@@ -80,4 +80,4 @@ viz.generate_interactive_html(data, output_path="report.html")
 For more details, check the example files:
 - `examples/simple_visualize.py` - Simple visualization examples
 - `examples/visualization_examples.py` - More detailed visualization examples
-- `examples/evaluation_visualization.py` - Complete examples with evaluation data 
+- `examples/evaluation_visualization.py` - Complete examples with evaluation data

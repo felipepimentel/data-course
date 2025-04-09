@@ -25,6 +25,7 @@ class DataPipeline:
         """
         self.base_path = base_path
         self.schema_manager = schema_manager
+        self.debug_mode = False
         
         # Ensure the base directory exists
         os.makedirs(base_path, exist_ok=True)
@@ -42,46 +43,78 @@ class DataPipeline:
         Returns:
             Dictionary with status information
         """
+        debug_info = []
+        if self.debug_mode:
+            debug_info.append(f"Processing file: {file_path}")
+            debug_info.append(f"Year override: {year}, Person override: {person}")
+        
         try:
             # Read and parse file
             try:
+                if self.debug_mode:
+                    debug_info.append("Reading file content")
+                
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                    
+                if self.debug_mode:
+                    debug_info.append(f"Successfully parsed JSON with {len(data.keys() if isinstance(data, dict) else data)} keys/items")
+                
             except json.JSONDecodeError as e:
-                return {
+                error_info = {
                     'success': False,
                     'file': file_path,
                     'error': f'JSON parsing error: {str(e)}',
                     'error_type': 'json_decode'
                 }
+                if self.debug_mode:
+                    error_info['debug_info'] = debug_info
+                    error_info['error_trace'] = str(e)
+                return error_info
+                
             except UnicodeDecodeError as e:
-                return {
+                error_info = {
                     'success': False,
                     'file': file_path,
                     'error': f'File encoding error: {str(e)}',
                     'error_type': 'encoding'
                 }
+                if self.debug_mode:
+                    error_info['debug_info'] = debug_info
+                    error_info['error_trace'] = str(e)
+                return error_info
+                
             except FileNotFoundError:
-                return {
+                error_info = {
                     'success': False,
                     'file': file_path,
                     'error': 'File not found',
                     'error_type': 'not_found'
                 }
+                if self.debug_mode:
+                    error_info['debug_info'] = debug_info
+                return error_info
+                
             except PermissionError:
-                return {
+                error_info = {
                     'success': False,
                     'file': file_path,
                     'error': 'Permission denied',
                     'error_type': 'permission'
                 }
+                if self.debug_mode:
+                    error_info['debug_info'] = debug_info
+                return error_info
                 
             # Extract person and year
             extracted_person = person or data.get('person')
             extracted_year = year or data.get('year')
             
+            if self.debug_mode:
+                debug_info.append(f"Extracted person: {extracted_person}, year: {extracted_year}")
+            
+            # Attempt to extract from structure like <person>/<year>/result.json
             if not extracted_person or not extracted_year:
-                # Attempt to extract from structure like <person>/<year>/result.json
                 try:
                     parts = os.path.normpath(file_path).split(os.sep)
                     if len(parts) >= 3:
@@ -89,9 +122,17 @@ class DataPipeline:
                         potential_year = parts[-2]  # Second last component
                         potential_person = parts[-3]  # Third last component
                         
+                        if self.debug_mode:
+                            debug_info.append(f"Attempting to extract from path - potential year: {potential_year}, person: {potential_person}")
+                        
                         extracted_year = extracted_year or potential_year
                         extracted_person = extracted_person or potential_person
-                except Exception:
+                        
+                        if self.debug_mode:
+                            debug_info.append(f"After path extraction - year: {extracted_year}, person: {extracted_person}")
+                except Exception as e:
+                    if self.debug_mode:
+                        debug_info.append(f"Path extraction error: {str(e)}")
                     # If this fails, continue with the original values
                     pass
                 
@@ -103,35 +144,52 @@ class DataPipeline:
                     if not extracted_year:
                         missing.append("year")
                         
-                    return {
+                    error_info = {
                         'success': False,
                         'file': file_path,
                         'error': f'Missing required fields: {", ".join(missing)}',
                         'error_type': 'missing_fields',
                         'data_keys': list(data.keys()) if isinstance(data, dict) else []
                     }
+                    if self.debug_mode:
+                        error_info['debug_info'] = debug_info
+                    return error_info
                 
             # Create directory if it doesn't exist
             target_dir = os.path.join(self.base_path, extracted_year, extracted_person)
+            if self.debug_mode:
+                debug_info.append(f"Target directory: {target_dir}")
+                
             os.makedirs(target_dir, exist_ok=True)
             
             # Determine target filename
             filename = os.path.basename(file_path)
             target_path = os.path.join(target_dir, filename)
             
+            if self.debug_mode:
+                debug_info.append(f"Target filename: {filename}")
+                debug_info.append(f"Full target path: {target_path}")
+                debug_info.append(f"Checking if target exists: {os.path.exists(target_path)}")
+            
             # Check if file already exists
             if os.path.exists(target_path) and not overwrite:
-                return {
+                error_info = {
                     'success': False,
                     'file': file_path,
                     'error': 'File already exists and overwrite is disabled',
                     'error_type': 'exists'
                 }
+                if self.debug_mode:
+                    error_info['debug_info'] = debug_info
+                return error_info
                 
             # Copy file
+            if self.debug_mode:
+                debug_info.append(f"Copying file from {file_path} to {target_path}")
+                
             shutil.copy2(file_path, target_path)
             
-            return {
+            result = {
                 'success': True,
                 'file': file_path,
                 'target': target_path,
@@ -139,16 +197,26 @@ class DataPipeline:
                 'year': extracted_year
             }
             
+            if self.debug_mode:
+                result['debug_info'] = debug_info
+                
+            return result
+            
         except Exception as e:
-            return {
+            error_info = {
                 'success': False,
                 'file': file_path,
                 'error': f'Unexpected error: {str(e)}',
                 'error_type': 'unexpected'
             }
+            if self.debug_mode:
+                error_info['debug_info'] = debug_info
+                error_info['error_trace'] = str(e)
+            return error_info
             
     def ingest_directory(self, directory: str, pattern: str = "*.json", 
-                        overwrite: bool = False, parallel: bool = True) -> Dict[str, Any]:
+                        overwrite: bool = False, parallel: bool = True,
+                        debug: bool = False) -> Dict[str, Any]:
         """Ingest all files in a directory.
         
         Args:
@@ -156,21 +224,43 @@ class DataPipeline:
             pattern: File pattern to match
             overwrite: Whether to overwrite existing data
             parallel: Whether to process files in parallel
+            debug: Enable debug mode for this operation
             
         Returns:
             Dictionary with counts of successes and failures, and detailed errors
         """
+        # Set debug mode for this operation
+        original_debug_mode = self.debug_mode
+        if debug:
+            self.debug_mode = True
+            
+        debug_info = []
+        if self.debug_mode:
+            debug_info.append(f"Searching for files in {directory} with pattern {pattern}")
+        
         # Find all matching files
         files = glob.glob(os.path.join(directory, pattern))
         
+        if self.debug_mode:
+            debug_info.append(f"Found {len(files)} matching files")
+            
         results = []
         for file_path in files:
+            if self.debug_mode:
+                debug_info.append(f"Processing {file_path}")
+                
             result = self.ingest_file(file_path, overwrite=overwrite)
             results.append(result)
+            
+            if self.debug_mode and 'debug_info' in result:
+                debug_info.extend([f"  {info}" for info in result.get('debug_info', [])])
             
         # Count successes and failures
         success_count = sum(1 for r in results if r.get('success', False))
         failed_count = len(results) - success_count
+        
+        if self.debug_mode:
+            debug_info.append(f"Processing complete: {success_count} succeeded, {failed_count} failed")
         
         # Collect error details
         error_details = []
@@ -178,15 +268,24 @@ class DataPipeline:
             if not result.get('success', False):
                 error_details.append({
                     'file': result.get('file', 'Unknown file'),
-                    'error': result.get('error', 'Unknown error')
+                    'error': result.get('error', 'Unknown error'),
+                    'error_type': result.get('error_type', 'unknown')
                 })
         
-        return {
+        # Restore original debug mode
+        self.debug_mode = original_debug_mode
+        
+        result_dict = {
             'success': success_count,
             'failed': failed_count,
             'total': len(results),
             'error_details': error_details
         }
+        
+        if debug:
+            result_dict['debug_info'] = debug_info
+            
+        return result_dict
         
     def create_backup(self, output_dir: Optional[str] = None) -> str:
         """Create a backup of the current database.

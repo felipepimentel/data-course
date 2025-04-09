@@ -90,16 +90,16 @@ people = analyzer.get_all_people()
 
 ### Using ChatGPT to Adapt Your Data Structure
 
-If you have a custom data structure and need help adapting it, you can use ChatGPT to generate transformation scripts. Here's a prompt template:
+If you have a custom data structure and need help adapting it, you can use ChatGPT to generate transformation functions that override the existing ones in the project. Here's a prompt template:
 
 ```
-I need to transform my evaluation data structure to work with the People Analytics tool.
+I need to modify the People Analytics tool to work with my custom data structure.
 
-Current structure:
+Current structure in my files:
 [DESCRIBE YOUR CURRENT FOLDER/FILE STRUCTURE]
-Example: My files are organized as <person_name>/<year>/resultado.json
+Example: My files are organized as <department>/<person_name>/<year>/resultado.json
 
-Target structure:
+Target structure needed by the tool:
 <year>/<person_name>/result.json
 
 Here's an example of my JSON data:
@@ -107,6 +107,7 @@ Here's an example of my JSON data:
 {
   "person": "João Silva",
   "year": "2022",
+  "department": "Engineering",
   "conceito_ciclo_filho_descricao": "Supera Expectativas",
   "comportamentos": [
     {
@@ -121,19 +122,25 @@ Here's an example of my JSON data:
 }
 ```
 
+I need you to create a custom function that will override the existing ingest_file method in the DataPipeline class. The function should:
+
+1. Extract the person, year, and any other metadata from both the filepath and JSON content
+2. Handle my specific folder structure correctly
+3. Transform the data to the expected format while preserving all original information
+
 Please provide:
-1. A Python script to transform my data structure
-2. Bash commands to reorganize my files
-3. Instructions on how to use the structure_adapter.py tool if applicable
+1. A complete implementation of a custom ingest_file method that I can use to replace the existing one
+2. Instructions on how to properly override this method in the codebase
+3. Example usage showing how to call this modified method
 ```
 
-Tips for using ChatGPT for data transformation:
-1. **Be specific** about your current structure and provide real examples
-2. **Share a sample JSON file** (with sensitive data anonymized)
-3. **Mention any special requirements** (e.g., keep original files, handle missing fields)
-4. **Ask for explanations** of the transformation logic, not just code
+Tips for using ChatGPT for function overriding:
+1. **Be specific** about the function you want to override (method name, class, file)
+2. **Share the exact folder structure** you're using
+3. **Consider edge cases** like missing fields or unusual filenames
+4. **Ask for docstrings and comments** to understand how the custom function works
 
-ChatGPT can generate custom Python scripts, explain the transformation process, and even help debug issues during the transformation.
+You can use the generated function to override methods in `data_pipeline.py` or create a custom subclass.
 
 ## Usage
 
@@ -167,11 +174,14 @@ peopleanalytics list stats
 # Import data from a directory with specific structure
 peopleanalytics pipeline import --directory /path/to/data --pattern "*.json" --overwrite
 
+# Import data with debug mode for detailed processing information
+peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/result.json" --debug
+
 # Import data preserving original structure (for structures like <person>/<year>/result.json)
 peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/result.json" --overwrite
 
 # Create a backup of the database
-peopleanalytics pipeline backup --output-dir /path/to/backup/dir
+peopleanalytics pipeline backup --output-directory /path/to/backup/dir
 
 # Export all raw data to a single file
 peopleanalytics pipeline export --output /path/to/output.json

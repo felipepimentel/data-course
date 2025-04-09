@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
       DATA_PATH="$2"
       shift 2
       ;;
-    --output-dir)
+    --output-directory)
       OUTPUT_DIR="$2"
       shift 2
       ;;
@@ -41,7 +41,7 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: visualize.sh [options]"
       echo "Options:"
       echo "  --data-path PATH   Path to evaluation data (default: ./test_data)"
-      echo "  --output-dir DIR   Directory to save output (default: ./output)"
+      echo "  --output-directory DIR   Directory to save output (default: ./output)"
       echo "  --year YEAR        Year to visualize"
       echo "  --person PERSON    Person to visualize (for radar charts)"
       echo "  --type TYPE        Type of visualization (radar, heatmap, interactive)"

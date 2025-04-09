@@ -283,9 +283,10 @@ class CLI:
         pipeline_parser.add_argument("--overwrite", action="store_true", help="Overwrite existing data")
         pipeline_parser.add_argument("--sequential", action="store_true", help="Run operations sequentially")
         pipeline_parser.add_argument("--output", help="Output file path for exports")
-        pipeline_parser.add_argument("--output-dir", help="Output directory for backup")
+        pipeline_parser.add_argument("--output-directory", help="Output directory for backup")
         pipeline_parser.add_argument("--verbose", action="store_true", help="Show verbose output including all errors")
         pipeline_parser.add_argument("--error-report", help="Save detailed error report to specified file")
+        pipeline_parser.add_argument("--debug", action="store_true", help="Run in debug mode with detailed processing information")
         
         # Parse arguments
         parsed_args = parser.parse_args(args)
@@ -869,10 +870,21 @@ class CLI:
             pipeline = self.pipeline
             
             if args.operation == "import":
+                # Enable debug mode if requested
+                if hasattr(args, "debug") and args.debug:
+                    self.console.print("[yellow]Debug mode enabled - showing detailed processing information[/yellow]")
+                    # Set debug flag for detailed logging
+                    pipeline.debug_mode = True
+                
                 # Import data from files
                 if args.file:
                     # Single file import
                     self.console.print(f"[bold]Importing file {args.file}...[/bold]")
+                    
+                    if hasattr(args, "debug") and args.debug:
+                        self.console.print(f"[dim]DEBUG: Processing file {args.file}[/dim]")
+                        self.console.print(f"[dim]DEBUG: Extracting metadata...[/dim]")
+                    
                     success = pipeline.ingest_file(
                         args.file,
                         args.year if hasattr(args, "year") else None,
@@ -882,21 +894,46 @@ class CLI:
                     
                     if success and success.get('success', False):
                         self.console.print(f"[green]Successfully imported file: {args.file}[/green]")
+                        
+                        if hasattr(args, "debug") and args.debug:
+                            # Show detailed import information in debug mode
+                            self.console.print("[dim]DEBUG: Import details:[/dim]")
+                            for key, value in success.items():
+                                if key not in ['success', 'file']:
+                                    self.console.print(f"[dim]DEBUG:   {key}: {value}[/dim]")
                     else:
                         error = success.get('error', 'Unknown error')
                         self.console.print(f"[red]Failed to import file: {args.file} - {error}[/red]")
                         
+                        if hasattr(args, "debug") and args.debug and 'error_trace' in success:
+                            self.console.print(f"[dim]DEBUG: Error trace: {success['error_trace']}[/dim]")
+                        
                 elif args.directory:
                     # Directory import
                     self.console.print(f"[bold]Importing files from {args.directory}...[/bold]")
+                    
+                    if hasattr(args, "debug") and args.debug:
+                        self.console.print(f"[dim]DEBUG: Searching for files matching pattern: {args.pattern or '*.json'}[/dim]")
+                        self.console.print(f"[dim]DEBUG: Parallel processing: {not args.sequential}[/dim]")
+                    
                     results = pipeline.ingest_directory(
                         args.directory,
                         pattern=args.pattern or "*.json",
                         overwrite=args.overwrite,
-                        parallel=not args.sequential
+                        parallel=not args.sequential,
+                        debug=hasattr(args, "debug") and args.debug
                     )
                     
                     self.console.print(f"[green]Import completed: {results['success']} succeeded, {results['failed']} failed[/green]")
+                    
+                    # Display debug summary if in debug mode
+                    if hasattr(args, "debug") and args.debug and 'debug_info' in results:
+                        self.console.print("[dim]DEBUG: Processing summary:[/dim]")
+                        for info in results['debug_info'][:10]:  # Show first 10 debug entries
+                            self.console.print(f"[dim]DEBUG: {info}[/dim]")
+                        
+                        if len(results.get('debug_info', [])) > 10:
+                            self.console.print(f"[dim]DEBUG: ... and {len(results['debug_info']) - 10} more processing entries[/dim]")
                     
                     # Display detailed error information if there were failures
                     if results['failed'] > 0 and 'error_details' in results:
@@ -995,7 +1032,7 @@ class CLI:
             elif args.operation == "backup":
                 # Create backup
                 self.console.print("[bold]Creating backup...[/bold]")
-                backup_path = pipeline.create_backup(args.output_dir)
+                backup_path = pipeline.create_backup(args.output_directory)
                 self.console.print(f"[green]Backup created at: {backup_path}[/green]")
                 
             elif args.operation == "export":
