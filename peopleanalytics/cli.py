@@ -264,6 +264,11 @@ class CLI:
         viz_parser.add_argument("--output", required=True, help="Output file path")
         viz_parser.add_argument("--title", default="Evaluation Visualization", help="Chart title")
         
+        # Add easier arguments for person and year
+        viz_parser.add_argument("--person", help="Person to visualize (for radar charts)")
+        viz_parser.add_argument("--year", help="Year to visualize")
+        viz_parser.add_argument("--people", nargs="+", help="People to include in visualization")
+        
         # Pipeline command
         pipeline_parser = subparsers.add_parser("pipeline", help="Handle data pipeline operations")
         pipeline_parser.add_argument(
@@ -680,8 +685,179 @@ class CLI:
     
     def handle_visualization(self, args):
         """Handle the visualization command"""
-        # Placeholder for visualization implementation
-        self.console.print("[yellow]Visualization feature not yet implemented[/yellow]")
+        try:
+            self.console.print(f"[bold]Generating {args.type} visualization...[/bold]")
+            
+            # Load data if data file provided
+            data = None
+            if args.data_file:
+                with open(args.data_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                self.console.print(f"[green]Loaded data from {args.data_file}[/green]")
+            else:
+                # If no data file, try to use analyzer to get data for the person or year
+                if args.person and args.year and args.type == "radar":
+                    # Get behavior scores for radar chart
+                    behavior_scores = self.analyzer.get_behavior_scores(args.person, args.year)
+                    if behavior_scores:
+                        # Prepare radar chart data
+                        categories = []
+                        person_scores = []
+                        group_scores = []
+                        
+                        for dir_name, behaviors in behavior_scores.items():
+                            dir_scores_person = []
+                            dir_scores_group = []
+                            
+                            for comp_name, details in behaviors.items():
+                                for avaliador, scores in details.get("scores", {}).items():
+                                    if avaliador == "%todos":  # Use the overall evaluation
+                                        dir_scores_person.append(scores.get("score_colaborador", 0))
+                                        dir_scores_group.append(scores.get("score_grupo", 0))
+                            
+                            if dir_scores_person and dir_scores_group:
+                                categories.append(dir_name.split(".")[0])
+                                person_scores.append(sum(dir_scores_person) / len(dir_scores_person))
+                                group_scores.append(sum(dir_scores_group) / len(dir_scores_group))
+                        
+                        # Create radar chart data
+                        data = {
+                            "categories": categories,
+                            "series": {
+                                args.person: person_scores,
+                                "Grupo": group_scores
+                            }
+                        }
+                elif args.type == "heatmap" and args.year:
+                    # Get all people for year
+                    people = list(self.analyzer.get_people_for_year(args.year))
+                    if not people:
+                        self.console.print("[red]No people found for this year[/red]")
+                        return
+                        
+                    # Limit to specified people if provided
+                    if args.people:
+                        people = [p for p in people if p in args.people]
+                    
+                    # Get criteria for selected year
+                    criteria = self.analyzer.get_criteria_for_year(args.year)
+                    
+                    if criteria:
+                        all_criteria = []
+                        for dir_behaviors in criteria.values():
+                            all_criteria.extend(dir_behaviors)
+                        all_criteria = list(set(all_criteria))
+                        
+                        # Collect scores for each person and criterion
+                        heatmap_data = []
+                        for person in people:
+                            for criterion in all_criteria:
+                                score = self.analyzer.get_score_for_criterion(person, args.year, criterion)
+                                if score is not None:
+                                    heatmap_data.append({
+                                        "Person": person,
+                                        "Criterion": criterion,
+                                        "Score": score
+                                    })
+                        
+                        if heatmap_data:
+                            import pandas as pd
+                            data = pd.DataFrame(heatmap_data)
+                elif args.type == "interactive" and args.year:
+                    # Get all people for year
+                    people = list(self.analyzer.get_people_for_year(args.year))
+                    if not people:
+                        self.console.print("[red]No people found for this year[/red]")
+                        return
+                    
+                    # Limit to specified people if provided
+                    if args.people:
+                        people = [p for p in people if p in args.people]
+                        
+                    # Collect data for all people
+                    comparison_data = []
+                    for person in people:
+                        avg_score = self.analyzer.get_average_score(person, args.year)
+                        if avg_score is not None:
+                            comparison_data.append({
+                                "Person": person,
+                                "Score": avg_score
+                            })
+                    
+                    if comparison_data:
+                        import pandas as pd
+                        comparison_df = pd.DataFrame(comparison_data)
+                        comparison_df = comparison_df.sort_values(by="Score", ascending=False)
+                        
+                        data = {
+                            "title": f"Team Performance Comparison ({args.year})",
+                            "summary": {
+                                "Year": args.year,
+                                "People Count": len(comparison_data),
+                                "Average Team Score": round(comparison_df["Score"].mean(), 2)
+                            },
+                            "chartType": "bar",
+                            "labels": comparison_df["Person"].tolist(),
+                            "datasets": [{
+                                "label": "Performance Score",
+                                "data": comparison_df["Score"].tolist(),
+                                "backgroundColor": "#4a6fa5"
+                            }],
+                            "tableData": [
+                                {
+                                    "Name": row["Person"],
+                                    "Score": round(row["Score"], 2),
+                                    "Rank": i+1
+                                }
+                                for i, row in enumerate(comparison_df.to_dict("records"))
+                            ]
+                        }
+                
+            # Generate visualization based on type
+            if not data:
+                self.console.print("[red]Error: No data available for visualization[/red]")
+                return
+                
+            if args.type == "radar":
+                self.visualization.generate_radar_chart(
+                    data=data,
+                    title=args.title,
+                    output_path=args.output
+                )
+                self.console.print(f"[green]Radar chart saved to {args.output}[/green]")
+                
+            elif args.type == "heatmap":
+                # Check if data is DataFrame
+                if not isinstance(data, pd.DataFrame):
+                    self.console.print("[red]Error: Invalid data format for heatmap[/red]")
+                    return
+                    
+                # Check if required columns are present
+                columns = data.columns
+                if len(columns) < 3:
+                    self.console.print("[red]Error: Heatmap requires at least 3 columns (x, y, value)[/red]")
+                    return
+                    
+                x_col, y_col, val_col = columns[:3]
+                self.visualization.generate_heatmap(
+                    data=data,
+                    x_col=x_col, 
+                    y_col=y_col, 
+                    value_col=val_col,
+                    title=args.title,
+                    output_path=args.output
+                )
+                self.console.print(f"[green]Heatmap saved to {args.output}[/green]")
+                
+            elif args.type == "interactive":
+                self.visualization.generate_interactive_html(
+                    data=data,
+                    output_path=args.output
+                )
+                self.console.print(f"[green]Interactive HTML report saved to {args.output}[/green]")
+                
+        except Exception as e:
+            self.console.print(f"[red]Error generating visualization: {str(e)}[/red]")
     
     def handle_pipeline(self, args):
         """Handle the pipeline command"""

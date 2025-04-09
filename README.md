@@ -31,35 +31,76 @@ pip install peopleanalytics
 
 ### Command Line Interface
 
+#### Global Options
+
 ```bash
-# Import evaluation data
-peopleanalytics import path/to/data
+peopleanalytics [--base-path PATH] [--color-scheme {default,corporate,monochrome}] [--no-cache] [--parallel] [--workers N] COMMAND
+```
 
-# List available data
-peopleanalytics list people
+#### List Commands
+
+```bash
+# List all people in the database
+peopleanalytics list people [--years YEAR [YEAR ...]]
+
+# List all available years
 peopleanalytics list years
+
+# List all evaluation criteria
+peopleanalytics list criteria [--year YEAR]
+
+# Show database statistics
 peopleanalytics list stats
+```
 
-# Analyze data for a specific person
-peopleanalytics analyze --person "John Doe" --year 2023
+#### Comparison Commands
 
+```bash
+# Compare evaluations for a specific year
+peopleanalytics compare YEAR [--filter PERSON [PERSON ...]] [--output PATH] [--format {csv,png,all}]
+
+# Generate historical report for a person
+peopleanalytics historical PERSON [--years YEAR [YEAR ...]] [--output PATH] [--format {csv,png,all}]
+```
+
+#### Data Management Commands
+
+```bash
+# Validate evaluation data
+peopleanalytics validate [--output PATH] [--fix] [--verbose] [--html]
+
+# Export evaluation data
+peopleanalytics export {excel,csv,json} [--output PATH] [--years YEAR [YEAR ...]] [--people PERSON [PERSON ...]]
+
+# Data pipeline operations
+peopleanalytics pipeline {import,backup,export,fix} [--file FILE] [--directory DIR] [--pattern PATTERN] [--overwrite] [--sequential] [--output PATH] [--output-dir DIR]
+```
+
+#### Advanced Filtering
+
+```bash
+# Advanced filtering options
+peopleanalytics filter [--name-regex PATTERN] [--behavior-regex PATTERN] [--min-score SCORE] [--max-score SCORE] [--concepts CONCEPT [CONCEPT ...]] [--years YEAR [YEAR ...]] [--output PATH] [--format {csv,excel,json,html}]
+```
+
+#### Team Analysis
+
+```bash
+# List all teams and managers
+peopleanalytics teams --team-file FILE list
+
+# Generate manager report
+peopleanalytics teams --team-file FILE manager MANAGER YEAR [--output PATH]
+
+# Compare team performance
+peopleanalytics teams --team-file FILE compare TEAM YEAR [--output PATH]
+```
+
+#### Visualization Commands
+
+```bash
 # Generate visualizations
-peopleanalytics visualize --person "John Doe" --year 2023 --type radar
-peopleanalytics visualize --person "John Doe" --year 2023 --type heatmap
-
-# Export data
-peopleanalytics export --person "John Doe" --year 2023 --format excel
-peopleanalytics export --person "John Doe" --year 2023 --format html
-
-# Generate team reports
-peopleanalytics team report --team "Engineering" --year 2023
-peopleanalytics team compare --teams "Engineering,Marketing" --year 2023
-
-# Backup data
-peopleanalytics backup
-
-# Validate data
-peopleanalytics validate --output validation_report.json
+peopleanalytics visualize --type {radar,heatmap,interactive} --output PATH [--data-file FILE] [--title TITLE] [--person PERSON] [--year YEAR] [--people PERSON [PERSON ...]]
 ```
 
 ### Python API
