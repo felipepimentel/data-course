@@ -12,6 +12,9 @@ from openpyxl.formatting.rule import CellIsRule, ColorScaleRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+# Importar constantes
+from constants import CONCEPT_COLORS, FREQUENCY_LABELS, FREQUENCY_WEIGHTS
+
 try:
     from pptx import Presentation
     from pptx.dml.color import RGBColor
@@ -31,24 +34,11 @@ class ComparativeSpreadsheetGenerator:
     def __init__(self, base_path: str):
         self.base_path = Path(base_path)
         self.evaluations_by_person = defaultdict(dict)
-        # Define the frequency labels
-        self.frequency_labels = [
-            "n/a",
-            "observo nunca",
-            "observo raramente",
-            "observo na maior parte das vezes",
-            "observo sempre",
-            "referencia",
-        ]
-        # Define weights for each category
-        self.frequency_weights = [0, 1, 2, 3, 4, 5]
-        # Color mapping for performance concepts
-        self.concept_colors = {
-            "acima do grupo": "#92D050",  # Green
-            "conforme esperado": "#FFC000",  # Yellow
-            "abaixo do grupo": "#FF0000",  # Red
-            "n/a": "#CCCCCC",  # Gray
-        }
+        # Usar constantes importadas
+        self.frequency_labels = FREQUENCY_LABELS
+        self.frequency_weights = FREQUENCY_WEIGHTS
+        # Cores para os conceitos
+        self.concept_colors = CONCEPT_COLORS
         self.load_all_evaluations()
         # Track the criteria for each year
         self.year_criteria = self._extract_year_criteria()

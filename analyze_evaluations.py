@@ -6,22 +6,17 @@ from typing import Any, Dict, List, Set
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# Importar as constantes
+from constants import FREQUENCY_LABELS, FREQUENCY_WEIGHTS
+
 
 class EvaluationAnalyzer:
     def __init__(self, base_path: str):
         self.base_path = Path(base_path)
         self.evaluations_by_person = defaultdict(dict)
-        # Define the frequency labels
-        self.frequency_labels = [
-            "n/a",
-            "observo nunca",
-            "observo raramente",
-            "observo na maior parte das vezes",
-            "observo sempre",
-            "referencia",
-        ]
-        # Define weights for each category (can be adjusted)
-        self.frequency_weights = [0, 1, 2, 3, 4, 5]
+        # Usar constantes importadas
+        self.frequency_labels = FREQUENCY_LABELS
+        self.frequency_weights = FREQUENCY_WEIGHTS
         self.load_all_evaluations()
         # Track the criteria for each year
         self.year_criteria = self._extract_year_criteria()

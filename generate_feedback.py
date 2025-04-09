@@ -7,8 +7,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Import the analyzer class
+# Import the analyzer class and constants
 from analyze_evaluations import EvaluationAnalyzer
+from constants import ACTION_PLAN_TEMPLATE, BEHAVIOR_RECOMMENDATIONS, CAREER_INSIGHTS
 
 
 class FeedbackGenerator:
@@ -446,7 +447,7 @@ timeline
         return section
 
     def generate_strengths_improvements(self):
-        """Generate strengths and areas for improvement"""
+        """Generate strengths and improvement opportunities section"""
         years = self.data["Years"]
         if not years:
             return ""
@@ -454,18 +455,21 @@ timeline
         latest_year = max(years)
         behavior_scores = self.analyzer.get_behavior_scores(self.person, latest_year)
 
-        # Track best and worst behaviors
-        all_behaviors = []
+        if not behavior_scores:
+            return ""
+
+        # Calculate average score for each behavior
+        behavior_data = []
 
         for dir_name, behaviors in behavior_scores.items():
             for comp_name, details in behaviors.items():
                 for avaliador, scores in details["scores"].items():
-                    if avaliador == "%todos":
+                    if avaliador == "%todos":  # Use the overall evaluation
                         person_score = scores["score_colaborador"]
                         group_score = scores["score_grupo"]
                         diff = person_score - group_score
 
-                        all_behaviors.append({
+                        behavior_data.append({
                             "direcionador": dir_name,
                             "comportamento": comp_name,
                             "score": person_score,
@@ -473,61 +477,33 @@ timeline
                             "diff": diff,
                         })
 
-        # Sort by diff for strengths and areas for improvement
-        all_behaviors.sort(key=lambda x: x["diff"], reverse=True)
+        # Sort by difference (high to low) for strengths
+        strengths = sorted(behavior_data, key=lambda x: x["diff"], reverse=True)[:3]
 
-        strengths = all_behaviors[:3]  # Top 3 behaviors
-        improvements = all_behaviors[-3:]  # Bottom 3 behaviors
-        improvements.reverse()  # Show worst first
+        # Sort by difference (low to high) for improvements
+        improvements = sorted(behavior_data, key=lambda x: x["diff"])[:3]
 
-        section = """## Pontos Fortes e Oportunidades de Desenvolvimento
+        section = "## Pontos Fortes e Oportunidades de Desenvolvimento\n\n"
 
-### Principais Pontos Fortes
-"""
-
+        # Add strengths
+        section += "### Principais Pontos Fortes\n"
         for strength in strengths:
             section += (
                 f"- **{strength['comportamento']}** ({strength['direcionador']})\n"
             )
             section += f"  - Pontuação: {strength['score']:.2f} (média do grupo: {strength['group_score']:.2f}, diferença: {strength['diff']:+.2f})\n"
 
+        # Add improvement opportunities
         section += "\n### Principais Oportunidades de Desenvolvimento\n"
-
         for improvement in improvements:
             section += f"- **{improvement['comportamento']}** ({improvement['direcionador']})\n"
             section += f"  - Pontuação: {improvement['score']:.2f} (média do grupo: {improvement['group_score']:.2f}, diferença: {improvement['diff']:+.2f})\n"
 
             # Add specific recommendations based on the behavior
-            if "obstinação por encantar" in improvement["comportamento"].lower():
-                section += "  - **Recomendação**: Foque em entender as necessidades específicas de cada cliente. Pratique escuta ativa e busque feedback direto sobre suas interações.\n"
-            elif (
-                "soluções simples" in improvement["comportamento"].lower()
-                or "experiências diferenciadas" in improvement["comportamento"].lower()
-            ):
-                section += "  - **Recomendação**: Participe de projetos de inovação em CX. Estude casos de sucesso de outras empresas e sugira implementações adaptadas ao contexto do banco.\n"
-            elif "lugar do cliente" in improvement["comportamento"].lower():
-                section += '  - **Recomendação**: Pratique empatia em suas interações. Desenvolva o hábito de questionar "Como o cliente se sente neste processo?" antes de sugerir soluções.\n'
-            elif "resultados sustentáveis" in improvement["comportamento"].lower():
-                section += "  - **Recomendação**: Desenvolva métricas de longo prazo para seus projetos. Avalie não apenas o impacto imediato, mas também a sustentabilidade das soluções propostas.\n"
-            elif "mentalidade de dono" in improvement["comportamento"].lower():
-                section += "  - **Recomendação**: Assuma mais responsabilidade em projetos. Busque compreender o impacto financeiro e estratégico de suas decisões no negócio como um todo.\n"
-            elif "eficiente e ágil" in improvement["comportamento"].lower():
-                section += "  - **Recomendação**: Aprimore sua gestão de tempo e priorização. Considere metodologias ágeis e ferramentas de produtividade para otimizar entregas.\n"
-            elif "inspira pelo exemplo" in improvement["comportamento"].lower():
-                section += "  - **Recomendação**: Busque mentoria com líderes inspiradores da organização. Desenvolva um plano pessoal para modelar os comportamentos desejados.\n"
-            elif "desenvolve talentos" in improvement["comportamento"].lower():
-                section += "  - **Recomendação**: Ofereça-se para mentoria de colegas mais novos. Dedique tempo para feedback construtivo e reconhecimento das conquistas de sua equipe.\n"
-            elif "decisões com coragem" in improvement["comportamento"].lower():
-                section += "  - **Recomendação**: Pratique análise de cenários para ganhar confiança na tomada de decisões. Desenvolva um framework pessoal para avaliar riscos e oportunidades.\n"
-            elif (
-                "inovação" in improvement["comportamento"].lower()
-                or "soluções disruptivas" in improvement["comportamento"].lower()
-            ):
-                section += "  - **Recomendação**: Participe de comunidades de inovação e eventos do setor. Reserve tempo para experimentação e proposição de novas ideias.\n"
-            elif "aprende e se adapta" in improvement["comportamento"].lower():
-                section += "  - **Recomendação**: Estabeleça uma rotina de aprendizagem contínua. Busque feedback após projetos e implemente mudanças baseadas nas lições aprendidas.\n"
-            else:
-                section += "  - **Recomendação**: Busque feedback específico sobre este comportamento e desenvolva um plano de ação com metas claras e mensuráveis.\n"
+            comportamento_key = improvement["comportamento"]
+            if comportamento_key in BEHAVIOR_RECOMMENDATIONS:
+                recommendations = BEHAVIOR_RECOMMENDATIONS[comportamento_key]
+                section += f"  - **Recomendação**: {recommendations[0]}\n"
 
         section += "\n![Evolução por Categoria](data:image/png;base64,{})".format(
             self.images["category_chart"]
@@ -535,30 +511,7 @@ timeline
 
         # Add an action plan section
         section += "\n\n## Plano de Ação Sugerido\n\n"
-        section += "Com base nas oportunidades de desenvolvimento identificadas, recomenda-se:\n\n"
-        section += "1. **Curto prazo (próximos 3 meses):**\n"
-
-        # Generate short-term recommendations based on worst behavior
-        if improvements and len(improvements) > 0:
-            worst_behavior = improvements[0]
-            section += f"   - Foco em melhorar '{worst_behavior['comportamento']}'\n"
-            section += "   - Estabelecer metas específicas e mensuráveis para este comportamento\n"
-            section += "   - Buscar feedback frequente de gestores e pares\n\n"
-
-        section += "2. **Médio prazo (3-6 meses):**\n"
-        # Add medium-term recommendations
-        if len(improvements) > 1:
-            second_worst = improvements[1]
-            section += f"   - Desenvolver '{second_worst['comportamento']}'\n"
-            section += "   - Participar de treinamentos ou workshops relacionados\n"
-            section += (
-                "   - Buscar projetos que permitam a prática deste comportamento\n\n"
-            )
-
-        section += "3. **Longo prazo (6-12 meses):**\n"
-        section += "   - Revisitar todas as áreas de desenvolvimento\n"
-        section += "   - Focar no equilíbrio entre os diferentes direcionadores\n"
-        section += "   - Considerar mentoria para acelerar o desenvolvimento\n"
+        section += ACTION_PLAN_TEMPLATE
 
         return section
 
@@ -638,26 +591,18 @@ Em relação ao grupo, {self.person} se destaca nas seguintes categorias:
             )
 
         # Add a new section for career insights
-        avg_score = person_row["Average Score"]
         section += "\n### Insights para Carreira\n\n"
 
+        # Use career insights from constants
         if percentile >= 75:
-            section += "O desempenho destacado sugere potencial para:\n"
-            section += "- Assumir projetos de maior visibilidade e impacto\n"
-            section += "- Mentoria para colegas em desenvolvimento\n"
-            section += "- Consideração para oportunidades de liderança\n"
+            for insight in CAREER_INSIGHTS["high"]:
+                section += insight + "\n"
         elif percentile >= 50:
-            section += "O desempenho sólido sugere foco em:\n"
-            section += "- Identificar áreas específicas para se destacar ainda mais\n"
-            section += "- Buscar projetos desafiadores para demonstrar potencial\n"
-            section += "- Desenvolver habilidades de liderança situacional\n"
+            for insight in CAREER_INSIGHTS["medium"]:
+                section += insight + "\n"
         else:
-            section += "Para melhorar o posicionamento no grupo, recomenda-se:\n"
-            section += "- Solicitar feedback específico e acionável\n"
-            section += (
-                "- Desenvolver um plano estruturado para as principais oportunidades\n"
-            )
-            section += "- Buscar mentoria com profissionais de alto desempenho\n"
+            for insight in CAREER_INSIGHTS["low"]:
+                section += insight + "\n"
 
         return section
 
