@@ -155,19 +155,18 @@ class DataPipeline:
                         error_info['debug_info'] = debug_info
                     return error_info
                 
-            # Create directory if it doesn't exist
-            target_dir = os.path.join(self.base_path, extracted_year, extracted_person)
+            # Create directory if it doesn't exist - use <person>/<year>/resultado.json pattern
+            target_dir = os.path.join(self.base_path, extracted_person, extracted_year)
             if self.debug_mode:
                 debug_info.append(f"Target directory: {target_dir}")
                 
             os.makedirs(target_dir, exist_ok=True)
             
-            # Determine target filename
-            filename = os.path.basename(file_path)
-            target_path = os.path.join(target_dir, filename)
+            # Determine target filename - use resultado.json as standard
+            target_path = os.path.join(target_dir, "resultado.json")
             
             if self.debug_mode:
-                debug_info.append(f"Target filename: {filename}")
+                debug_info.append(f"Target filename: resultado.json")
                 debug_info.append(f"Full target path: {target_path}")
                 debug_info.append(f"Checking if target exists: {os.path.exists(target_path)}")
             

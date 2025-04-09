@@ -32,14 +32,14 @@ pip install peopleanalytics
 By default, the tool expects data to be organized in the following directory structure:
 
 ```
-<base_path>/<year>/<person_name>/result.json
+<base_path>/<person_name>/<year>/resultado.json
 ```
 
 Where:
 - `<base_path>` is the database root directory (defaults to `~/.peopleanalytics`)
-- `<year>` is the evaluation year folder
 - `<person_name>` is the evaluated person's name folder
-- `result.json` contains the actual evaluation data
+- `<year>` is the evaluation year folder
+- `resultado.json` contains the actual evaluation data
 
 ### Importing Existing Data
 
@@ -175,10 +175,10 @@ peopleanalytics list stats
 peopleanalytics pipeline import --directory /path/to/data --pattern "*.json" --overwrite
 
 # Import data with debug mode for detailed processing information
-peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/result.json" --debug
+peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/resultado.json" --debug
 
-# Import data preserving original structure (for structures like <person>/<year>/result.json)
-peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/result.json" --overwrite
+# Import data from a specific directory with structured pattern
+peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/resultado.json" --overwrite
 
 # Create a backup of the database
 peopleanalytics pipeline backup --output-directory /path/to/backup/dir
@@ -243,10 +243,13 @@ peopleanalytics visualize --type {radar,heatmap,interactive} --output PATH [--da
 
 **Data not showing up**: Check that your file structure matches what the tool expects:
 ```
-<base_path>/<year>/<person_name>/result.json
+<base_path>/<person_name>/<year>/resultado.json
 ```
 
-**Inverted structure problems**: If your data is in format `<person>/<year>/result.json`, use the structure adapter or specify `--base-path`.
+**Structure format problems**: If your data doesn't match the expected format, you can develop a custom transformation function (see "Using ChatGPT to Adapt Your Data Structure" section).
+
+**Output files**: All output files (reports, charts, exports) are saved in the `output` directory by default, unless a specific path is provided.
+
 
 ### Python API
 
@@ -254,6 +257,7 @@ peopleanalytics visualize --type {radar,heatmap,interactive} --output PATH [--da
 from peopleanalytics.data_pipeline import DataPipeline
 from peopleanalytics.evaluation_analyzer import EvaluationAnalyzer
 from peopleanalytics.visualization import Visualization
+import os
 
 # Initialize components
 data_pipeline = DataPipeline("path/to/database")
@@ -270,9 +274,11 @@ results = analyzer.analyze_person("John Doe", 2023)
 comparison = analyzer.compare_with_group("John Doe", 2023)
 
 # Generate visualizations
-visualizer.generate_radar_chart(comparison, "radar_chart.png")
-visualizer.generate_heatmap(comparison, "heatmap.png")
-visualizer.generate_interactive_html(comparison, "report.html")
+output_dir = "output"
+os.makedirs(output_dir, exist_ok=True)
+visualizer.generate_radar_chart(comparison, os.path.join(output_dir, "radar_chart.png"))
+visualizer.generate_heatmap(comparison, os.path.join(output_dir, "heatmap.png"))
+visualizer.generate_interactive_html(comparison, os.path.join(output_dir, "report.html"))
 ```
 
 ## License

@@ -100,6 +100,13 @@ class CLI:
             self._available_years = None
             self._available_people = None
     
+    @property
+    def output_directory(self) -> str:
+        """Get the standard output directory, creating it if it doesn't exist."""
+        output_dir = os.path.join(os.getcwd(), "output")
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+    
     def run(self, args=None):
         """Main CLI entry point"""
         parser = argparse.ArgumentParser(
@@ -504,47 +511,49 @@ class CLI:
         """Handle the compare command"""
         try:
             year = args.year
+            people_filter = args.filter
             
-            # Check if year exists
-            if year not in self.available_years:
-                self.console.print(f"[red]Year {year} not found in the database[/red]")
-                return
-                
             # Generate comparative report
-            with Progress(
-                SpinnerColumn(),
-                *Progress.get_default_columns(),
-                transient=True
-            ) as progress:
-                task = progress.add_task(f"[green]Generating comparative report for {year}...", total=1)
-                
-                # Generate report
-                df = self.analyzer.generate_comparative_report(year)
-                progress.update(task, completed=1)
-                
-            if df is None or df.empty:
-                self.console.print(f"[yellow]No data available for year {year}[/yellow]")
+            self.console.print(f"[bold]Generating comparative report for {year}...[/bold]")
+            
+            df = self.analyzer.compare_people_for_year(year)
+            
+            if df.empty:
+                self.console.print("[yellow]No data to analyze for this year[/yellow]")
                 return
                 
-            # Display results
-            table = Table(title=f"Comparative Analysis - {year}")
+            # Apply people filter if specified
+            if people_filter:
+                df = df[df['Person'].isin(people_filter)]
+                
+                if df.empty:
+                    self.console.print("[yellow]No data after filtering[/yellow]")
+                    return
+            
+            # Display results as table
+            table = Table(title=f"Comparative Results - {year}")
             table.add_column("Person", style="cyan")
             table.add_column("Concept", style="green")
-            table.add_column("Score", style="blue")
+            table.add_column("Score", style="yellow")
             table.add_column("Group Avg", style="blue")
-            table.add_column("Diff", style="yellow")
+            table.add_column("Diff", style="magenta")
             
             for _, row in df.iterrows():
-                diff = row['Difference']
-                diff_style = "green" if diff >= 0 else "red"
+                person = row['Person']
+                concept = row['Overall Concept']
+                score = f"{row['Average Score']:.2f}"
+                group_avg = f"{row['Group Average']:.2f}"
                 
-                table.add_row(
-                    row['Person'],
-                    row['Overall Concept'],
-                    f"{row['Average Score']:.2f}",
-                    f"{row['Group Average']:.2f}",
-                    f"[{diff_style}]{diff:.2f}[/{diff_style}]"
-                )
+                diff = row['Difference']
+                diff_str = f"{diff:.2f}"
+                
+                # Color code the difference
+                if diff > 0:
+                    diff_str = f"[green]+{diff:.2f}[/green]"
+                elif diff < 0:
+                    diff_str = f"[red]{diff:.2f}[/red]"
+                
+                table.add_row(person, concept, score, group_avg, diff_str)
                 
             self.console.print(table)
             
@@ -562,6 +571,19 @@ class CLI:
                     png_path = f"{output_base}.png"
                     self.analyzer.plot_comparative_report(df, year, png_path)
                     self.console.print(f"[green]Chart saved to {png_path}[/green]")
+            else:
+                # Use default output path if none specified
+                output_format = args.format
+                
+                if output_format in ["csv", "all"]:
+                    csv_path = os.path.join(self.output_directory, f"comparative_report_{year}.csv")
+                    df.to_csv(csv_path, index=False)
+                    self.console.print(f"[green]CSV report saved to {csv_path}[/green]")
+                    
+                if output_format in ["png", "all"]:
+                    png_path = os.path.join(self.output_directory, f"comparative_report_{year}.png")
+                    self.analyzer.plot_comparative_report(df, year, png_path)
+                    self.console.print(f"[green]Chart saved to {png_path}[/green]")
                 
         except Exception as e:
             self.console.print(f"[red]Error generating comparative report: {str(e)}[/red]")
@@ -570,71 +592,85 @@ class CLI:
         """Handle the historical command"""
         try:
             person = args.person
-            years_filter = args.years
             
-            # Check if person exists
+            # Ensure person exists
             if person not in self.available_people:
                 self.console.print(f"[red]Person '{person}' not found in the database[/red]")
                 return
                 
-            # Generate historical report
-            with Progress(
-                SpinnerColumn(),
-                *Progress.get_default_columns(),
-                transient=True
-            ) as progress:
-                task = progress.add_task(f"[green]Generating historical report for {person}...", total=1)
-                
-                # Generate report
-                data = self.analyzer.person_year_over_year(person)
-                progress.update(task, completed=1)
-                
-            if not data or not data.get("years"):
-                self.console.print(f"[yellow]No data available for {person}[/yellow]")
+            # Filter by years if specified
+            years_filter = args.years
+            
+            # Get historical data
+            self.console.print(f"[bold]Generating historical report for {person}...[/bold]")
+            
+            data = self.analyzer.person_year_over_year(person)
+            
+            if not data or "years" not in data or not data["years"]:
+                self.console.print("[yellow]No historical data available for this person[/yellow]")
                 return
                 
-            # Filter by years if specified
+            # Apply year filter if specified
             if years_filter:
-                data["years"] = [y for y in data["years"] if y in years_filter]
-                if not data["years"]:
-                    self.console.print(f"[yellow]No data available for {person} in the specified years[/yellow]")
+                # Filter data to include only specified years
+                filtered_years = [year for year in data["years"] if year in years_filter]
+                
+                if not filtered_years:
+                    self.console.print("[yellow]No data available for the specified years[/yellow]")
                     return
                     
+                # Update data structure with filtered years
+                data["years"] = filtered_years
+                
+                # Filter all other year-specific data
+                for key in ["year_scores", "year_group_scores", "concepts"]:
+                    if key in data:
+                        data[key] = {year: value for year, value in data[key].items() if year in filtered_years}
+                
             # Display results
-            table = Table(title=f"Historical Analysis - {person}")
+            self.console.print(f"\n[bold]Historical Report - {person}[/bold]")
+            
+            table = Table(title=f"Year-over-Year Performance - {person}")
             table.add_column("Year", style="cyan")
             table.add_column("Concept", style="green")
-            table.add_column("Score", style="blue")
+            table.add_column("Score", style="yellow")
             table.add_column("Group Avg", style="blue")
-            table.add_column("Diff", style="yellow")
+            table.add_column("Diff", style="magenta")
             
             for year in data["years"]:
                 concept = data["concepts"].get(year, "Unknown")
                 score = data["year_scores"].get(year, 0)
-                group_score = data["year_group_scores"].get(year, 0)
-                diff = score - group_score
+                group_avg = data["year_group_scores"].get(year, 0)
+                diff = score - group_avg
+                
                 diff_style = "green" if diff >= 0 else "red"
                 
                 table.add_row(
                     year,
                     concept,
                     f"{score:.2f}",
-                    f"{group_score:.2f}",
+                    f"{group_avg:.2f}",
                     f"[{diff_style}]{diff:.2f}[/{diff_style}]"
                 )
                 
             self.console.print(table)
             
-            # Display improvement information
-            if len(data["years"]) >= 2:
-                first_year = data["years"][0]
-                last_year = data["years"][-1]
-                improvement = data["improvement"]
+            # Calculate overall trend
+            years = data["years"]
+            if len(years) > 1:
+                first_year = years[0]
+                last_year = years[-1]
                 
-                color = "green" if improvement >= 0 else "red"
-                self.console.print(f"\nImprovement from {first_year} to {last_year}: [{color}]{improvement:.2f}[/{color}]")
+                first_score = data["year_scores"].get(first_year, 0)
+                last_score = data["year_scores"].get(last_year, 0)
                 
-                relative = data["relative_improvement"] * 100
+                absolute = last_score - first_score
+                relative = (absolute / first_score) * 100 if first_score > 0 else 0
+                
+                color = "green" if absolute >= 0 else "red"
+                
+                self.console.print(f"\n[bold]Overall Trend ({first_year} to {last_year}):[/bold]")
+                self.console.print(f"Absolute change: [{color}]{absolute:.2f}[/{color}]")
                 self.console.print(f"Relative improvement: [{color}]{relative:.1f}%[/{color}]")
             
             # Save results if output specified
@@ -663,6 +699,31 @@ class CLI:
                     png_path = f"{output_base}.png"
                     self.analyzer.generate_historical_report(person, png_path)
                     self.console.print(f"[green]Chart saved to {png_path}[/green]")
+            else:
+                # Use default output path if none specified
+                output_format = args.format
+                
+                if output_format in ["csv", "all"]:
+                    # Create DataFrame from results
+                    rows = []
+                    for year in data["years"]:
+                        rows.append({
+                            "Year": year,
+                            "Concept": data["concepts"].get(year, "Unknown"),
+                            "Score": data["year_scores"].get(year, 0),
+                            "Group_Average": data["year_group_scores"].get(year, 0),
+                            "Difference": data["year_scores"].get(year, 0) - data["year_group_scores"].get(year, 0)
+                        })
+                    
+                    result_df = pd.DataFrame(rows)
+                    csv_path = os.path.join(self.output_directory, f"historical_report_{person}.csv")
+                    result_df.to_csv(csv_path, index=False)
+                    self.console.print(f"[green]CSV report saved to {csv_path}[/green]")
+                    
+                if output_format in ["png", "all"]:
+                    png_path = os.path.join(self.output_directory, f"historical_report_{person}.png")
+                    self.analyzer.generate_historical_report(person, png_path)
+                    self.console.print(f"[green]Chart saved to {png_path}[/green]")
                 
         except Exception as e:
             self.console.print(f"[red]Error generating historical report: {str(e)}[/red]")
@@ -674,13 +735,262 @@ class CLI:
     
     def handle_export(self, args):
         """Handle the export command"""
-        # Placeholder for export implementation
-        self.console.print("[yellow]Export feature not yet implemented[/yellow]")
+        try:
+            export_format = args.format
+            years_filter = args.years
+            people_filter = args.people
+            
+            # Get all people and years
+            all_people = self.available_people
+            all_years = self.available_years
+            
+            if not all_people or not all_years:
+                self.console.print("[yellow]No data found to export[/yellow]")
+                return
+                
+            # Apply filters
+            people = [p for p in all_people if not people_filter or p in people_filter]
+            years = [y for y in all_years if not years_filter or y in years_filter]
+            
+            if not people:
+                self.console.print("[yellow]No people match the specified filter[/yellow]")
+                return
+                
+            if not years:
+                self.console.print("[yellow]No years match the specified filter[/yellow]")
+                return
+                
+            # Collect all data
+            self.console.print("[bold]Collecting data to export...[/bold]")
+            data = []
+            
+            for person in sorted(people):
+                for year in sorted(years):
+                    evaluation = self.analyzer.get_evaluations_for_person(person, year)
+                    if evaluation and evaluation.get('success', False):
+                        score = self.analyzer.get_average_score(person, year)
+                        concept = evaluation.get('data', {}).get('conceito_ciclo_filho_descricao', 'Unknown')
+                        
+                        data.append({
+                            'Person': person,
+                            'Year': year,
+                            'Score': score if score is not None else 0,
+                            'Concept': concept
+                        })
+                        
+            if not data:
+                self.console.print("[yellow]No data to export[/yellow]")
+                return
+                
+            # Convert to DataFrame
+            df = pd.DataFrame(data)
+            
+            # Determine output path
+            if args.output:
+                output_base = args.output
+            else:
+                # Use default output path
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_base = os.path.join(self.output_directory, f"export_{timestamp}")
+                
+            # Export based on format
+            if export_format == "excel":
+                output_file = f"{output_base}.xlsx"
+                df.to_excel(output_file, index=False)
+                self.console.print(f"[green]Data exported to {output_file}[/green]")
+                
+            elif export_format == "csv":
+                output_file = f"{output_base}.csv"
+                df.to_csv(output_file, index=False)
+                self.console.print(f"[green]Data exported to {output_file}[/green]")
+                
+            elif export_format == "json":
+                output_file = f"{output_base}.json"
+                df.to_json(output_file, orient='records', indent=2)
+                self.console.print(f"[green]Data exported to {output_file}[/green]")
+                
+        except Exception as e:
+            self.console.print(f"[red]Error exporting data: {str(e)}[/red]")
     
     def handle_filter(self, args):
-        """Handle the filter command"""
-        # Placeholder for filter implementation
-        self.console.print("[yellow]Filter feature not yet implemented[/yellow]")
+        """Handle the filter command with advanced filtering options"""
+        try:
+            # Get filter criteria
+            name_regex = args.name_regex
+            behavior_regex = args.behavior_regex
+            min_score = args.min_score
+            max_score = args.max_score
+            concepts = args.concepts
+            years_filter = args.years
+            
+            # Get all people and years
+            all_people = self.available_people
+            all_years = self.available_years
+            
+            if not all_people or not all_years:
+                self.console.print("[yellow]No data found to filter[/yellow]")
+                return
+                
+            # Apply year filter
+            years = [y for y in all_years if not years_filter or y in years_filter]
+            
+            if not years:
+                self.console.print("[yellow]No years match the specified filter[/yellow]")
+                return
+                
+            # Collect all data
+            self.console.print("[bold]Collecting data based on filters...[/bold]")
+            filtered_data = []
+            
+            import re
+            name_pattern = re.compile(name_regex) if name_regex else None
+            behavior_pattern = re.compile(behavior_regex) if behavior_regex else None
+            
+            people_with_data = set()
+            
+            for person in sorted(all_people):
+                # Filter by name regex if specified
+                if name_pattern and not name_pattern.search(person):
+                    continue
+                    
+                for year in sorted(years):
+                    # Get evaluation data
+                    evaluation = self.analyzer.get_evaluations_for_person(person, year)
+                    if not evaluation or not evaluation.get('success', False):
+                        continue
+                        
+                    # Get concept if available
+                    concept = evaluation.get('data', {}).get('conceito_ciclo_filho_descricao', 'Unknown')
+                    
+                    # Filter by concept if specified
+                    if concepts and concept not in concepts:
+                        continue
+                    
+                    # Get behavior scores
+                    behavior_scores = self.analyzer.get_behavior_scores(person, year)
+                    if not behavior_scores:
+                        continue
+                    
+                    # Check each behavior
+                    for direcionador, behaviors in behavior_scores.items():
+                        for comp_name, details in behaviors.items():
+                            # Filter by behavior regex if specified
+                            if behavior_pattern and not behavior_pattern.search(comp_name):
+                                continue
+                            
+                            # Get score for this behavior
+                            score = None
+                            for avaliador, scores in details.get('scores', {}).items():
+                                if avaliador == '%todos':
+                                    score = scores.get('score_colaborador')
+                                    break
+                            
+                            if score is None:
+                                continue
+                                
+                            # Filter by score range if specified
+                            if (min_score is not None and score < min_score) or \
+                               (max_score is not None and score > max_score):
+                                continue
+                                
+                            # Add to filtered data
+                            filtered_data.append({
+                                'Person': person,
+                                'Year': year,
+                                'Direcionador': direcionador,
+                                'Comportamento': comp_name,
+                                'Score': score,
+                                'Concept': concept
+                            })
+                            
+                            people_with_data.add(person)
+                            
+            if not filtered_data:
+                self.console.print("[yellow]No data matches the specified filters[/yellow]")
+                return
+                
+            # Convert to DataFrame
+            df = pd.DataFrame(filtered_data)
+            
+            # Display summary
+            self.console.print(f"\n[bold]Filter Results Summary:[/bold]")
+            self.console.print(f"Matching records: [cyan]{len(filtered_data)}[/cyan]")
+            self.console.print(f"Unique people: [cyan]{len(people_with_data)}[/cyan]")
+            self.console.print(f"Years included: [cyan]{', '.join(sorted(years))}[/cyan]")
+            
+            # Display sample of results
+            sample_size = min(10, len(filtered_data))
+            if sample_size > 0:
+                self.console.print(f"\n[bold]Sample of Results (showing {sample_size} of {len(filtered_data)}):[/bold]")
+                
+                table = Table()
+                table.add_column("Person", style="cyan")
+                table.add_column("Year", style="green")
+                table.add_column("Behavior", style="yellow")
+                table.add_column("Score", style="blue")
+                
+                for _, row in df.head(sample_size).iterrows():
+                    table.add_row(
+                        row['Person'],
+                        row['Year'],
+                        row['Comportamento'],
+                        f"{row['Score']:.2f}"
+                    )
+                    
+                self.console.print(table)
+            
+            # Export results if output specified
+            if args.output:
+                output_base = args.output
+                output_format = args.format
+                
+                self._export_filtered_results(df, output_base, output_format)
+            else:
+                # Use default output path
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_base = os.path.join(self.output_directory, f"filtered_results_{timestamp}")
+                output_format = args.format
+                
+                self._export_filtered_results(df, output_base, output_format)
+                
+        except Exception as e:
+            self.console.print(f"[red]Error filtering data: {str(e)}[/red]")
+            
+    def _export_filtered_results(self, df, output_base, output_format):
+        """Helper method to export filtered results in different formats"""
+        if output_format == "csv":
+            output_file = f"{output_base}.csv"
+            df.to_csv(output_file, index=False)
+            self.console.print(f"[green]Results exported to {output_file}[/green]")
+            
+        elif output_format == "excel":
+            output_file = f"{output_base}.xlsx"
+            df.to_excel(output_file, index=False)
+            self.console.print(f"[green]Results exported to {output_file}[/green]")
+            
+        elif output_format == "json":
+            output_file = f"{output_base}.json"
+            df.to_json(output_file, orient='records', indent=2)
+            self.console.print(f"[green]Results exported to {output_file}[/green]")
+            
+        elif output_format == "html":
+            output_file = f"{output_base}.html"
+            
+            # Create an interactive HTML report using visualization.generate_interactive_html
+            report_title = "Filtered Results Report"
+            report_data = {
+                'title': report_title,
+                'filtered_data': df.to_dict('records'),
+                'summary': {
+                    'total_records': len(df),
+                    'unique_people': df['Person'].nunique(),
+                    'years': sorted(df['Year'].unique()),
+                    'filters_applied': True
+                }
+            }
+            
+            self.visualization.generate_interactive_html(report_data, output_file)
+            self.console.print(f"[green]Interactive HTML report saved to {output_file}[/green]")
     
     def handle_teams(self, args):
         """Handle the teams command"""
@@ -1032,20 +1342,24 @@ class CLI:
             elif args.operation == "backup":
                 # Create backup
                 self.console.print("[bold]Creating backup...[/bold]")
-                backup_path = pipeline.create_backup(args.output_directory)
+                output_dir = args.output_directory if args.output_directory else self.output_directory
+                backup_path = pipeline.create_backup(output_dir)
                 self.console.print(f"[green]Backup created at: {backup_path}[/green]")
                 
             elif args.operation == "export":
                 # Export raw data
-                if not args.output:
-                    self.console.print("[red]Error: --output parameter is required for export operation[/red]")
-                    return
+                if args.output:
+                    output_file = args.output
+                else:
+                    # Use default output file in output directory
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    output_file = os.path.join(self.output_directory, f"data_export_{timestamp}.json")
                     
-                self.console.print(f"[bold]Exporting data to {args.output}...[/bold]")
-                result = pipeline.export_raw_data(args.output)
+                self.console.print(f"[bold]Exporting data to {output_file}...[/bold]")
+                result = pipeline.export_raw_data(output_file)
                 
                 if result.get('success', False):
-                    self.console.print(f"[green]Data exported to: {args.output} ({result['file_count']} files)[/green]")
+                    self.console.print(f"[green]Data exported to: {output_file} ({result['file_count']} files)[/green]")
                 else:
                     error = result.get('error', 'Unknown error')
                     self.console.print(f"[red]Failed to export data: {error}[/red]")

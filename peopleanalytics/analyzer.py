@@ -39,51 +39,50 @@ class EvaluationAnalyzer:
             # If the base path doesn't exist, return without attempting to load files
             return
             
-        # First level should be years
-        for year_dir in self.base_path.iterdir():
-            if not year_dir.is_dir():
+        # First level should be people
+        for person_dir in self.base_path.iterdir():
+            if not person_dir.is_dir():
                 continue
 
-            year = year_dir.name
+            person_name = person_dir.name
 
-            # Second level should be people
-            for person_dir in year_dir.iterdir():
-                if not person_dir.is_dir():
+            # Second level should be years
+            for year_dir in person_dir.iterdir():
+                if not year_dir.is_dir():
                     continue
                     
-                person_name = person_dir.name
+                year = year_dir.name
                 
-                # Look for any JSON files in this directory
-                json_files = list(person_dir.glob("*.json"))
-                if not json_files:
+                # Look specifically for resultado.json
+                resultado_file = year_dir / "resultado.json"
+                if not resultado_file.exists():
                     continue
                     
-                # Process all JSON files found
-                for json_file in json_files:
-                    try:
-                        with open(json_file, "r", encoding="utf-8") as f:
-                            try:
-                                data = json.load(f)
-                                # Initialize the year data if not already present
-                                if year not in self.evaluations_by_person[person_name]:
-                                    self.evaluations_by_person[person_name][year] = {
-                                        "success": True,
-                                        "data": data
-                                    }
-                            except json.JSONDecodeError as e:
-                                # More detailed error message including the specific error
-                                relative_path = json_file.relative_to(self.base_path)
-                                print(f"Error decoding JSON from {relative_path}: {str(e)}")
-                                # Initialize with empty but valid structure to prevent downstream errors
-                                if year not in self.evaluations_by_person[person_name]:
-                                    self.evaluations_by_person[person_name][year] = {
-                                        "success": False, 
-                                        "data": {}
-                                    }
-                    except Exception as e:
-                        # Catch other potential errors like permission issues
-                        relative_path = json_file.relative_to(self.base_path)
-                        print(f"Error reading file {relative_path}: {str(e)}")
+                # Process the resultado.json file
+                try:
+                    with open(resultado_file, "r", encoding="utf-8") as f:
+                        try:
+                            data = json.load(f)
+                            # Initialize the year data if not already present
+                            if year not in self.evaluations_by_person[person_name]:
+                                self.evaluations_by_person[person_name][year] = {
+                                    "success": True,
+                                    "data": data
+                                }
+                        except json.JSONDecodeError as e:
+                            # More detailed error message including the specific error
+                            relative_path = resultado_file.relative_to(self.base_path)
+                            print(f"Error decoding JSON from {relative_path}: {str(e)}")
+                            # Initialize with empty but valid structure to prevent downstream errors
+                            if year not in self.evaluations_by_person[person_name]:
+                                self.evaluations_by_person[person_name][year] = {
+                                    "success": False, 
+                                    "data": {}
+                                }
+                except Exception as e:
+                    # Catch other potential errors like permission issues
+                    relative_path = resultado_file.relative_to(self.base_path)
+                    print(f"Error reading file {relative_path}: {str(e)}")
 
     def _extract_year_criteria(self) -> Dict[str, Dict[str, Set[str]]]:
         """Extract all criteria (direcionadores and comportamentos) for each year"""
