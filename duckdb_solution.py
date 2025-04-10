@@ -124,6 +124,14 @@ class DuckDBAnalyzer:
             tipo_gestao BOOLEAN,
             is_congelamento BOOLEAN,
             data_congelamento DATE,
+            conceito_ciclo_filho_descricao VARCHAR,
+            nome_peer_group VARCHAR,
+            direcionador VARCHAR,
+            comportamento VARCHAR,
+            avaliador VARCHAR,
+            frequencia_colaborador JSON,
+            frequencia_grupo JSON,
+            pergunta_final BOOLEAN,
             FOREIGN KEY (person_id) REFERENCES people (id)
         )
         ''')
@@ -162,6 +170,13 @@ class DuckDBAnalyzer:
             file_path VARCHAR PRIMARY KEY,
             import_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+        ''')
+        
+        # Criar índices para melhorar performance
+        cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_profiles_person_year ON profiles(person_id, year);
+        CREATE INDEX IF NOT EXISTS idx_attendance_person_year ON attendance(person_id, year);
+        CREATE INDEX IF NOT EXISTS idx_payments_person_year ON payments(person_id, year);
         ''')
         
         self.conn.commit()
@@ -361,32 +376,40 @@ class DuckDBAnalyzer:
                     
                     # Processar dados baseado no tipo de arquivo
                     if file_type == 'resultado':
-                        # Formato legado
-                        if 'frequencias' in data:
-                            for freq in data['frequencias']:
-                                cursor.execute("""
-                                INSERT INTO attendance (person_id, year, date, present, notes)
-                                VALUES (?, ?, ?, ?, ?)
-                                """, (
-                                    person_id,
-                                    year,
-                                    freq['data'],
-                                    freq['status'] == 'presente',
-                                    freq.get('justificativa', '')
-                                ))
-                        
-                        if 'pagamentos' in data:
-                            for pag in data['pagamentos']:
-                                cursor.execute("""
-                                INSERT INTO payments (person_id, year, date, amount, reference)
-                                VALUES (?, ?, ?, ?, ?)
-                                """, (
-                                    person_id,
-                                    year,
-                                    pag['data'],
-                                    pag['valor'],
-                                    pag.get('descricao', '')
-                                ))
+                        # Novo formato de resultado.json
+                        if 'data' in data and 'direcionadores' in data['data']:
+                            # Processar direcionadores e comportamentos
+                            for direcionador in data['data']['direcionadores']:
+                                for comportamento in direcionador['comportamentos']:
+                                    for avaliacao in comportamento['avaliacoes_grupo']:
+                                        # Inserir avaliação
+                                        cursor.execute("""
+                                        INSERT INTO profiles (
+                                            person_id, year, nome_completo,
+                                            conceito_ciclo_filho_descricao,
+                                            nome_peer_group,
+                                            direcionador,
+                                            comportamento,
+                                            avaliador,
+                                            frequencia_colaborador,
+                                            frequencia_grupo,
+                                            pergunta_final
+                                        ) VALUES (
+                                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                                        )
+                                        """, (
+                                            person_id,
+                                            year,
+                                            person_name,
+                                            data['data'].get('conceito_ciclo_filho_descricao'),
+                                            data['data'].get('nome_peer_group'),
+                                            direcionador['direcionador'],
+                                            comportamento['comportamento'],
+                                            avaliacao['avaliador'],
+                                            json.dumps(avaliacao['frequencia_colaborador']),
+                                            json.dumps(avaliacao['frequencia_grupo']),
+                                            comportamento['pergunta_final']
+                                        ))
                                 
                     elif file_type == 'frequencias':
                         # Novo formato - frequências
@@ -559,6 +582,53 @@ class DuckDBAnalyzer:
         
         return self.conn.execute(query).df()
 
+    def analyze_evaluations(self, year: Optional[int] = None) -> pd.DataFrame:
+        """
+        Analisa dados de avaliações
+        
+        Args:
+            year: Ano específico para análise (opcional)
+            
+        Returns:
+            DataFrame com análise de avaliações
+        """
+        query = """
+        WITH evaluation_stats AS (
+            SELECT 
+                p.name,
+                pr.year,
+                pr.direcionador,
+                pr.comportamento,
+                pr.avaliador,
+                pr.frequencia_colaborador,
+                pr.frequencia_grupo,
+                pr.pergunta_final
+            FROM people p
+            JOIN profiles pr ON p.id = pr.person_id
+            WHERE pr.direcionador IS NOT NULL
+            AND pr.direcionador != ''
+        """
+        
+        if year is not None:
+            query += f" AND pr.year = {year}"
+            
+        query += """
+        )
+        SELECT 
+            name,
+            year,
+            direcionador,
+            comportamento,
+            avaliador,
+            frequencia_colaborador,
+            frequencia_grupo,
+            pergunta_final
+        FROM evaluation_stats
+        ORDER BY name, year, direcionador, comportamento, avaliador
+        """
+        
+        return self.conn.execute(query).df()
+
     def generate_summary(self, output_format: str = 'html') -> str:
         """
         Gera um resumo dos dados
@@ -569,9 +639,10 @@ class DuckDBAnalyzer:
         Returns:
             Caminho do arquivo gerado
         """
-        # Obter dados de frequência e pagamentos
+        # Obter dados de frequência, pagamentos e avaliações
         attendance_data = self.analyze_attendance()
         payment_data = self.analyze_payments()
+        evaluation_data = self.analyze_evaluations()
         
         # Criar diretório de saída
         summary_dir = self.output_dir / 'summary'
@@ -624,6 +695,9 @@ class DuckDBAnalyzer:
                 
                 <h2>Pagamentos</h2>
                 {payment_data.to_html(index=False)}
+                
+                <h2>Avaliações</h2>
+                {evaluation_data.to_html(index=False)}
             </body>
             </html>
             """
@@ -637,7 +711,8 @@ class DuckDBAnalyzer:
             # Criar dicionário com dados
             summary_data = {
                 'attendance': attendance_data.to_dict(orient='records'),
-                'payments': payment_data.to_dict(orient='records')
+                'payments': payment_data.to_dict(orient='records'),
+                'evaluations': evaluation_data.to_dict(orient='records')
             }
             
             # Salvar JSON
@@ -723,6 +798,84 @@ class DuckDBAnalyzer:
         
         return str(output_file)
 
+    def plot_evaluations(self, year: Optional[int] = None) -> str:
+        """
+        Gera gráfico de avaliações
+        
+        Args:
+            year: Ano específico para análise (opcional)
+            
+        Returns:
+            Caminho do arquivo gerado
+        """
+        # Obter dados
+        data = self.analyze_evaluations(year)
+        
+        if data.empty:
+            print("Sem dados de avaliação para plotar")
+            return ""
+        
+        # Criar plot
+        plt.figure(figsize=(15, 8))
+        
+        # Preparar dados para o gráfico
+        plot_data = []
+        for _, row in data.iterrows():
+            try:
+                freq_colab = json.loads(row['frequencia_colaborador'])
+                freq_grupo = json.loads(row['frequencia_grupo'])
+                
+                for i, (colab, grupo) in enumerate(zip(freq_colab, freq_grupo)):
+                    plot_data.append({
+                        'name': row['name'],
+                        'avaliador': row['avaliador'],
+                        'nivel': f"Nível {i + 1}",
+                        'frequencia_colaborador': float(colab),
+                        'frequencia_grupo': float(grupo)
+                    })
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                print(f"Erro ao processar dados de {row['name']}: {str(e)}")
+                continue
+        
+        if not plot_data:
+            print("Sem dados válidos para plotar")
+            return ""
+            
+        plot_df = pd.DataFrame(plot_data)
+        
+        # Criar subplots
+        fig, axes = plt.subplots(1, 2, figsize=(15, 8))
+        
+        # Gráfico de frequência do colaborador
+        sns.barplot(data=plot_df, x='nivel', y='frequencia_colaborador', 
+                   hue='avaliador', ax=axes[0])
+        axes[0].set_title('Frequência por Nível - Colaborador')
+        axes[0].set_xlabel('Nível')
+        axes[0].set_ylabel('Frequência (%)')
+        axes[0].tick_params(axis='x', rotation=45)
+        
+        # Gráfico de frequência do grupo
+        sns.barplot(data=plot_df, x='nivel', y='frequencia_grupo', 
+                   hue='avaliador', ax=axes[1])
+        axes[1].set_title('Frequência por Nível - Grupo')
+        axes[1].set_xlabel('Nível')
+        axes[1].set_ylabel('Frequência (%)')
+        axes[1].tick_params(axis='x', rotation=45)
+        
+        plt.tight_layout()
+        
+        # Salvar
+        plots_dir = self.output_dir / 'plots'
+        plots_dir.mkdir(exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = plots_dir / f"evaluation_plot_{timestamp}.png"
+        
+        plt.savefig(output_file)
+        plt.close()
+        
+        return str(output_file)
+
 def main():
     """Função principal"""
     parser = argparse.ArgumentParser(description='Análise de dados People Analytics')
@@ -742,11 +895,13 @@ def main():
     print("\nGerando análises...")
     analyzer.analyze_attendance(args.year)
     analyzer.analyze_payments(args.year)
+    analyzer.analyze_evaluations(args.year)
     
     # Gerar visualizações
     print("\nGerando visualizações...")
     analyzer.plot_attendance(args.year)
     analyzer.plot_payments(args.year)
+    analyzer.plot_evaluations(args.year)
     
     # Gerar resumo
     print("\nGerando resumo...")
