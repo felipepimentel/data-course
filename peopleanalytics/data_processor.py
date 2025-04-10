@@ -261,7 +261,7 @@ class DataProcessor:
                 # Create a new PersonData with both datasets
                 person_data = PersonData.from_dict(result_data, profile_data)
                 
-            # Any other JSON file
+            # Any other JSON file (must be in the new format)
             else:
                 # Load and parse the file
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -281,7 +281,7 @@ class DataProcessor:
             if existing_resultado.exists() and not overwrite:
                 return False, f"Data already exists for {person_data.name} ({person_data.year}). Use overwrite=True to replace."
                 
-            # Save the data using our save method
+            # Save the data using our save method, which will use the new format
             if self.save_person_data(person_data):
                 return True, f"Successfully imported data for {person_data.name} ({person_data.year})"
             else:

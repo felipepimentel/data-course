@@ -237,85 +237,75 @@ class PersonData:
         Returns:
             PersonData instance
         """
-        # Handle both old and new data formats
-        # New format fields are in Portuguese
-        if 'nome' in data or 'ano' in data:
-            # New format (Portuguese field names)
-            name = data.get('nome', '')
-            year = int(data.get('ano', 0))
+        # Handle only the Portuguese format (no backward compatibility)
+        name = data.get('nome', '')
+        year = int(data.get('ano', 0))
+        
+        # Create instance
+        person_data = cls(name=name, year=year)
+        
+        # Handle profile data if provided
+        if profile_data:
+            # Use full_name from profile data or person name as fallback
+            full_name = profile_data.get('nome_completo', name)
             
-            # Create instance
-            person_data = cls(name=name, year=year)
+            # Create ProfileData with required fields
+            profile = ProfileData(
+                full_name=full_name,
+                employee_id=profile_data.get('funcional', ''),
+                position=profile_data.get('cargo', ''),
+                position_code=profile_data.get('codigo_cargo', ''),
+                position_level=profile_data.get('nivel_cargo', ''),
+                position_level_name=profile_data.get('nome_nivel_cargo', ''),
+                department=profile_data.get('departamento', profile_data.get('nome_departamento', ''))
+            )
             
-            # Handle profile data if provided
-            if profile_data:
-                # Use full_name from profile data or person name as fallback
-                full_name = profile_data.get('nome_completo', name)
+            # Set optional fields if present
+            if 'gestor' in profile_data:
+                profile.manager_name = profile_data['gestor']
+            if 'email' in profile_data:
+                profile.metadata['email'] = profile_data['email']
+            if 'data_admissao' in profile_data:
+                profile.metadata['hire_date'] = profile_data['data_admissao']
+            if 'tipo_gestao' in profile_data:
+                profile.is_manager = bool(profile_data['tipo_gestao'])
+            
+            person_data.profile = profile
+        
+        # Handle attendance records
+        if 'frequencias' in data and isinstance(data['frequencias'], list):
+            for attendance_dict in data['frequencias']:
+                # Convert data and status to present
+                date_str = attendance_dict.get('data', '')
+                status = attendance_dict.get('status', '').lower()
+                present = status == 'presente'
+                notes = attendance_dict.get('justificativa', '')
                 
-                # Create ProfileData with required fields
-                profile = ProfileData(
-                    full_name=full_name,
-                    employee_id=profile_data.get('funcional', ''),
-                    position=profile_data.get('cargo', ''),
-                    position_code=profile_data.get('codigo_cargo', ''),
-                    position_level=profile_data.get('nivel_cargo', ''),
-                    position_level_name=profile_data.get('nome_nivel_cargo', ''),
-                    department=profile_data.get('departamento', profile_data.get('nome_departamento', ''))
-                )
+                if date_str:
+                    try:
+                        person_data.add_attendance(date_str, present, notes)
+                    except Exception as e:
+                        print(f"Error adding attendance record: {e}")
+        
+        # Handle payment records
+        if 'pagamentos' in data and isinstance(data['pagamentos'], list):
+            for payment_dict in data['pagamentos']:
+                # Extract payment details
+                date_str = payment_dict.get('data', '')
+                amount = payment_dict.get('valor', 0)
+                description = payment_dict.get('descricao', '')
                 
-                # Set optional fields if present
-                if 'gestor' in profile_data:
-                    profile.manager_name = profile_data['gestor']
-                if 'email' in profile_data:
-                    profile.metadata['email'] = profile_data['email']
-                if 'data_admissao' in profile_data:
-                    profile.metadata['hire_date'] = profile_data['data_admissao']
-                if 'tipo_gestao' in profile_data:
-                    profile.is_manager = bool(profile_data['tipo_gestao'])
-                
-                person_data.profile = profile
+                if date_str:
+                    try:
+                        person_data.add_payment(date_str, amount, 'paid', description)
+                    except Exception as e:
+                        print(f"Error adding payment record: {e}")
             
-            # Handle attendance records
-            if 'frequencias' in data and isinstance(data['frequencias'], list):
-                for attendance_dict in data['frequencias']:
-                    # Convert data and status to present
-                    date_str = attendance_dict.get('data', '')
-                    status = attendance_dict.get('status', '').lower()
-                    present = status == 'presente'
-                    notes = attendance_dict.get('justificativa', '')
-                    
-                    if date_str:
-                        try:
-                            person_data.add_attendance(date_str, present, notes)
-                        except Exception as e:
-                            print(f"Error adding attendance record: {e}")
-            
-            # Handle payment records
-            if 'pagamentos' in data and isinstance(data['pagamentos'], list):
-                for payment_dict in data['pagamentos']:
-                    # Extract payment details
-                    date_str = payment_dict.get('data', '')
-                    amount = payment_dict.get('valor', 0)
-                    description = payment_dict.get('descricao', '')
-                    
-                    if date_str:
-                        try:
-                            person_data.add_payment(date_str, amount, 'paid', description)
-                        except Exception as e:
-                            print(f"Error adding payment record: {e}")
-                
-            return person_data
-            
-        else:
-            # Old format (English field names) - no longer supported
-            raise ValueError("Old English field format is no longer supported")
+        return person_data
     
-    def to_dict(self, use_portuguese_fields: bool = True) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert the PersonData to a dictionary.
         
-        Args:
-            use_portuguese_fields: If True, use Portuguese field names (default)
-            
         Returns:
             Dictionary representation of the PersonData
         """

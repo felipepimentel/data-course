@@ -20,7 +20,6 @@ People Analytics provides a complete solution for managing attendance and paymen
 - **Reporting**: Generate detailed reports in various formats (Excel, CSV, JSON, HTML)
 - **Backup & Restore**: Simple backup functionality to preserve your data
 - **Command Line Interface**: Intuitive CLI for all operations
-- **Bilingual Support**: Handles both Portuguese and English field names
 
 ## Installation
 
@@ -495,4 +494,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
