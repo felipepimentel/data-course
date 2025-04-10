@@ -158,61 +158,44 @@ class DataProcessor:
                 
             # Initialize data dictionary
             data_dict = {
-                "nome": person,
                 "ano": year,
+                "nome": person,
                 "frequencias": [],
                 "pagamentos": []
             }
             
             # Load profile data if exists
             profile_file = person_dir / "perfil.json"
+            profile_data = None
             if profile_file.exists() and profile_file.stat().st_size > 0:
                 with open(profile_file, 'r', encoding='utf-8') as f:
                     content = f.read().strip()
                     if content and content != '{}' and content != '[]':
                         profile_data = json.loads(content)
-                        data_dict["perfil"] = profile_data
             
-            # Load attendance data if exists
-            attendance_file = person_dir / "frequencias.json"
-            if attendance_file.exists() and attendance_file.stat().st_size > 0:
-                with open(attendance_file, 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                    if content and content != '{}' and content != '[]':
-                        attendance_data = json.loads(content)
-                        data_dict["frequencias"] = attendance_data
-            
-            # Load payment data if exists
-            payment_file = person_dir / "pagamentos.json"
-            if payment_file.exists() and payment_file.stat().st_size > 0:
-                with open(payment_file, 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                    if content and content != '{}' and content != '[]':
-                        payment_data = json.loads(content)
-                        data_dict["pagamentos"] = payment_data
-            
-            # Load resultado.json if exists (legacy format)
+            # Load resultado.json if exists (new format)
             resultado_file = person_dir / "resultado.json"
             if resultado_file.exists() and resultado_file.stat().st_size > 0:
                 with open(resultado_file, 'r', encoding='utf-8') as f:
                     content = f.read().strip()
                     if content and content != '{}' and content != '[]':
                         resultado_data = json.loads(content)
-                        # Merge with existing data, but don't overwrite if already exists
-                        if "frequencias" not in data_dict or not data_dict["frequencias"]:
-                            data_dict["frequencias"] = resultado_data.get("frequencias", [])
-                        if "pagamentos" not in data_dict or not data_dict["pagamentos"]:
-                            data_dict["pagamentos"] = resultado_data.get("pagamentos", [])
-                        if "perfil" not in data_dict and "perfil" in resultado_data:
-                            data_dict["perfil"] = resultado_data["perfil"]
+                        # Handle new format with evaluation data
+                        if 'data' in resultado_data:
+                            data_dict['avaliacao'] = resultado_data['data']
+                        # Handle legacy format
+                        elif 'frequencias' in resultado_data:
+                            data_dict['frequencias'] = resultado_data['frequencias']
+                        if 'pagamentos' in resultado_data:
+                            data_dict['pagamentos'] = resultado_data['pagamentos']
             
             # Skip if no valid data was found
-            if not data_dict["frequencias"] and not data_dict["pagamentos"] and "perfil" not in data_dict:
+            if not data_dict.get('frequencias') and not data_dict.get('pagamentos') and not data_dict.get('avaliacao') and not profile_data:
                 self.logger.debug(f"No valid data found in directory: {person_dir}")
                 return None
             
             # Create PersonData object
-            return PersonData.from_dict(data_dict)
+            return PersonData.from_dict(data_dict, profile_data)
             
         except Exception as e:
             self.logger.error(f"Error loading data for {person}/{year}: {e}")
@@ -409,9 +392,16 @@ class DataProcessor:
             # Ensure the directory exists
             output_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # Save the data
+            # Get the data dictionary
+            export_data = data.to_dict()
+            
+            # Add profile data if available
+            if data.profile:
+                export_data['perfil'] = data.profile.to_dict()
+            
+            # Save the data with proper formatting
             with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(data.to_dict(), f, ensure_ascii=False, indent=2)
+                json.dump(export_data, f, ensure_ascii=False, indent=2, sort_keys=True)
                 
             return True, f"Successfully exported data to {output_file}"
         
@@ -446,11 +436,11 @@ class DataProcessor:
                     
         return results
         
-    def generate_summary(self, output_format: str = "json") -> str:
-        """Generate a summary of all people data.
+    def generate_summary(self, format: str = "html") -> str:
+        """Generate a summary of all data.
         
         Args:
-            output_format: Output format ('json', 'csv', or 'html')
+            format: Output format ('html' or 'json')
             
         Returns:
             Path to the generated summary file
@@ -458,58 +448,141 @@ class DataProcessor:
         summary_dir = self.output_path / "summary"
         summary_dir.mkdir(parents=True, exist_ok=True)
         
-        summaries = []
+        # Collect all data
+        all_data = []
+        attendance_data = []
+        payment_data = []
+        evaluation_data = []
         
-        # Generate summary for each person
         for person in self.get_all_people():
-            years = self.get_all_years_for_person(person)
-            person_summary = PersonSummary(
-                name=person,
-                years=[int(y) for y in years]
-            )
+            person_summary = PersonSummary(name=person, years=[])
             
-            # Collect data across all years
-            for year in years:
+            for year in self.get_all_years_for_person(person):
                 data = self.load_person_data(person, year)
                 if data:
+                    # Add year to the list
+                    person_summary.years.append(year)
+                    
+                    # Update summary data
                     attendance_summary = data.get_attendance_summary()
                     payment_summary = data.get_payment_summary()
                     
-                    person_summary.total_attendance += attendance_summary["total"]
-                    person_summary.present_count += attendance_summary["present"]
+                    person_summary.total_attendance += attendance_summary["total_days"]
+                    person_summary.present_count += attendance_summary["present_days"]
                     person_summary.total_payments += payment_summary["total_payments"]
                     person_summary.total_amount += payment_summary["total_amount"]
                     
-                    # Add profile information if available
+                    # Update profile info if available
                     if data.profile:
                         person_summary.nome_departamento = data.profile.nome_departamento
                         person_summary.cargo = data.profile.cargo
                         person_summary.nome_gestor = data.profile.nome_gestor
+                    
+                    # Collect detailed data for HTML format
+                    if attendance_summary["total_days"] > 0:
+                        attendance_data.append({
+                            "name": person,
+                            "year": year,
+                            "total_days": attendance_summary["total_days"],
+                            "present_days": attendance_summary["present_days"],
+                            "attendance_rate": attendance_summary["attendance_rate"]
+                        })
+                    
+                    if payment_summary["total_payments"] > 0:
+                        payment_data.append({
+                            "name": person,
+                            "year": year,
+                            "total_payments": payment_summary["total_payments"],
+                            "total_amount": payment_summary["total_amount"],
+                            "avg_amount": payment_summary["average_amount"],
+                            "min_amount": payment_summary["min_amount"],
+                            "max_amount": payment_summary["max_amount"]
+                        })
+                    
+                    # Collect evaluation data if available
+                    if hasattr(data, 'avaliacao') and data.avaliacao:
+                        for eval_item in data.avaliacao:
+                            evaluation_data.append({
+                                "name": person,
+                                "year": year,
+                                "direcionador": eval_item.get("direcionador", ""),
+                                "comportamento": eval_item.get("comportamento", ""),
+                                "avaliador": eval_item.get("avaliador", ""),
+                                "frequencia_colaborador": eval_item.get("frequencia_colaborador", []),
+                                "frequencia_grupo": eval_item.get("frequencia_grupo", []),
+                                "pergunta_final": eval_item.get("pergunta_final", False)
+                            })
             
-            summaries.append(person_summary.to_dict())
+            if person_summary.years:
+                all_data.append(person_summary.to_dict())
         
-        # Generate file based on format
+        # Generate timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        if output_format == "json":
-            output_file = summary_dir / f"summary_{timestamp}.json"
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(summaries, f, ensure_ascii=False, indent=2)
-                
-        elif output_format == "csv":
-            output_file = summary_dir / f"summary_{timestamp}.csv"
-            df = pd.DataFrame(summaries)
-            df.to_csv(output_file, index=False)
-            
-        elif output_format == "html":
-            output_file = summary_dir / f"summary_{timestamp}.html"
-            df = pd.DataFrame(summaries)
-            df.to_html(output_file, index=False)
-            
+        if format.lower() == "json":
+            # Save as JSON
+            summary_file = summary_dir / f"summary_{timestamp}.json"
+            with open(summary_file, 'w', encoding='utf-8') as f:
+                json.dump(all_data, f, ensure_ascii=False, indent=2)
         else:
-            raise ValueError(f"Unsupported output format: {output_format}")
+            # Save as HTML
+            summary_file = summary_dir / f"summary_{timestamp}.html"
             
-        return str(output_file)
+            # Create DataFrames
+            attendance_df = pd.DataFrame(attendance_data)
+            payment_df = pd.DataFrame(payment_data)
+            evaluation_df = pd.DataFrame(evaluation_data)
+            
+            # Generate HTML
+            html_content = f"""
+            <html>
+            <head>
+                <title>People Analytics - Resumo</title>
+                <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    margin: 20px;
+                }}
+                table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin-bottom: 20px;
+                }}
+                th, td {{
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                }}
+                th {{
+                    background-color: #f2f2f2;
+                }}
+                tr:nth-child(even) {{
+                    background-color: #f9f9f9;
+                }}
+                h2 {{
+                    color: #333;
+                }}
+                </style>
+            </head>
+            <body>
+                <h1>People Analytics - Resumo</h1>
+                
+                <h2>Frequência</h2>
+                {attendance_df.to_html(index=False) if not attendance_df.empty else '<p>Nenhum dado de frequência disponível</p>'}
+                
+                <h2>Pagamentos</h2>
+                {payment_df.to_html(index=False) if not payment_df.empty else '<p>Nenhum dado de pagamento disponível</p>'}
+                
+                <h2>Avaliações</h2>
+                {evaluation_df.to_html(index=False) if not evaluation_df.empty else '<p>Nenhum dado de avaliação disponível</p>'}
+            </body>
+            </html>
+            """
+            
+            with open(summary_file, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+        
+        return str(summary_file)
         
     def generate_attendance_report(self, year: Optional[str] = None) -> str:
         """Generate an attendance report.

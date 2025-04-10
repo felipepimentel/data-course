@@ -118,6 +118,11 @@ class ProfileData:
     tipo_gestao: bool = False
     is_congelamento: bool = False
     data_congelamento: Optional[date] = None
+
+    @property
+    def full_name(self) -> str:
+        """Return the full name of the person."""
+        return self.nome_completo
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ProfileData':
@@ -194,6 +199,7 @@ class PersonData:
     attendance_records: List[AttendanceRecord] = field(default_factory=list)
     payment_records: List[PaymentRecord] = field(default_factory=list)
     profile: Optional[ProfileData] = None
+    evaluation_data: Optional[Dict[str, Any]] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any], profile_data: Optional[Dict[str, Any]] = None) -> 'PersonData':
@@ -206,16 +212,21 @@ class PersonData:
         Returns:
             PersonData instance
         """
-        # Handle only the Portuguese format
-        name = data.get('nome', '')
+        # Get year from data
         year = int(data.get('ano', 0))
         
-        # Create instance
+        # Get name from data or use empty string
+        name = data.get('nome', '')
+        
+        # Create instance with name and year
         person_data = cls(name=name, year=year)
         
         # Handle profile data if provided
         if profile_data:
             person_data.profile = ProfileData.from_dict(profile_data)
+            # Update name from profile if available
+            if person_data.profile.nome_completo:
+                person_data.name = person_data.profile.nome_completo
         
         # Handle attendance records
         if 'frequencias' in data and isinstance(data['frequencias'], list):
@@ -245,7 +256,11 @@ class PersonData:
                         person_data.add_payment(date_str, amount, 'paid', description)
                     except Exception as e:
                         print(f"Error adding payment record: {e}")
-            
+        
+        # Handle evaluation data
+        if 'avaliacao' in data:
+            person_data.evaluation_data = data['avaliacao']
+        
         return person_data
     
     def to_dict(self) -> Dict[str, Any]:
@@ -256,7 +271,6 @@ class PersonData:
         """
         # Only support Portuguese field names format
         result = {
-            'nome': self.name,
             'ano': self.year
         }
         
@@ -281,7 +295,11 @@ class PersonData:
                     'valor': record_dict.get('valor', 0),
                     'descricao': record_dict.get('descricao', '')
                 })
-            
+        
+        # Add evaluation data if available
+        if self.evaluation_data:
+            result['data'] = self.evaluation_data
+        
         return result
     
     def get_profile_dict(self) -> Optional[Dict[str, Any]]:
@@ -394,19 +412,32 @@ class PersonData:
         present = sum(1 for record in self.attendance_records if record.present)
         
         return {
-            "total": total,
-            "present": present,
-            "absent": total - present,
+            "total_days": total,
+            "present_days": present,
+            "absent_days": total - present,
             "attendance_rate": (present / total) * 100 if total > 0 else 0
         }
     
     def get_payment_summary(self) -> Dict[str, Any]:
         """Get a summary of payments."""
-        total_amount = sum(record.amount for record in self.payment_records)
+        if not self.payment_records:
+            return {
+                "total_payments": 0,
+                "total_amount": 0,
+                "average_amount": 0,
+                "min_amount": 0,
+                "max_amount": 0
+            }
+            
+        amounts = [record.amount for record in self.payment_records]
+        total_amount = sum(amounts)
+        
         return {
             "total_payments": len(self.payment_records),
             "total_amount": total_amount,
-            "average_payment": total_amount / len(self.payment_records) if self.payment_records else 0
+            "average_amount": total_amount / len(self.payment_records),
+            "min_amount": min(amounts),
+            "max_amount": max(amounts)
         }
     
     def get_profile_summary(self) -> Dict[str, Any]:

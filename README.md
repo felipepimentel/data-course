@@ -9,7 +9,7 @@ Sistema de análise de dados de pessoas usando DuckDB.
 ├── data/                  # Diretório com dados de entrada
 │   └── <pessoa>/         # Diretório por pessoa
 │       └── <ano>/        # Diretório por ano
-│           ├── resultado.json     # Formato legado
+│           ├── resultado.json     # Avaliações
 │           ├── perfil.json       # Dados do perfil
 │           ├── frequencias.json  # Dados de frequência
 │           └── pagamentos.json   # Dados de pagamentos
@@ -60,37 +60,43 @@ python -m peopleanalytics export --all
 
 ## Formatos de Dados
 
-### Formato Legado (resultado.json)
+### resultado.json
 
 ```json
 {
-  "nome": "Nome da Pessoa",
-  "ano": 2023,
-  "frequencias": [
-    {
-      "data": "2023-01-01",
-      "status": "presente",
-      "justificativa": ""
-    }
-  ],
-  "pagamentos": [
-    {
-      "data": "2023-01-15",
-      "valor": 1000,
-      "descricao": ""
-    }
-  ]
+  "data": {
+    "nome": "Nome da Pessoa",
+    "ano": 2023,
+    "direcionadores": [
+      {
+        "nome": "Nome do Direcionador",
+        "peso": 25,
+        "comportamentos": [
+          {
+            "nome": "Nome do Comportamento",
+            "peso": 25,
+            "avaliacoes_grupo": [
+              {
+                "frequencia_colaborador": [1, 2, 3, 4, 5],
+                "frequencia_grupo": [1, 2, 3, 4, 5],
+                "peso": 20
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 
-### Novo Formato
+### perfil.json
 
-#### perfil.json
 ```json
 {
   "nome_completo": "Nome da Pessoa",
   "funcional": "12345",
-  "funcional_gestor": "67890",
+  "funcional_gestor": "67890", 
   "nome_gestor": "Nome do Gestor",
   "cargo": "Analista",
   "codigo_cargo": "AN01",
@@ -100,7 +106,7 @@ python -m peopleanalytics export --all
   "tipo_carreira": "Técnica",
   "codigo_comunidade": "COM01",
   "nome_comunidade": "Backend",
-  "codigo_squad": "SQ01",
+  "codigo_squad": "SQ01", 
   "nome_squad": "Squad 1",
   "codigo_papel": "DEV",
   "nome_papel": "Desenvolvedor",
@@ -110,7 +116,7 @@ python -m peopleanalytics export --all
 }
 ```
 
-#### frequencias.json
+### frequencias.json
 ```json
 [
   {
@@ -121,7 +127,7 @@ python -m peopleanalytics export --all
 ]
 ```
 
-#### pagamentos.json
+### pagamentos.json
 ```json
 [
   {
