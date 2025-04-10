@@ -291,15 +291,38 @@ class PersonData:
         return None
     
     def validate(self) -> RecordStatus:
-        """Validate the person data."""
-        if not self.name or not self.year:
-            return RecordStatus.INCOMPLETE
+        """Validate the person data.
+        
+        Returns:
+            RecordStatus indicating validation result
+        """
+        try:
+            # Check required fields
+            if not self.name:
+                return RecordStatus.INVALID
+                
+            if not self.year:
+                return RecordStatus.INVALID
+                
+            # Validate profile if exists
+            if self.profile:
+                if not self.profile.nome_completo:
+                    return RecordStatus.INCOMPLETE
+                    
+            # Validate attendance records
+            for record in self.attendance_records:
+                if not record.date:
+                    return RecordStatus.INVALID
+                    
+            # Validate payment records
+            for record in self.payment_records:
+                if not record.date or record.amount <= 0:
+                    return RecordStatus.INVALID
+                    
+            return RecordStatus.VALID
             
-        # Basic validation - can be expanded based on requirements
-        if self.year < 2000 or self.year > datetime.now().year + 1:
-            return RecordStatus.INVALID
-            
-        return RecordStatus.VALID
+        except Exception:
+            return RecordStatus.ERROR
     
     def save_to_file(self, directory: str) -> None:
         """Save person data to file in the new format.

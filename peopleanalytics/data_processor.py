@@ -102,73 +102,69 @@ class DataProcessor:
         return sorted(people)
         
     def load_person_data(self, person: str, year: str) -> Optional[PersonData]:
-        """
-        Load data for a specific person and year.
+        """Load data for a specific person and year.
         
         Args:
-            person (str): The name of the person.
-            year (str): The year to load data for.
+            person: Person name
+            year: Year
             
         Returns:
-            PersonData: A PersonData object containing the loaded data, or None if data could not be loaded.
+            PersonData object or None if not found
         """
-        cache_key = f"{person}_{year}"
-        
-        # Check cache first
-        if cache_key in self._person_data_cache:
-            return self._person_data_cache[cache_key]
-            
         try:
-            person_data_path = os.path.join(self.data_path, person, year)
-            resultado_file = os.path.join(person_data_path, "resultado.json")
-            perfil_file = os.path.join(person_data_path, "perfil.json")
+            # Get the directory path
+            person_dir = self.data_path / person / year
             
-            # Check if resultado.json exists
-            if not os.path.exists(resultado_file):
-                # No data found - log at DEBUG level instead of WARNING to reduce noise
-                self.logger.debug(f"No data found for {person}/{year} - missing resultado.json")
+            if not person_dir.exists():
                 return None
                 
-            # New structure with separate resultado.json file
-            with open(resultado_file, 'r', encoding='utf-8') as f:
-                raw_data = json.load(f)
-                
-            # Prepare the data dictionary with Portuguese field mappings
+            # Initialize data dictionary
             data_dict = {
                 "nome": person,
-                "ano": int(year) if year.isdigit() else year,
+                "ano": year,
                 "frequencias": [],
                 "pagamentos": []
             }
             
-            # Copy data from resultado.json
-            if "nome" in raw_data:
-                data_dict["nome"] = raw_data["nome"]
-            if "ano" in raw_data:
-                data_dict["ano"] = raw_data["ano"]
-            if "frequencias" in raw_data:
-                data_dict["frequencias"] = raw_data["frequencias"]
-            if "pagamentos" in raw_data:
-                data_dict["pagamentos"] = raw_data["pagamentos"]
+            # Load profile data if exists
+            profile_file = person_dir / "perfil.json"
+            if profile_file.exists():
+                with open(profile_file, 'r', encoding='utf-8') as f:
+                    profile_data = json.load(f)
+                    data_dict["perfil"] = profile_data
             
-            # Check if profile data exists
-            profile_data = None
-            if os.path.exists(perfil_file):
-                try:
-                    with open(perfil_file, 'r', encoding='utf-8') as f:
-                        profile_data = json.load(f)
-                except Exception as e:
-                    self.logger.warning(f"Error reading profile file for {person} ({year}): {e}")
+            # Load attendance data if exists
+            attendance_file = person_dir / "frequencias.json"
+            if attendance_file.exists():
+                with open(attendance_file, 'r', encoding='utf-8') as f:
+                    attendance_data = json.load(f)
+                    data_dict["frequencias"] = attendance_data
             
-            # Create PersonData with profile
-            person_data = PersonData.from_dict(data_dict, profile_data)
-                
-            # Cache the data
-            self._person_data_cache[cache_key] = person_data
-            return person_data
+            # Load payment data if exists
+            payment_file = person_dir / "pagamentos.json"
+            if payment_file.exists():
+                with open(payment_file, 'r', encoding='utf-8') as f:
+                    payment_data = json.load(f)
+                    data_dict["pagamentos"] = payment_data
+            
+            # Load resultado.json if exists (legacy format)
+            resultado_file = person_dir / "resultado.json"
+            if resultado_file.exists():
+                with open(resultado_file, 'r', encoding='utf-8') as f:
+                    resultado_data = json.load(f)
+                    # Merge with existing data, but don't overwrite if already exists
+                    if "frequencias" not in data_dict or not data_dict["frequencias"]:
+                        data_dict["frequencias"] = resultado_data.get("frequencias", [])
+                    if "pagamentos" not in data_dict or not data_dict["pagamentos"]:
+                        data_dict["pagamentos"] = resultado_data.get("pagamentos", [])
+                    if "perfil" not in data_dict and "perfil" in resultado_data:
+                        data_dict["perfil"] = resultado_data["perfil"]
+            
+            # Create PersonData object
+            return PersonData.from_dict(data_dict)
             
         except Exception as e:
-            self.logger.error(f"Error loading data for {person}/{year}: {str(e)}")
+            self.logger.error(f"Error loading data for {person}/{year}: {e}")
             return None
             
     def save_person_data(self, data: PersonData) -> bool:
@@ -217,159 +213,60 @@ class DataProcessor:
         Returns:
             Tuple of (success, message)
         """
-        file_path = Path(file_path)
-        
-        if not file_path.exists():
-            return False, f"File not found: {file_path}"
-            
         try:
-            # Detect file type (resultado.json, perfil.json, or other JSON)
-            file_name = file_path.name.lower()
+            file_path = Path(file_path)
             
-            # Check if it's a profile file
-            if file_name == "perfil.json":
-                # Find the corresponding resultado.json in the same directory
-                resultado_file = file_path.parent / "resultado.json"
-                if not resultado_file.exists():
-                    return False, f"Found profile file but no matching resultado.json in {file_path.parent}"
-                    
-                # Load both files and create a complete PersonData
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    profile_data = json.load(f)
-                    
-                with open(resultado_file, 'r', encoding='utf-8') as f:
-                    result_data = json.load(f)
-                    
-                # Create a new PersonData with both datasets
-                person_data = PersonData.from_dict(result_data, profile_data)
+            # Extract person and year from path
+            # Expected structure: data/person/year/file.json
+            parts = file_path.parts
+            if len(parts) < 4:
+                return False, f"Invalid file path structure: {file_path}"
                 
-            # Check if it's a resultado file
-            elif file_name == "resultado.json":
-                # Load the resultado file
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    result_data = json.load(f)
-                    
-                # Check if there's a matching profile file
-                profile_file = file_path.parent / "perfil.json"
-                profile_data = None
-                if profile_file.exists():
-                    try:
-                        with open(profile_file, 'r', encoding='utf-8') as f:
-                            profile_data = json.load(f)
-                    except Exception as e:
-                        self.logger.warning(f"Error reading profile file {profile_file}: {e}")
-                    
-                # Create a new PersonData with both datasets
-                person_data = PersonData.from_dict(result_data, profile_data)
-                
-            # Any other JSON file (must be in the new format)
-            else:
-                # Load and parse the file
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    
-                # Create PersonData object
-                person_data = PersonData.from_dict(data)
+            person = parts[-3]
+            year = parts[-2]
+            filename = parts[-1]
             
-            # Check for required fields
-            if not person_data.name:
-                return False, f"Invalid data file: missing name in {file_path}"
-                
-            # If year is missing in data file, try to extract it from the file path
-            if not person_data.year:
-                try:
-                    # Extract year from path (expected structure: */nome_pessoa/ano/* or */ano/nome_pessoa/*)
-                    parts = file_path.parts
-                    
-                    # Estratégia de extração de ano:
-                    # 1. Primeiro tenta estrutura padrão: */nome_pessoa/ano/*
-                    # 2. Depois tenta estrutura invertida: */ano/nome_pessoa/*
-                    # 3. Procura qualquer número de 4 dígitos no caminho
-                    # 4. Procura um número de 4 dígitos no nome do arquivo
-                    # 5. Procura padrão "Year2XXX" no caminho
-                    # 6. Procura padrão "year_2XXX" no caminho
-                    
-                    # First check for */nome_pessoa/ano/* structure
-                    for i, part in enumerate(parts):
-                        if part == person_data.name and i+1 < len(parts):
-                            # Next part might be the year
-                            potential_year = parts[i+1]
-                            if potential_year.isdigit():
-                                self.logger.info(f"Year not found in file, extracted from path: {potential_year}")
-                                person_data.year = int(potential_year)
-                                break
-                    
-                    # If we still don't have a year, check for */ano/nome_pessoa/* structure
-                    if not person_data.year:
-                        for i, part in enumerate(parts):
-                            if i > 0 and part == person_data.name and parts[i-1].isdigit():
-                                # Previous part might be the year
-                                potential_year = parts[i-1]
-                                self.logger.info(f"Year not found in file, extracted from path: {potential_year}")
-                                person_data.year = int(potential_year)
-                                break
-                    
-                    # If we still don't have a year, check for any 4-digit year in path
-                    if not person_data.year:
-                        for part in parts:
-                            if part.isdigit() and len(part) == 4:
-                                potential_year = part
-                                self.logger.info(f"Year not found in file, extracted from path (4-digit number): {potential_year}")
-                                person_data.year = int(potential_year)
-                                break
-                    
-                    # If we still don't have a year, check for 4-digit year in the filename
-                    if not person_data.year:
-                        filename = file_path.name
-                        # Look for 4-digit sequences that could be years
-                        year_matches = re.findall(r'20\d{2}', filename)
-                        if year_matches:
-                            potential_year = year_matches[0]
-                            self.logger.info(f"Year not found in file, extracted from filename: {potential_year}")
-                            person_data.year = int(potential_year)
-                    
-                    # If we still don't have a year, check for "Year20XX" pattern in path
-                    if not person_data.year:
-                        for part in parts:
-                            year_matches = re.findall(r'Year(20\d{2})', part)
-                            if year_matches:
-                                potential_year = year_matches[0]
-                                self.logger.info(f"Year not found in file, extracted from 'Year' prefix in path: {potential_year}")
-                                person_data.year = int(potential_year)
-                                break
-                    
-                    # If we still don't have a year, check for "year_XXXX" pattern in path
-                    if not person_data.year:
-                        for part in parts:
-                            year_matches = re.findall(r'year[_-]?(20\d{2})', part.lower())
-                            if year_matches:
-                                potential_year = year_matches[0]
-                                self.logger.info(f"Year not found in file, extracted from 'year_' pattern in path: {potential_year}")
-                                person_data.year = int(potential_year)
-                                break
-                                
-                except Exception as e:
-                    self.logger.warning(f"Failed to extract year from path: {e}")
-                    
-            # Double-check we have a year
-            if not person_data.year:
-                return False, f"Invalid data file: missing year in {file_path} and could not extract from path"
-                
-            # Check if data already exists
-            existing_path = self.data_path / person_data.name / str(person_data.year)
-            existing_resultado = existing_path / "resultado.json"
+            # Create person directory if needed
+            person_dir = self.data_path / person / year
+            person_dir.mkdir(parents=True, exist_ok=True)
             
-            if existing_resultado.exists() and not overwrite:
-                return False, f"Data already exists for {person_data.name} ({person_data.year}). Use overwrite=True to replace."
-                
-            # Save the data using our save method, which will use the new format
+            # Load existing data if any
+            existing_data = self.load_person_data(person, year)
+            data_dict = existing_data.to_dict() if existing_data else {
+                "nome": person,
+                "ano": year,
+                "frequencias": [],
+                "pagamentos": []
+            }
+            
+            # Load the new file
+            with open(file_path, 'r', encoding='utf-8') as f:
+                new_data = json.load(f)
+            
+            # Update data based on file type
+            if filename == "perfil.json":
+                data_dict["perfil"] = new_data
+            elif filename == "frequencias.json":
+                data_dict["frequencias"] = new_data
+            elif filename == "pagamentos.json":
+                data_dict["pagamentos"] = new_data
+            elif filename == "resultado.json":
+                # Legacy format - merge data
+                if "frequencias" in new_data:
+                    data_dict["frequencias"] = new_data["frequencias"]
+                if "pagamentos" in new_data:
+                    data_dict["pagamentos"] = new_data["pagamentos"]
+                if "perfil" in new_data:
+                    data_dict["perfil"] = new_data["perfil"]
+            
+            # Create and save PersonData
+            person_data = PersonData.from_dict(data_dict)
             if self.save_person_data(person_data):
-                return True, f"Successfully imported data for {person_data.name} ({person_data.year})"
+                return True, f"Successfully imported {filename} for {person} ({year})"
             else:
-                return False, f"Error saving imported data for {person_data.name} ({person_data.year})"
-        
+                return False, f"Error saving data for {person} ({year})"
+                
         except Exception as e:
-            self.logger.error(f"Error importing file {file_path}: {e}")
             return False, f"Error importing file: {str(e)}"
             
     def import_directory(self, directory: Union[str, Path], pattern: str = "*.json", 
@@ -590,19 +487,19 @@ class DataProcessor:
                     
                     for record in data.attendance_records:
                         attendance_entry = {
-                            "person": person,
-                            "year": y,
-                            "date": record.date.isoformat(),
-                            "present": record.present,
-                            "notes": record.notes
+                            "pessoa": person,
+                            "ano": y,
+                            "data": record.date.isoformat(),
+                            "presente": record.present,
+                            "justificativa": record.notes
                         }
                         
                         # Add profile information if available
                         if data.profile:
                             attendance_entry.update({
-                                "department": department,
-                                "position": position,
-                                "manager": manager
+                                "departamento": department,
+                                "cargo": position,
+                                "gestor": manager
                             })
                             
                         all_attendance.append(attendance_entry)
@@ -618,32 +515,32 @@ class DataProcessor:
         if not df.empty:
             # Add summary sheet
             with pd.ExcelWriter(report_file) as writer:
-                df.to_excel(writer, sheet_name="Attendance Records", index=False)
+                df.to_excel(writer, sheet_name="Registros de Frequência", index=False)
                 
                 # Create summary sheet
                 if not df.empty:
                     # Group by person, department, and year if profile info is available
-                    if 'department' in df.columns:
-                        summary = df.groupby(['person', 'department', 'position', 'year']).agg({
-                            'present': ['count', 'sum']
+                    if 'departamento' in df.columns:
+                        summary = df.groupby(['pessoa', 'departamento', 'cargo', 'ano']).agg({
+                            'presente': ['count', 'sum']
                         })
                     else:
-                        summary = df.groupby(['person', 'year']).agg({
-                            'present': ['count', 'sum']
+                        summary = df.groupby(['pessoa', 'ano']).agg({
+                            'presente': ['count', 'sum']
                         })
                     
-                    summary.columns = ['total_days', 'days_present']
-                    summary['attendance_rate'] = (summary['days_present'] / summary['total_days']) * 100
-                    summary.reset_index().to_excel(writer, sheet_name="Summary", index=False)
+                    summary.columns = ['total_dias', 'dias_presente']
+                    summary['taxa_frequencia'] = (summary['dias_presente'] / summary['total_dias']) * 100
+                    summary.reset_index().to_excel(writer, sheet_name="Resumo", index=False)
                     
                     # Add department summary if available
-                    if 'department' in df.columns:
-                        dept_summary = df.groupby(['department']).agg({
-                            'present': ['count', 'sum']
+                    if 'departamento' in df.columns:
+                        dept_summary = df.groupby(['departamento']).agg({
+                            'presente': ['count', 'sum']
                         })
-                        dept_summary.columns = ['total_days', 'days_present']
-                        dept_summary['attendance_rate'] = (dept_summary['days_present'] / dept_summary['total_days']) * 100
-                        dept_summary.reset_index().to_excel(writer, sheet_name="Department Summary", index=False)
+                        dept_summary.columns = ['total_dias', 'dias_presente']
+                        dept_summary['taxa_frequencia'] = (dept_summary['dias_presente'] / dept_summary['total_dias']) * 100
+                        dept_summary.reset_index().to_excel(writer, sheet_name="Resumo por Departamento", index=False)
         
         return str(report_file)
         
@@ -687,20 +584,20 @@ class DataProcessor:
                     
                     for record in data.payment_records:
                         payment_entry = {
-                            "person": person,
-                            "year": y,
-                            "date": record.date.isoformat(),
-                            "amount": record.amount,
+                            "pessoa": person,
+                            "ano": y,
+                            "data": record.date.isoformat(),
+                            "valor": record.amount,
                             "status": record.status,
-                            "reference": record.reference
+                            "referencia": record.reference
                         }
                         
                         # Add profile information if available
                         if data.profile:
                             payment_entry.update({
-                                "department": department,
-                                "position": position,
-                                "manager": manager
+                                "departamento": department,
+                                "cargo": position,
+                                "gestor": manager
                             })
                             
                         all_payments.append(payment_entry)
@@ -716,30 +613,30 @@ class DataProcessor:
         if not df.empty:
             # Add summary sheet
             with pd.ExcelWriter(report_file) as writer:
-                df.to_excel(writer, sheet_name="Payment Records", index=False)
+                df.to_excel(writer, sheet_name="Registros de Pagamento", index=False)
                 
                 # Create summary sheet
                 if not df.empty:
                     # Group by person, department, and year if profile info is available
-                    if 'department' in df.columns:
-                        summary = df.groupby(['person', 'department', 'position', 'year']).agg({
-                            'amount': ['count', 'sum', 'mean']
+                    if 'departamento' in df.columns:
+                        summary = df.groupby(['pessoa', 'departamento', 'cargo', 'ano']).agg({
+                            'valor': ['count', 'sum', 'mean']
                         })
                     else:
-                        summary = df.groupby(['person', 'year']).agg({
-                            'amount': ['count', 'sum', 'mean']
+                        summary = df.groupby(['pessoa', 'ano']).agg({
+                            'valor': ['count', 'sum', 'mean']
                         })
                     
-                    summary.columns = ['payment_count', 'total_amount', 'average_payment']
-                    summary.reset_index().to_excel(writer, sheet_name="Summary", index=False)
+                    summary.columns = ['total_pagamentos', 'valor_total', 'valor_medio']
+                    summary.reset_index().to_excel(writer, sheet_name="Resumo", index=False)
                     
                     # Add department summary if available
-                    if 'department' in df.columns:
-                        dept_summary = df.groupby(['department']).agg({
-                            'amount': ['count', 'sum', 'mean']
+                    if 'departamento' in df.columns:
+                        dept_summary = df.groupby(['departamento']).agg({
+                            'valor': ['count', 'sum', 'mean']
                         })
-                        dept_summary.columns = ['payment_count', 'total_amount', 'average_payment']
-                        dept_summary.reset_index().to_excel(writer, sheet_name="Department Summary", index=False)
+                        dept_summary.columns = ['total_pagamentos', 'valor_total', 'valor_medio']
+                        dept_summary.reset_index().to_excel(writer, sheet_name="Resumo por Departamento", index=False)
         
         return str(report_file)
         
