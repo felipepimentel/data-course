@@ -29,6 +29,17 @@ MANIFEST
 # Project specific
 /data/
 /output/
+/teste/
+/reports/
+*.duckdb
+*.db
+*.json
+*.xlsx
+*.csv
+*.zip
+*.png
+*.bak
+*.html
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
