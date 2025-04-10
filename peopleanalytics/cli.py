@@ -33,6 +33,9 @@ class CLI:
         
     def setup(self, data_path, output_path=None):
         """Set up the data processor."""
+        # Convert relative paths to absolute paths
+        data_path = Path(data_path).resolve()
+        output_path = Path(output_path).resolve() if output_path else None
         self.processor = DataProcessor(data_path, output_path)
         
     def run(self):
@@ -78,26 +81,30 @@ class CLI:
             formatter_class=argparse.ArgumentDefaultsHelpFormatter
         )
         
-        # Global options
-        parser.add_argument(
-            "--data-path", 
-            default="data",
-            help="Path to the data directory"
-        )
-        parser.add_argument(
-            "--output-path", 
-            default="output",
-            help="Path to the output directory"
-        )
-        
         # Create subparsers for commands
         subparsers = parser.add_subparsers(dest="command", help="Command to execute")
         
+        # Common arguments for commands that use data and output paths
+        common_path_args = {
+            "--data-path": {
+                "default": ".",
+                "help": "Path to the data directory"
+            },
+            "--output-path": {
+                "default": "./output",
+                "help": "Path to the output directory"
+            }
+        }
+        
         # validate command
         validate_parser = subparsers.add_parser("validate", help="Validate all data")
+        validate_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        validate_parser.add_argument("--output-path", **common_path_args["--output-path"])
         
         # list command
         list_parser = subparsers.add_parser("list", help="List people or years")
+        list_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        list_parser.add_argument("--output-path", **common_path_args["--output-path"])
         list_parser.add_argument(
             "what", 
             choices=["people", "years", "data"],
@@ -114,6 +121,8 @@ class CLI:
         
         # import command
         import_parser = subparsers.add_parser("import", help="Import data")
+        import_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        import_parser.add_argument("--output-path", **common_path_args["--output-path"])
         import_parser.add_argument(
             "source",
             help="Source file or directory to import"
@@ -126,6 +135,8 @@ class CLI:
         
         # export command
         export_parser = subparsers.add_parser("export", help="Export data")
+        export_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        export_parser.add_argument("--output-path", **common_path_args["--output-path"])
         export_parser.add_argument(
             "--person", 
             help="Person name for export"
@@ -142,6 +153,8 @@ class CLI:
         
         # summary command
         summary_parser = subparsers.add_parser("summary", help="Generate summary")
+        summary_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        summary_parser.add_argument("--output-path", **common_path_args["--output-path"])
         summary_parser.add_argument(
             "--format", 
             choices=["json", "csv", "html"],
@@ -151,6 +164,8 @@ class CLI:
         
         # report command
         report_parser = subparsers.add_parser("report", help="Generate reports")
+        report_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        report_parser.add_argument("--output-path", **common_path_args["--output-path"])
         report_parser.add_argument(
             "type",
             choices=["attendance", "payment", "all"],
@@ -163,9 +178,13 @@ class CLI:
         
         # backup command
         backup_parser = subparsers.add_parser("backup", help="Create a backup")
+        backup_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        backup_parser.add_argument("--output-path", **common_path_args["--output-path"])
         
         # plot command
         plot_parser = subparsers.add_parser("plot", help="Generate plots")
+        plot_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        plot_parser.add_argument("--output-path", **common_path_args["--output-path"])
         plot_parser.add_argument(
             "type",
             choices=["attendance", "payment", "all"],
@@ -178,6 +197,8 @@ class CLI:
         
         # Add attendance record
         attendance_parser = subparsers.add_parser('add-attendance', help='Add attendance record')
+        attendance_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        attendance_parser.add_argument("--output-path", **common_path_args["--output-path"])
         attendance_parser.add_argument('--person', required=True, help='Person name')
         attendance_parser.add_argument('--year', required=True, help='Year')
         attendance_parser.add_argument('--date', required=True, help='Date (YYYY-MM-DD)')
@@ -187,6 +208,8 @@ class CLI:
         
         # Add payment record
         payment_parser = subparsers.add_parser('add-payment', help='Add payment record')
+        payment_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        payment_parser.add_argument("--output-path", **common_path_args["--output-path"])
         payment_parser.add_argument('--person', required=True, help='Person name')
         payment_parser.add_argument('--year', required=True, help='Year')
         payment_parser.add_argument('--date', required=True, help='Date (YYYY-MM-DD)')
@@ -196,6 +219,8 @@ class CLI:
         
         # Update profile
         profile_parser = subparsers.add_parser('update-profile', help='Update person profile')
+        profile_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        profile_parser.add_argument("--output-path", **common_path_args["--output-path"])
         profile_parser.add_argument('--person', required=True, help='Person name')
         profile_parser.add_argument('--year', required=True, help='Year')
         profile_parser.add_argument('--full-name', help='Full name')
@@ -206,6 +231,8 @@ class CLI:
         
         # Create sample data
         sample_parser = subparsers.add_parser('create-sample', help='Create sample data')
+        sample_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        sample_parser.add_argument("--output-path", **common_path_args["--output-path"])
         
         return parser
         

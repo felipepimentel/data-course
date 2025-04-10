@@ -31,8 +31,9 @@ class DataProcessor:
             data_path: Path to the data directory
             output_path: Path to the output directory (defaults to 'output' in current dir)
         """
-        self.data_path = Path(data_path)
-        self.output_path = Path(output_path) if output_path else Path("output")
+        # Convert to Path objects and resolve relative paths
+        self.data_path = Path(data_path).resolve()
+        self.output_path = Path(output_path).resolve() if output_path else Path("output").resolve()
         
         # Ensure directories exist
         self.data_path.mkdir(parents=True, exist_ok=True)

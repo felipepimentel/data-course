@@ -6,21 +6,17 @@ Sistema de análise de dados de pessoas usando DuckDB.
 
 ```
 .
-├── data/                  # Diretório com dados de entrada
-│   └── <pessoa>/         # Diretório por pessoa
-│       └── <ano>/        # Diretório por ano
-│           ├── resultado.json     # Avaliações
-│           ├── perfil.json       # Dados do perfil
-│           ├── frequencias.json  # Dados de frequência
-│           └── pagamentos.json   # Dados de pagamentos
-├── output/               # Diretório com resultados
-│   ├── backups/         # Backups dos dados
-│   ├── exports/         # Dados exportados
-│   ├── logs/            # Logs de processamento
-│   ├── plots/           # Gráficos gerados
-│   ├── reports/         # Relatórios em Excel
-│   └── summary/         # Resumos em HTML/JSON
-└── peopleanalytics/     # Código fonte
+├── <nome>/              # Diretório por pessoa
+│   └── <ano>/          # Diretório por ano
+│       └── resultado.json     # Arquivo de avaliações
+├── output/             # Diretório com resultados
+│   ├── backups/       # Backups dos dados
+│   ├── exports/       # Dados exportados
+│   ├── logs/          # Logs de processamento
+│   ├── plots/         # Gráficos gerados
+│   ├── reports/       # Relatórios em Excel
+│   └── summary/       # Resumos em HTML/JSON
+└── peopleanalytics/   # Código fonte
 ```
 
 ## Instalação
@@ -40,22 +36,111 @@ Sistema de análise de dados de pessoas usando DuckDB.
 
 ## Uso
 
-### Importar e Analisar Dados
+Todos os comandos aceitam os argumentos `--data-path` e `--output-path` para especificar os diretórios de entrada e saída. Por padrão:
+- `--data-path`: Usa o diretório atual (`.`)
+- `--output-path`: Usa o diretório `./output` dentro do diretório atual
+
+### Validação de Dados
 
 ```bash
-python -m peopleanalytics import --data_dir ./data --output_dir ./output
+# Validar dados no diretório atual
+python3 -m peopleanalytics validate
+
+# Validar dados em um diretório específico
+python3 -m peopleanalytics validate --data-path ./meus_dados --output-path ./resultados
 ```
 
-### Gerar Relatórios
+### Importação de Dados
 
 ```bash
-python -m peopleanalytics report --year 2023
+# Importar um arquivo específico
+python3 -m peopleanalytics import ./pessoa/2023/resultado.json
+
+# Importar um diretório específico
+python3 -m peopleanalytics import ./pessoa/2023
+
+# Importar recursivamente a partir do diretório atual
+python3 -m peopleanalytics import . --recursive
+
+# Importar recursivamente de um diretório específico
+python3 -m peopleanalytics import ./meus_dados --recursive
+
+# Importar com diretórios de entrada e saída personalizados
+python3 -m peopleanalytics import . --recursive --data-path ./meus_dados --output-path ./resultados
 ```
 
-### Exportar Dados
+### Exportação de Dados
 
 ```bash
-python -m peopleanalytics export --all
+# Exportar todos os dados
+python3 -m peopleanalytics export --all
+
+# Exportar dados de uma pessoa específica
+python3 -m peopleanalytics export --person "Nome da Pessoa"
+
+# Exportar dados de um ano específico
+python3 -m peopleanalytics export --year 2023
+
+# Exportar dados de um diretório específico
+python3 -m peopleanalytics export --all --data-path ./meus_dados --output-path ./exportados
+```
+
+### Geração de Relatórios
+
+```bash
+# Gerar todos os relatórios para 2023
+python3 -m peopleanalytics report all --year 2023
+
+# Gerar relatório de frequência
+python3 -m peopleanalytics report attendance --year 2023
+
+# Gerar relatório de pagamentos
+python3 -m peopleanalytics report payment --year 2023
+
+# Gerar relatórios de um diretório específico
+python3 -m peopleanalytics report all --year 2023 --data-path ./dados --output-path ./relatorios
+```
+
+### Geração de Resumos
+
+```bash
+# Gerar resumo em JSON
+python3 -m peopleanalytics summary --format json
+
+# Gerar resumo em HTML
+python3 -m peopleanalytics summary --format html
+
+# Gerar resumo em CSV
+python3 -m peopleanalytics summary --format csv
+
+# Gerar resumo de um diretório específico
+python3 -m peopleanalytics summary --format json --data-path ./dados --output-path ./resumos
+```
+
+### Outros Comandos
+
+```bash
+# Listar pessoas ou anos
+python3 -m peopleanalytics list people
+python3 -m peopleanalytics list years
+
+# Criar backup
+python3 -m peopleanalytics backup
+
+# Gerar gráficos
+python3 -m peopleanalytics plot all
+
+# Adicionar registro de frequência
+python3 -m peopleanalytics add-attendance --person "Nome" --year 2023 --date 2023-01-01 --status presente
+
+# Adicionar registro de pagamento
+python3 -m peopleanalytics add-payment --person "Nome" --year 2023 --date 2023-01-15 --amount 1000 --type salary
+
+# Atualizar perfil
+python3 -m peopleanalytics update-profile --person "Nome" --year 2023
+
+# Criar dados de exemplo
+python3 -m peopleanalytics create-sample
 ```
 
 ## Formatos de Dados
