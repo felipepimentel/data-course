@@ -1,22 +1,27 @@
 """
-People Analytics - Evaluation Analysis Tool
-==========================================
+People Analytics package.
 
-A comprehensive tool for analyzing 360-degree evaluations,
-generating reports, and visualizing performance data.
+A modern data processing system for analyzing people data, 
+including attendance and payment information.
 """
 
-__version__ = '1.0.0'
+__version__ = "2.0.0"
 
-# Simplified imports for common components
-from peopleanalytics.analyzer import EvaluationAnalyzer
-from peopleanalytics.visualization import Visualization, ChartConfig
-from peopleanalytics.data_pipeline import DataPipeline
+from .data_model import (
+    PersonData,
+    AttendanceRecord,
+    PaymentRecord,
+    PersonSummary,
+    RecordStatus
+)
 
-# Version info
+from .data_processor import DataProcessor
+
 __all__ = [
-    'EvaluationAnalyzer',
-    'Visualization',
-    'ChartConfig',
-    'DataPipeline',
+    "PersonData",
+    "AttendanceRecord",
+    "PaymentRecord",
+    "PersonSummary",
+    "RecordStatus",
+    "DataProcessor"
 ] 

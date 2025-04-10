@@ -1,16 +1,11 @@
 #!/usr/bin/env python
 """
-Main entry point for the peopleanalytics package.
-This allows running the package directly with python -m peopleanalytics
+Main module for People Analytics.
+
+Provides the entry point for the application.
 """
 
-from peopleanalytics.cli import CLI
-
-
-def main():
-    """Entry point for the peopleanalytics CLI."""
-    cli = CLI()
-    return cli.run()
+from .cli import main
 
 
 if __name__ == "__main__":

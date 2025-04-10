@@ -1,317 +1,434 @@
 # People Analytics
 
-A tool for analyzing 360-degree evaluations and generating reports.
+A modern data processing system for analyzing people data, including attendance and payment information.
+
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Python](https://img.shields.io/badge/python-3.6%2B-brightgreen.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+
+## Overview
+
+People Analytics provides a complete solution for managing attendance and payment data. The system offers robust data management features with an intuitive command-line interface, making it easy to import, validate, analyze, visualize, and export your people data.
 
 ## Features
 
-- Import evaluation data from JSON files
-- Analyze evaluation results and compare with group averages
-- Visualize results with various chart types (radar charts, heatmaps, etc.)
-- Export results to different formats (Excel, HTML, JSON)
-- Generate team reports and comparisons
-- Validate and backup data
+- **Modern Data Model**: Uses Python dataclasses for a clean, type-hinted data model
+- **Robust Error Handling**: Comprehensive validation and error handling
+- **Structured Output**: All reports, exports, and visualizations stored in the `output` directory
+- **Data Visualization**: Built-in plotting capabilities for attendance and payment data
+- **Reporting**: Generate detailed reports in various formats (Excel, CSV, JSON, HTML)
+- **Backup & Restore**: Simple backup functionality to preserve your data
+- **Command Line Interface**: Intuitive CLI for all operations
+- **Bilingual Support**: Handles both Portuguese and English field names
 
 ## Installation
 
-### From Source
-
 ```bash
-git clone https://github.com/yourusername/peopleanalytics.git
+# Clone the repository
+git clone https://github.com/your-username/peopleanalytics.git
 cd peopleanalytics
-pip install -e .
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-### Using pip
+## Quick Start
 
 ```bash
-pip install peopleanalytics
+# Generate attendance report for all years
+python -m peopleanalytics report attendance
+
+# Generate payment plots for 2023
+python -m peopleanalytics plot payment --year 2023
+
+# Create a comprehensive summary
+python -m peopleanalytics summary --format html
 ```
 
-## Data Organization
+## Getting Started Guide
 
-By default, the tool expects data to be organized in the following directory structure:
+If you're new to People Analytics, follow these steps to get started quickly:
 
-```
-<base_path>/<person_name>/<year>/resultado.json
-```
+1. **Check your data**: Ensure your data follows the expected structure (see [Data Structure](#data-structure))
+2. **Import your data**: Use the `import` command to bring your data into the system
+3. **Validate data**: Run the `validate` command to verify your data is correctly formatted
+4. **Generate reports**: Use the `report` command to create detailed reports
+5. **Visualize data**: Generate plots with the `plot` command
+6. **Create summaries**: Generate comprehensive summaries with the `summary` command
 
-Where:
-- `<base_path>` is the database root directory (defaults to `~/.peopleanalytics`)
-- `<person_name>` is the evaluated person's name folder
-- `<year>` is the evaluation year folder
-- `resultado.json` contains the actual evaluation data
-
-### Importing Existing Data
-
-If your data is in a different structure, use the `pipeline import` command to organize it properly:
+Here's a sample workflow:
 
 ```bash
-# For common structures like <person>/<year>/result.json
-peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/result.json" --overwrite
+# Import data from a directory
+python -m peopleanalytics import path/to/my/data --recursive
 
-# For single files
-peopleanalytics pipeline import --file /path/to/single/file.json
+# Validate all data
+python -m peopleanalytics validate
+
+# Generate all reports for 2023
+python -m peopleanalytics report all --year 2023
+
+# Create a HTML summary
+python -m peopleanalytics summary --format html
+
+# Back up all data
+python -m peopleanalytics backup
 ```
 
-### Working with Existing Data Structure
+## Data Structure
 
-If you prefer to use your existing data structure without importing, specify the parent directory as the base path:
-
-```bash
-peopleanalytics --base-path /path/to/parent/directory list people
-```
-
-Note: The parent directory is the one containing the expected structure elements (years or people).
-
-### Structure Adapter for Inverted Data Structure
-
-If your data is organized in the inverted structure (`<person>/<year>/result.json` instead of `<year>/<person>/result.json`), you can use the structure adapter:
-
-```bash
-# Create symlinks (no duplication of data)
-python structure_adapter.py symlink --source /path/to/data --target ~/.peopleanalytics
-
-# Or copy and convert structure (duplicates data)
-python structure_adapter.py convert --source /path/to/data --target ~/.peopleanalytics
-
-# Test the adapter directly
-python structure_adapter.py test --dir /path/to/data
-```
-
-For programmatic access to inverted structure:
-
-```python
-from structure_adapter import InvertedStructureAnalyzer
-
-# Use the adapter directly with inverted structure
-analyzer = InvertedStructureAnalyzer("/path/to/data")
-people = analyzer.get_all_people()
-```
-
-### Using ChatGPT to Adapt Your Data Structure
-
-If you have a custom data structure and need help adapting it, you can use ChatGPT to generate transformation functions that override the existing ones in the project. Here's a prompt template:
+The system uses a simple and intuitive data structure:
 
 ```
-I need to modify the People Analytics tool to work with my custom data structure.
+data/
+  ├── Person Name/
+  │   ├── Year/
+  │   │   └── data.json
+  │   └── ...
+  └── ...
+```
 
-Current structure in my files:
-[DESCRIBE YOUR CURRENT FOLDER/FILE STRUCTURE]
-Example: My files are organized as <department>/<person_name>/<year>/resultado.json
+Each `data.json` file contains a person's attendance and payment records for a specific year, structured like:
 
-Target structure needed by the tool:
-<year>/<person_name>/result.json
-
-Here's an example of my JSON data:
 ```json
 {
-  "person": "João Silva",
-  "year": "2022",
-  "department": "Engineering",
-  "conceito_ciclo_filho_descricao": "Supera Expectativas",
-  "comportamentos": [
-    {
-      "nome": "Liderança",
-      "score": 4.2
-    },
-    {
-      "nome": "Comunicação",
-      "score": 4.5
-    }
+  "nome": "Ana Costa",
+  "ano": 2023,
+  "frequencias": [
+    {"data": "2023-01-01", "presente": true},
+    {"data": "2023-01-08", "presente": false, "notas": "Feriado"}
+  ],
+  "pagamentos": [
+    {"data": "2023-01-15", "valor": 1000},
+    {"data": "2023-02-15", "valor": 1000, "status": "paid", "referencia": "Invoice #123"}
   ]
 }
 ```
 
-I need you to create a custom function that will override the existing ingest_file method in the DataPipeline class. The function should:
+### Field Mappings
 
-1. Extract the person, year, and any other metadata from both the filepath and JSON content
-2. Handle my specific folder structure correctly
-3. Transform the data to the expected format while preserving all original information
+The system supports both Portuguese and English field names:
 
-Please provide:
-1. A complete implementation of a custom ingest_file method that I can use to replace the existing one
-2. Instructions on how to properly override this method in the codebase
-3. Example usage showing how to call this modified method
-```
+| Portuguese   | English    | Description                   |
+|--------------|------------|-------------------------------|
+| nome         | name       | Person's name                 |
+| ano          | year       | Year of the data              |
+| frequencias  | attendance | List of attendance records    |
+| data         | date       | Date of record                |
+| presente     | present    | Attendance status (true/false)|
+| notas        | notes      | Optional notes                |
+| pagamentos   | payments   | List of payment records       |
+| valor        | amount     | Payment amount                |
+| referencia   | reference  | Payment reference             |
+| status       | status     | Payment status                |
 
-Tips for using ChatGPT for function overriding:
-1. **Be specific** about the function you want to override (method name, class, file)
-2. **Share the exact folder structure** you're using
-3. **Consider edge cases** like missing fields or unusual filenames
-4. **Ask for docstrings and comments** to understand how the custom function works
+## Command Line Interface
 
-You can use the generated function to override methods in `data_pipeline.py` or create a custom subclass.
-
-## Usage
-
-### Command Line Interface
-
-#### Global Options
+### Global Options
 
 ```bash
-peopleanalytics [--base-path PATH] [--color-scheme {default,corporate,monochrome}] [--no-cache] [--parallel] [--workers N] COMMAND
+python -m peopleanalytics [--data-path PATH] [--output-path PATH] COMMAND
 ```
 
-#### List Commands
+- `--data-path`: Path to the data directory (default: `data`)
+- `--output-path`: Path to the output directory (default: `output`)
+
+### Commands
+
+#### List Information
 
 ```bash
-# List all people in the database
-peopleanalytics list people [--years YEAR [YEAR ...]]
+# List all people
+python -m peopleanalytics list people
 
-# List all available years
-peopleanalytics list years
+# List people for a specific year
+python -m peopleanalytics list people --year 2023
 
-# List all evaluation criteria
-peopleanalytics list criteria [--year YEAR]
+# List all years for a person
+python -m peopleanalytics list years --person "Ana Costa"
 
-# Show database statistics
-peopleanalytics list stats
+# Show detailed data for a person/year
+python -m peopleanalytics list data --person "Ana Costa" --year 2023
 ```
 
-#### Data Import and Management
+#### Import Data
 
 ```bash
-# Import data from a directory with specific structure
-peopleanalytics pipeline import --directory /path/to/data --pattern "*.json" --overwrite
+# Import data from a file
+python -m peopleanalytics import path/to/file.json
 
-# Import data with debug mode for detailed processing information
-peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/resultado.json" --debug
-
-# Import data from a specific directory with structured pattern
-peopleanalytics pipeline import --directory /path/to/data --pattern "*/*/resultado.json" --overwrite
-
-# Create a backup of the database
-peopleanalytics pipeline backup --output-directory /path/to/backup/dir
-
-# Export all raw data to a single file
-peopleanalytics pipeline export --output /path/to/output.json
+# Import all files from a directory
+python -m peopleanalytics import path/to/directory --recursive
 ```
 
-#### Comparison Commands
+#### Export Data
 
 ```bash
-# Compare evaluations for a specific year
-peopleanalytics compare YEAR [--filter PERSON [PERSON ...]] [--output PATH] [--format {csv,png,all}]
+# Export all data
+python -m peopleanalytics export --all
 
-# Generate historical report for a person
-peopleanalytics historical PERSON [--years YEAR [YEAR ...]] [--output PATH] [--format {csv,png,all}]
+# Export data for a specific person and year
+python -m peopleanalytics export --person "Ana Costa" --year 2023
 ```
 
-#### Data Management Commands
+#### Generate Reports
 
 ```bash
-# Validate evaluation data
-peopleanalytics validate [--output PATH] [--fix] [--verbose] [--html]
+# Generate attendance report for all years
+python -m peopleanalytics report attendance
 
-# Export evaluation data
-peopleanalytics export {excel,csv,json} [--output PATH] [--years YEAR [YEAR ...]] [--people PERSON [PERSON ...]]
+# Generate payment report for a specific year
+python -m peopleanalytics report payment --year 2023
+
+# Generate all reports for a specific year
+python -m peopleanalytics report all --year 2023
 ```
 
-#### Advanced Filtering
+#### Create Visualizations
 
 ```bash
-# Advanced filtering options
-peopleanalytics filter [--name-regex PATTERN] [--behavior-regex PATTERN] [--min-score SCORE] [--max-score SCORE] [--concepts CONCEPT [CONCEPT ...]] [--years YEAR [YEAR ...]] [--output PATH] [--format {csv,excel,json,html}]
+# Generate attendance plots for all years
+python -m peopleanalytics plot attendance
+
+# Generate payment plots for a specific year
+python -m peopleanalytics plot payment --year 2023
+
+# Generate all plots for a specific year
+python -m peopleanalytics plot all --year 2023
 ```
 
-#### Team Analysis
+#### Generate Summary
 
 ```bash
-# List all teams and managers
-peopleanalytics teams --team-file FILE list
+# Generate JSON summary
+python -m peopleanalytics summary
 
-# Generate manager report
-peopleanalytics teams --team-file FILE manager MANAGER YEAR [--output PATH]
+# Generate CSV summary
+python -m peopleanalytics summary --format csv
 
-# Compare team performance
-peopleanalytics teams --team-file FILE compare TEAM YEAR [--output PATH]
+# Generate HTML summary
+python -m peopleanalytics summary --format html
 ```
 
-#### Visualization Commands
+#### Create Backup
 
 ```bash
-# Generate visualizations
-peopleanalytics visualize --type {radar,heatmap,interactive} --output PATH [--data-file FILE] [--title TITLE] [--person PERSON] [--year YEAR] [--people PERSON [PERSON ...]]
+# Create a backup of all data
+python -m peopleanalytics backup
 ```
 
-### Troubleshooting
+#### Validate Data
 
-**"No database" error**: This usually means the tool cannot find properly organized data. Either:
-1. Import your data using the pipeline command: `peopleanalytics pipeline import --directory /path/to/data`
-2. Specify the correct base path: `peopleanalytics --base-path /path/to/data list people`
-3. Use the structure adapter: `python structure_adapter.py symlink --source /path/to/data --target ~/.peopleanalytics`
-
-**Data not showing up**: Check that your file structure matches what the tool expects:
-```
-<base_path>/<person_name>/<year>/resultado.json
+```bash
+# Validate all data
+python -m peopleanalytics validate
 ```
 
-**Structure format problems**: If your data doesn't match the expected format, you can develop a custom transformation function (see "Using ChatGPT to Adapt Your Data Structure" section).
+## Sample Outputs
 
-**Output files**: All output files (reports, charts, exports) are saved in the `output` directory by default, unless a specific path is provided.
+### Reports
 
+The system generates Excel reports with multiple sheets:
 
-### Python API
+- **Main Data Sheet**: Contains the raw data records
+- **Summary Sheet**: Provides aggregated information
+
+### Plots
+
+The system generates various visualization plots:
+
+- **Attendance Plots**: Bar charts showing attendance rates for people
+- **Payment Plots**: Bar charts showing payment totals and averages
+
+### Validation
+
+The validation output shows:
+
+- Total number of files checked
+- Number of valid and invalid files
+- Details of any validation issues
+
+## Output Directory Structure
+
+All generated files are organized in the `output` directory:
+
+```
+output/
+  ├── backups/                 # Backup archives
+  ├── exports/                 # Exported data files
+  │   └── Person Name/
+  ├── logs/                    # Log files
+  ├── plots/                   # Generated plots/visualizations
+  ├── reports/                 # Generated reports
+  └── summary/                 # Summary data
+```
+
+## Python API
+
+You can also use the system programmatically in your Python code:
 
 ```python
-from peopleanalytics.data_pipeline import DataPipeline
-from peopleanalytics.evaluation_analyzer import EvaluationAnalyzer
-from peopleanalytics.visualization import Visualization
-import os
+from peopleanalytics import DataProcessor, PersonData
 
-# Initialize components
-data_pipeline = DataPipeline("path/to/database")
-analyzer = EvaluationAnalyzer("path/to/database")
-visualizer = Visualization()
+# Initialize processor
+processor = DataProcessor("data", "output")
 
-# Import data
-data_pipeline.ingest_directory("path/to/data")
+# Load person data
+data = processor.load_person_data("Ana Costa", "2023")
 
-# Analyze data
-results = analyzer.analyze_person("John Doe", 2023)
+# Create new person data
+new_person = processor.create_person_data("João Silva", 2023)
+new_person.add_attendance("2023-01-01", True)
+new_person.add_payment("2023-01-15", 1000)
 
-# Compare with group
-comparison = analyzer.compare_with_group("John Doe", 2023)
+# Save data
+processor.save_person_data(new_person)
 
-# Generate visualizations
-output_dir = "output"
-os.makedirs(output_dir, exist_ok=True)
-visualizer.generate_radar_chart(comparison, os.path.join(output_dir, "radar_chart.png"))
-visualizer.generate_heatmap(comparison, os.path.join(output_dir, "heatmap.png"))
-visualizer.generate_interactive_html(comparison, os.path.join(output_dir, "report.html"))
+# Generate reports
+attendance_report = processor.generate_attendance_report()
+payment_report = processor.generate_payment_report()
+
+# Create visualizations
+attendance_plot = processor.plot_attendance_summary()
+payment_plot = processor.plot_payment_summary()
+
+# Generate summary
+summary_path = processor.generate_summary(output_format="html")
+
+# Create backup
+backup_path = processor.create_backup()
 ```
 
-## Uso Simplificado
+## Data Model
 
-Para um fluxo simplificado de análise, use os seguintes scripts:
+The system uses a structured data model with the following components:
 
-### 1. Corrigir problemas de schema (se necessário)
+### PersonData
 
-Se você estiver encontrando erros de "no behavior score" ou problemas com o formato do JSON:
+Core data structure for a person in a specific year.
 
-```bash
-./fix_schema.py /caminho/para/dados
+```python
+person = PersonData(name="Ana Costa", year=2023)
+person.add_attendance("2023-01-01", True)
+person.add_payment("2023-01-15", 1000)
+
+# Get summaries
+attendance_summary = person.get_attendance_summary()
+payment_summary = person.get_payment_summary()
+
+# Save to file
+person.save("data/")
 ```
 
-Este script:
-- Corrige problemas comuns nos arquivos JSON
-- Garante que os arrays de frequência estão no formato correto
-- Faz backup dos arquivos originais (.json.bak)
+### AttendanceRecord
 
-### 2. Importar e Gerar Relatórios
+Individual attendance records.
 
-```bash
-./run_report.py /caminho/para/dados [ano]
+```python
+attendance = AttendanceRecord(date=date(2023, 1, 1), present=True, notes="Optional notes")
 ```
 
-Este script:
-- Valida a estrutura dos arquivos
-- Importa os dados
-- Gera relatórios comparativos (CSV, PNG e HTML interativo)
-- Salva todos os resultados na pasta "output"
-- Diagnostica problemas se ocorrerem
+### PaymentRecord
 
-Se o ano não for especificado, o script usará o ano mais recente disponível.
+Individual payment records.
+
+```python
+payment = PaymentRecord(date=date(2023, 1, 15), amount=1000, status="paid", reference="Invoice #123")
+```
+
+### PersonSummary
+
+Summary of a person's data across all years.
+
+```python
+summary = PersonSummary(
+    name="Ana Costa",
+    years=[2022, 2023],
+    total_attendance=50,
+    present_count=45,
+    total_payments=24,
+    total_amount=24000
+)
+
+# Calculated properties
+attendance_rate = summary.attendance_rate  # 90.0
+average_payment = summary.average_payment  # 1000.0
+```
+
+## Extending the System
+
+The modular architecture makes it easy to extend the system with new features:
+
+1. Add new data models in `data_model.py`
+2. Implement processing logic in `data_processor.py`
+3. Add CLI commands in `cli.py`
+
+### Adding a New Command
+
+```python
+# In cli.py
+def _create_parser(self):
+    # ... existing parser code ...
+    
+    # Add a new command
+    new_command_parser = subparsers.add_parser("new_command", help="Description of new command")
+    new_command_parser.add_argument("--option", help="Option description")
+    
+    # ... rest of parser code ...
+
+def handle_new_command(self):
+    """Handle the new command."""
+    option = self.args.option
+    # Implement command logic here
+```
+
+## Example Workflow
+
+1. **Import Data**:
+   ```bash
+   python -m peopleanalytics import sample_data/ --recursive
+   ```
+
+2. **Validate Data**:
+   ```bash
+   python -m peopleanalytics validate
+   ```
+
+3. **Generate Reports**:
+   ```bash
+   python -m peopleanalytics report all
+   ```
+
+4. **Create Visualizations**:
+   ```bash
+   python -m peopleanalytics plot all
+   ```
+
+5. **Export as Summary**:
+   ```bash
+   python -m peopleanalytics summary --format html
+   ```
+
+6. **Backup Your Data**:
+   ```bash
+   python -m peopleanalytics backup
+   ```
+
+## Troubleshooting
+
+### Common Issues
+
+- **Missing data files**: Ensure your data follows the expected structure
+- **Import failures**: Check that your JSON files are properly formatted
+- **Empty reports**: Verify that you have data for the specified person/year
+
+### Logging
+
+The system creates detailed logs in the `output/logs` directory. Check these logs for troubleshooting.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
