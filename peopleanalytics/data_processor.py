@@ -518,6 +518,12 @@ class DataProcessor:
                     person_summary.present_count += attendance_summary["present"]
                     person_summary.total_payments += payment_summary["total_payments"]
                     person_summary.total_amount += payment_summary["total_amount"]
+                    
+                    # Add profile information if available
+                    if data.profile:
+                        person_summary.nome_departamento = data.profile.nome_departamento
+                        person_summary.cargo = data.profile.cargo
+                        person_summary.nome_gestor = data.profile.nome_gestor
             
             summaries.append(person_summary.to_dict())
         
@@ -578,9 +584,9 @@ class DataProcessor:
                     position = ""
                     manager = ""
                     if data.profile:
-                        department = data.profile.department
-                        position = data.profile.position
-                        manager = data.profile.manager_name or ""
+                        department = data.profile.nome_departamento
+                        position = data.profile.cargo
+                        manager = data.profile.nome_gestor or ""
                     
                     for record in data.attendance_records:
                         attendance_entry = {
@@ -675,9 +681,9 @@ class DataProcessor:
                     position = ""
                     manager = ""
                     if data.profile:
-                        department = data.profile.department
-                        position = data.profile.position
-                        manager = data.profile.manager_name or ""
+                        department = data.profile.nome_departamento
+                        position = data.profile.cargo
+                        manager = data.profile.nome_gestor or ""
                     
                     for record in data.payment_records:
                         payment_entry = {

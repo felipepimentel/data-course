@@ -99,26 +99,25 @@ class PaymentRecord:
 @dataclass
 class ProfileData:
     """Profile information for a person."""
-    full_name: str
-    employee_id: str = ""
-    position: str = ""
-    position_code: str = ""
-    position_level: str = ""
-    position_level_name: str = ""
-    department: str = ""
-    manager_id: Optional[str] = None
-    manager_name: Optional[str] = None
-    career_type: Optional[str] = None
-    community_code: Optional[str] = None
-    community_name: Optional[str] = None
-    squad_code: Optional[str] = None
-    squad_name: Optional[str] = None
-    role_code: Optional[str] = None
-    role_name: Optional[str] = None
-    is_manager: bool = False
-    is_frozen: bool = False
-    freeze_date: Optional[date] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    nome_completo: str
+    funcional: str = ""
+    funcional_gestor: Optional[str] = None
+    nome_gestor: Optional[str] = None
+    cargo: str = ""
+    codigo_cargo: str = ""
+    nivel_cargo: str = ""
+    nome_nivel_cargo: str = ""
+    nome_departamento: str = ""
+    tipo_carreira: Optional[str] = None
+    codigo_comunidade: Optional[str] = None
+    nome_comunidade: Optional[str] = None
+    codigo_squad: Optional[str] = None
+    nome_squad: Optional[str] = None
+    codigo_papel: Optional[str] = None
+    nome_papel: Optional[str] = None
+    tipo_gestao: bool = False
+    is_congelamento: bool = False
+    data_congelamento: Optional[date] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ProfileData':
@@ -134,37 +133,26 @@ class ProfileData:
                     
             # Create the profile object
             profile = cls(
-                full_name=data.get('nome_completo', ''),
-                employee_id=data.get('funcional', ''),
-                position=data.get('cargo', ''),
-                position_code=data.get('codigo_cargo', ''),
-                position_level=data.get('nivel_cargo', ''),
-                position_level_name=data.get('nome_nivel_cargo', ''),
-                department=data.get('nome_departamento', ''),
-                manager_id=data.get('funcional_gestor'),
-                manager_name=data.get('nome_gestor'),
-                career_type=data.get('tipo_carreira'),
-                community_code=data.get('codigo_comunidade'),
-                community_name=data.get('nome_comunidade'),
-                squad_code=data.get('codigo_squad'),
-                squad_name=data.get('nome_squad'),
-                role_code=data.get('codigo_papel'),
-                role_name=data.get('nome_papel'),
-                is_manager=bool(data.get('tipo_gestao', False)),
-                is_frozen=bool(data.get('is_congelamento', False)),
-                freeze_date=freeze_date
+                nome_completo=data.get('nome_completo', ''),
+                funcional=data.get('funcional', ''),
+                funcional_gestor=data.get('funcional_gestor'),
+                nome_gestor=data.get('nome_gestor'),
+                cargo=data.get('cargo', ''),
+                codigo_cargo=data.get('codigo_cargo', ''),
+                nivel_cargo=data.get('nivel_cargo', ''),
+                nome_nivel_cargo=data.get('nome_nivel_cargo', ''),
+                nome_departamento=data.get('nome_departamento', ''),
+                tipo_carreira=data.get('tipo_carreira'),
+                codigo_comunidade=data.get('codigo_comunidade'),
+                nome_comunidade=data.get('nome_comunidade'),
+                codigo_squad=data.get('codigo_squad'),
+                nome_squad=data.get('nome_squad'),
+                codigo_papel=data.get('codigo_papel'),
+                nome_papel=data.get('nome_papel'),
+                tipo_gestao=bool(data.get('tipo_gestao', False)),
+                is_congelamento=bool(data.get('is_congelamento', False)),
+                data_congelamento=freeze_date
             )
-            
-            # Store any additional metadata
-            for key, value in data.items():
-                if key not in [
-                    'nome_completo', 'funcional', 'funcional_gestor', 'nome_gestor',
-                    'cargo', 'codigo_cargo', 'nivel_cargo', 'nome_nivel_cargo',
-                    'nome_departamento', 'tipo_carreira', 'codigo_comunidade',
-                    'nome_comunidade', 'codigo_squad', 'nome_squad', 'codigo_papel',
-                    'nome_papel', 'tipo_gestao', 'is_congelamento', 'data_congelamento'
-                ]:
-                    profile.metadata[key] = value
             
             return profile
             
@@ -174,44 +162,26 @@ class ProfileData:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = {
-            "nome_completo": self.full_name,
-            "funcional": self.employee_id,
-            "cargo": self.position,
-            "codigo_cargo": self.position_code,
-            "nivel_cargo": self.position_level,
-            "nome_nivel_cargo": self.position_level_name,
-            "nome_departamento": self.department,
-            "tipo_gestao": self.is_manager,
-            "is_congelamento": self.is_frozen
+            "nome_completo": self.nome_completo,
+            "funcional": self.funcional,
+            "funcional_gestor": self.funcional_gestor,
+            "nome_gestor": self.nome_gestor,
+            "cargo": self.cargo,
+            "codigo_cargo": self.codigo_cargo,
+            "nivel_cargo": self.nivel_cargo,
+            "nome_nivel_cargo": self.nome_nivel_cargo,
+            "nome_departamento": self.nome_departamento,
+            "tipo_carreira": self.tipo_carreira,
+            "codigo_comunidade": self.codigo_comunidade,
+            "nome_comunidade": self.nome_comunidade,
+            "codigo_squad": self.codigo_squad,
+            "nome_squad": self.nome_squad,
+            "codigo_papel": self.codigo_papel,
+            "nome_papel": self.nome_papel,
+            "tipo_gestao": self.tipo_gestao,
+            "is_congelamento": self.is_congelamento,
+            "data_congelamento": self.data_congelamento.isoformat() if self.data_congelamento else None
         }
-        
-        # Add optional fields if they exist
-        if self.manager_id:
-            data["funcional_gestor"] = self.manager_id
-        if self.manager_name:
-            data["nome_gestor"] = self.manager_name
-        if self.career_type:
-            data["tipo_carreira"] = self.career_type
-        if self.community_code:
-            data["codigo_comunidade"] = self.community_code
-        if self.community_name:
-            data["nome_comunidade"] = self.community_name
-        if self.squad_code:
-            data["codigo_squad"] = self.squad_code
-        if self.squad_name:
-            data["nome_squad"] = self.squad_name
-        if self.role_code:
-            data["codigo_papel"] = self.role_code
-        if self.role_name:
-            data["nome_papel"] = self.role_name
-        if self.freeze_date:
-            data["data_congelamento"] = self.freeze_date.isoformat()
-        else:
-            data["data_congelamento"] = None
-            
-        # Add metadata
-        for key, value in self.metadata.items():
-            data[key] = value
             
         return data
 
@@ -224,7 +194,6 @@ class PersonData:
     attendance_records: List[AttendanceRecord] = field(default_factory=list)
     payment_records: List[PaymentRecord] = field(default_factory=list)
     profile: Optional[ProfileData] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any], profile_data: Optional[Dict[str, Any]] = None) -> 'PersonData':
@@ -237,7 +206,7 @@ class PersonData:
         Returns:
             PersonData instance
         """
-        # Handle only the Portuguese format (no backward compatibility)
+        # Handle only the Portuguese format
         name = data.get('nome', '')
         year = int(data.get('ano', 0))
         
@@ -246,31 +215,7 @@ class PersonData:
         
         # Handle profile data if provided
         if profile_data:
-            # Use full_name from profile data or person name as fallback
-            full_name = profile_data.get('nome_completo', name)
-            
-            # Create ProfileData with required fields
-            profile = ProfileData(
-                full_name=full_name,
-                employee_id=profile_data.get('funcional', ''),
-                position=profile_data.get('cargo', ''),
-                position_code=profile_data.get('codigo_cargo', ''),
-                position_level=profile_data.get('nivel_cargo', ''),
-                position_level_name=profile_data.get('nome_nivel_cargo', ''),
-                department=profile_data.get('departamento', profile_data.get('nome_departamento', ''))
-            )
-            
-            # Set optional fields if present
-            if 'gestor' in profile_data:
-                profile.manager_name = profile_data['gestor']
-            if 'email' in profile_data:
-                profile.metadata['email'] = profile_data['email']
-            if 'data_admissao' in profile_data:
-                profile.metadata['hire_date'] = profile_data['data_admissao']
-            if 'tipo_gestao' in profile_data:
-                profile.is_manager = bool(profile_data['tipo_gestao'])
-            
-            person_data.profile = profile
+            person_data.profile = ProfileData.from_dict(profile_data)
         
         # Handle attendance records
         if 'frequencias' in data and isinstance(data['frequencias'], list):
@@ -309,7 +254,7 @@ class PersonData:
         Returns:
             Dictionary representation of the PersonData
         """
-        # Only support Portuguese field names format now
+        # Only support Portuguese field names format
         result = {
             'nome': self.name,
             'ano': self.year
@@ -320,7 +265,6 @@ class PersonData:
             result['frequencias'] = []
             for record in self.attendance_records:
                 record_dict = record.to_dict()
-                # Convert to Portuguese field names
                 result['frequencias'].append({
                     'data': record_dict.get('data', ''),
                     'status': record_dict.get('status', ''),
@@ -332,7 +276,6 @@ class PersonData:
             result['pagamentos'] = []
             for record in self.payment_records:
                 record_dict = record.to_dict()
-                # Convert to Portuguese field names
                 result['pagamentos'].append({
                     'data': record_dict.get('data', ''),
                     'valor': record_dict.get('valor', 0),
@@ -450,11 +393,11 @@ class PersonData:
             
         return {
             "available": True,
-            "full_name": self.profile.full_name,
-            "position": self.profile.position,
-            "department": self.profile.department,
-            "manager": self.profile.manager_name or "N/A",
-            "is_manager": self.profile.is_manager
+            "full_name": self.profile.nome_completo,
+            "position": self.profile.cargo,
+            "department": self.profile.nome_departamento,
+            "manager": self.profile.nome_gestor or "N/A",
+            "is_manager": self.profile.tipo_gestao
         }
 
     @classmethod
@@ -547,9 +490,9 @@ class PersonSummary:
     present_count: int = 0
     total_payments: int = 0
     total_amount: float = 0
-    department: Optional[str] = None
-    position: Optional[str] = None
-    manager: Optional[str] = None
+    nome_departamento: Optional[str] = None
+    cargo: Optional[str] = None
+    nome_gestor: Optional[str] = None
     
     @property
     def attendance_rate(self) -> float:
@@ -575,11 +518,11 @@ class PersonSummary:
         }
         
         # Add profile-related fields if available
-        if self.department:
-            data["department"] = self.department
-        if self.position:
-            data["position"] = self.position
-        if self.manager:
-            data["manager"] = self.manager
+        if self.nome_departamento:
+            data["nome_departamento"] = self.nome_departamento
+        if self.cargo:
+            data["cargo"] = self.cargo
+        if self.nome_gestor:
+            data["nome_gestor"] = self.nome_gestor
             
         return data 
