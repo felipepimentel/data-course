@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Any, Optional, Union, Tuple
 import logging
 from datetime import datetime
+import re
 
 from .data_model import PersonData, PersonSummary, RecordStatus, AttendanceRecord, PaymentRecord, ProfileData
 
@@ -271,8 +272,60 @@ class DataProcessor:
                 person_data = PersonData.from_dict(data)
             
             # Check for required fields
-            if not person_data.name or not person_data.year:
-                return False, f"Invalid data file: missing name or year in {file_path}"
+            if not person_data.name:
+                return False, f"Invalid data file: missing name in {file_path}"
+                
+            # If year is missing in data file, try to extract it from the file path
+            if not person_data.year:
+                try:
+                    # Extract year from path (expected structure: */nome_pessoa/ano/* or */ano/nome_pessoa/*)
+                    parts = file_path.parts
+                    
+                    # First check for */nome_pessoa/ano/* structure
+                    for i, part in enumerate(parts):
+                        if part == person_data.name and i+1 < len(parts):
+                            # Next part might be the year
+                            potential_year = parts[i+1]
+                            if potential_year.isdigit():
+                                self.logger.info(f"Year not found in file, extracted from path: {potential_year}")
+                                person_data.year = int(potential_year)
+                                break
+                    
+                    # If we still don't have a year, check for */ano/nome_pessoa/* structure
+                    if not person_data.year:
+                        for i, part in enumerate(parts):
+                            if i > 0 and part == person_data.name and parts[i-1].isdigit():
+                                # Previous part might be the year
+                                potential_year = parts[i-1]
+                                self.logger.info(f"Year not found in file, extracted from path: {potential_year}")
+                                person_data.year = int(potential_year)
+                                break
+                    
+                    # If we still don't have a year, check for any 4-digit year in path
+                    if not person_data.year:
+                        for part in parts:
+                            if part.isdigit() and len(part) == 4:
+                                potential_year = part
+                                self.logger.info(f"Year not found in file, extracted from path (4-digit number): {potential_year}")
+                                person_data.year = int(potential_year)
+                                break
+                    
+                    # If we still don't have a year, check for 4-digit year in the filename
+                    if not person_data.year:
+                        filename = file_path.name
+                        # Look for 4-digit sequences that could be years
+                        year_matches = re.findall(r'20\d{2}', filename)
+                        if year_matches:
+                            potential_year = year_matches[0]
+                            self.logger.info(f"Year not found in file, extracted from filename: {potential_year}")
+                            person_data.year = int(potential_year)
+                                
+                except Exception as e:
+                    self.logger.warning(f"Failed to extract year from path: {e}")
+                    
+            # Double-check we have a year
+            if not person_data.year:
+                return False, f"Invalid data file: missing year in {file_path} and could not extract from path"
                 
             # Check if data already exists
             existing_path = self.data_path / person_data.name / str(person_data.year)
