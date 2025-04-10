@@ -101,6 +101,39 @@ class DataProcessor:
                 people.append(person)
         return sorted(people)
         
+    def _is_empty_directory(self, directory: Path) -> bool:
+        """Check if a directory is empty or contains only empty files.
+        
+        Args:
+            directory: Path to the directory
+            
+        Returns:
+            True if directory is empty or contains only empty files
+        """
+        if not directory.exists() or not directory.is_dir():
+            return True
+            
+        # Check if directory is empty
+        if not any(directory.iterdir()):
+            return True
+            
+        # Check if all files are empty
+        for file in directory.iterdir():
+            if file.is_file():
+                try:
+                    if file.stat().st_size == 0:
+                        continue
+                    # Check if file is valid JSON
+                    with open(file, 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                        if not content or content == '{}' or content == '[]':
+                            continue
+                except:
+                    continue
+                return False
+                
+        return True
+
     def load_person_data(self, person: str, year: str) -> Optional[PersonData]:
         """Load data for a specific person and year.
         
@@ -118,6 +151,11 @@ class DataProcessor:
             if not person_dir.exists():
                 return None
                 
+            # Skip empty directories
+            if self._is_empty_directory(person_dir):
+                self.logger.debug(f"Skipping empty directory: {person_dir}")
+                return None
+                
             # Initialize data dictionary
             data_dict = {
                 "nome": person,
@@ -128,37 +166,50 @@ class DataProcessor:
             
             # Load profile data if exists
             profile_file = person_dir / "perfil.json"
-            if profile_file.exists():
+            if profile_file.exists() and profile_file.stat().st_size > 0:
                 with open(profile_file, 'r', encoding='utf-8') as f:
-                    profile_data = json.load(f)
-                    data_dict["perfil"] = profile_data
+                    content = f.read().strip()
+                    if content and content != '{}' and content != '[]':
+                        profile_data = json.loads(content)
+                        data_dict["perfil"] = profile_data
             
             # Load attendance data if exists
             attendance_file = person_dir / "frequencias.json"
-            if attendance_file.exists():
+            if attendance_file.exists() and attendance_file.stat().st_size > 0:
                 with open(attendance_file, 'r', encoding='utf-8') as f:
-                    attendance_data = json.load(f)
-                    data_dict["frequencias"] = attendance_data
+                    content = f.read().strip()
+                    if content and content != '{}' and content != '[]':
+                        attendance_data = json.loads(content)
+                        data_dict["frequencias"] = attendance_data
             
             # Load payment data if exists
             payment_file = person_dir / "pagamentos.json"
-            if payment_file.exists():
+            if payment_file.exists() and payment_file.stat().st_size > 0:
                 with open(payment_file, 'r', encoding='utf-8') as f:
-                    payment_data = json.load(f)
-                    data_dict["pagamentos"] = payment_data
+                    content = f.read().strip()
+                    if content and content != '{}' and content != '[]':
+                        payment_data = json.loads(content)
+                        data_dict["pagamentos"] = payment_data
             
             # Load resultado.json if exists (legacy format)
             resultado_file = person_dir / "resultado.json"
-            if resultado_file.exists():
+            if resultado_file.exists() and resultado_file.stat().st_size > 0:
                 with open(resultado_file, 'r', encoding='utf-8') as f:
-                    resultado_data = json.load(f)
-                    # Merge with existing data, but don't overwrite if already exists
-                    if "frequencias" not in data_dict or not data_dict["frequencias"]:
-                        data_dict["frequencias"] = resultado_data.get("frequencias", [])
-                    if "pagamentos" not in data_dict or not data_dict["pagamentos"]:
-                        data_dict["pagamentos"] = resultado_data.get("pagamentos", [])
-                    if "perfil" not in data_dict and "perfil" in resultado_data:
-                        data_dict["perfil"] = resultado_data["perfil"]
+                    content = f.read().strip()
+                    if content and content != '{}' and content != '[]':
+                        resultado_data = json.loads(content)
+                        # Merge with existing data, but don't overwrite if already exists
+                        if "frequencias" not in data_dict or not data_dict["frequencias"]:
+                            data_dict["frequencias"] = resultado_data.get("frequencias", [])
+                        if "pagamentos" not in data_dict or not data_dict["pagamentos"]:
+                            data_dict["pagamentos"] = resultado_data.get("pagamentos", [])
+                        if "perfil" not in data_dict and "perfil" in resultado_data:
+                            data_dict["perfil"] = resultado_data["perfil"]
+            
+            # Skip if no valid data was found
+            if not data_dict["frequencias"] and not data_dict["pagamentos"] and "perfil" not in data_dict:
+                self.logger.debug(f"No valid data found in directory: {person_dir}")
+                return None
             
             # Create PersonData object
             return PersonData.from_dict(data_dict)
@@ -216,6 +267,16 @@ class DataProcessor:
         try:
             file_path = Path(file_path)
             
+            # Skip if file is empty
+            if file_path.stat().st_size == 0:
+                return True, f"Skipping empty file: {file_path}"
+                
+            # Check if file is valid JSON
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if not content or content == '{}' or content == '[]':
+                    return True, f"Skipping empty JSON file: {file_path}"
+                    
             # Extract person and year from path
             # Expected structure: data/person/year/file.json
             parts = file_path.parts
@@ -241,7 +302,10 @@ class DataProcessor:
             
             # Load the new file
             with open(file_path, 'r', encoding='utf-8') as f:
-                new_data = json.load(f)
+                content = f.read().strip()
+                if not content or content == '{}' or content == '[]':
+                    return True, f"Skipping empty JSON file: {file_path}"
+                new_data = json.loads(content)
             
             # Update data based on file type
             if filename == "perfil.json":
