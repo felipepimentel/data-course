@@ -13,6 +13,7 @@ People Analytics provides a complete solution for managing attendance and paymen
 ## Features
 
 - **Modern Data Model**: Uses Python dataclasses for a clean, type-hinted data model
+- **Standardized File Structure**: Uses a consistent file structure with separate files for each data type (resultado.json, perfil.json)
 - **Robust Error Handling**: Comprehensive validation and error handling
 - **Structured Output**: All reports, exports, and visualizations stored in the `output` directory
 - **Data Visualization**: Built-in plotting capabilities for attendance and payment data
@@ -85,50 +86,63 @@ python -m peopleanalytics backup
 
 ## Data Structure
 
-The system uses a simple and intuitive data structure:
+The system uses a modern and intuitive data structure:
 
 ```
 data/
   ├── Person Name/
   │   ├── Year/
-  │   │   └── data.json
+  │   │   ├── resultado.json  # Contains attendance & payment records
+  │   │   └── perfil.json     # Optional profile data
   │   └── ...
   └── ...
 ```
 
-Each `data.json` file contains a person's attendance and payment records for a specific year, structured like:
+Each person's data for a specific year is stored in two files:
 
+1. `resultado.json` - Contains attendance and payment records:
 ```json
 {
   "nome": "Ana Costa",
   "ano": 2023,
   "frequencias": [
-    {"data": "2023-01-01", "presente": true},
-    {"data": "2023-01-08", "presente": false, "notas": "Feriado"}
+    {"data": "2023-01-01", "status": "presente", "justificativa": ""},
+    {"data": "2023-01-08", "status": "ausente", "justificativa": "Feriado"}
   ],
   "pagamentos": [
-    {"data": "2023-01-15", "valor": 1000},
-    {"data": "2023-02-15", "valor": 1000, "status": "paid", "referencia": "Invoice #123"}
+    {"data": "2023-01-15", "valor": 1000, "descricao": ""},
+    {"data": "2023-02-15", "valor": 1000, "descricao": "Invoice #123"}
   ]
+}
+```
+
+2. `perfil.json` (optional) - Contains profile information:
+```json
+{
+  "nome_completo": "Ana Maria Costa",
+  "email": "ana.costa@example.com",
+  "departamento": "Marketing",
+  "cargo": "Marketing Manager",
+  "data_admissao": "2020-01-15",
+  "gestor": "Carlos Souza"
 }
 ```
 
 ### Field Mappings
 
-The system supports both Portuguese and English field names:
+The system uses standard Portuguese field names:
 
-| Portuguese   | English    | Description                   |
-|--------------|------------|-------------------------------|
-| nome         | name       | Person's name                 |
-| ano          | year       | Year of the data              |
-| frequencias  | attendance | List of attendance records    |
-| data         | date       | Date of record                |
-| presente     | present    | Attendance status (true/false)|
-| notas        | notes      | Optional notes                |
-| pagamentos   | payments   | List of payment records       |
-| valor        | amount     | Payment amount                |
-| referencia   | reference  | Payment reference             |
-| status       | status     | Payment status                |
+| Field Name    | Description                   |
+|---------------|-------------------------------|
+| nome          | Person's name                 |
+| ano           | Year of the data              |
+| frequencias   | List of attendance records    |
+| data          | Date of record                |
+| status        | Attendance status             |
+| justificativa | Optional justification        |
+| pagamentos    | List of payment records       |
+| valor         | Payment amount                |
+| descricao     | Payment description           |
 
 ## Command Line Interface
 
@@ -175,8 +189,8 @@ python -m peopleanalytics list data --person "Ana Costa" --year 2023
 
 ```bash
 # Import data from a file
-python -m peopleanalytics import path/to/file.json
-# Output: Successfully imported data for Person (Year) to data/Person/Year/data.json
+python -m peopleanalytics import path/to/resultado.json
+# Output: Successfully imported data for Person (Year)
 
 # Import all files from a directory
 python -m peopleanalytics import path/to/directory --recursive

@@ -17,7 +17,7 @@ from typing import Dict, List, Set, Any, Optional, Union, Tuple
 import logging
 from datetime import datetime
 
-from .data_model import PersonData, PersonSummary, RecordStatus, AttendanceRecord, PaymentRecord
+from .data_model import PersonData, PersonSummary, RecordStatus, AttendanceRecord, PaymentRecord, ProfileData
 
 
 class DataProcessor:
@@ -101,37 +101,102 @@ class DataProcessor:
         return sorted(people)
         
     def load_person_data(self, person: str, year: str) -> Optional[PersonData]:
-        """Load data for a specific person and year."""
+        """
+        Load data for a specific person and year.
+        
+        Args:
+            person (str): The name of the person.
+            year (str): The year to load data for.
+            
+        Returns:
+            PersonData: A PersonData object containing the loaded data, or None if data could not be loaded.
+        """
         cache_key = f"{person}_{year}"
         
         # Check cache first
         if cache_key in self._person_data_cache:
             return self._person_data_cache[cache_key]
             
-        file_path = self.data_path / person / year / "data.json"
-        
-        if not file_path.exists():
-            self.logger.warning(f"Data file not found: {file_path}")
-            return None
-            
         try:
-            data = PersonData.load(file_path)
-            self._person_data_cache[cache_key] = data
-            return data
+            person_data_path = os.path.join(self.data_path, person, year)
+            resultado_file = os.path.join(person_data_path, "resultado.json")
+            perfil_file = os.path.join(person_data_path, "perfil.json")
+            
+            # Check if resultado.json exists
+            if not os.path.exists(resultado_file):
+                # No data found - log at DEBUG level instead of WARNING to reduce noise
+                self.logger.debug(f"No data found for {person}/{year} - missing resultado.json")
+                return None
+                
+            # New structure with separate resultado.json file
+            with open(resultado_file, 'r', encoding='utf-8') as f:
+                raw_data = json.load(f)
+                
+            # Prepare the data dictionary with Portuguese field mappings
+            data_dict = {
+                "nome": person,
+                "ano": int(year) if year.isdigit() else year,
+                "frequencias": [],
+                "pagamentos": []
+            }
+            
+            # Copy data from resultado.json
+            if "nome" in raw_data:
+                data_dict["nome"] = raw_data["nome"]
+            if "ano" in raw_data:
+                data_dict["ano"] = raw_data["ano"]
+            if "frequencias" in raw_data:
+                data_dict["frequencias"] = raw_data["frequencias"]
+            if "pagamentos" in raw_data:
+                data_dict["pagamentos"] = raw_data["pagamentos"]
+            
+            # Check if profile data exists
+            profile_data = None
+            if os.path.exists(perfil_file):
+                try:
+                    with open(perfil_file, 'r', encoding='utf-8') as f:
+                        profile_data = json.load(f)
+                except Exception as e:
+                    self.logger.warning(f"Error reading profile file for {person} ({year}): {e}")
+            
+            # Create PersonData with profile
+            person_data = PersonData.from_dict(data_dict, profile_data)
+                
+            # Cache the data
+            self._person_data_cache[cache_key] = person_data
+            return person_data
+            
         except Exception as e:
-            self.logger.error(f"Error loading data for {person} ({year}): {e}")
+            self.logger.error(f"Error loading data for {person}/{year}: {str(e)}")
             return None
             
     def save_person_data(self, data: PersonData) -> bool:
         """Save person data to the appropriate location."""
         try:
-            file_path = data.save(self.data_path)
+            # Create directory structure if needed
+            person_dir = self.data_path / data.name
+            year_dir = person_dir / str(data.year)
+            year_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Save resultado.json
+            resultado_file = year_dir / "resultado.json"
+            with open(resultado_file, 'w', encoding='utf-8') as f:
+                json.dump(data.to_dict(), f, ensure_ascii=False, indent=2)
+                
+            # Save perfil.json if profile data exists
+            if data.profile:
+                perfil_file = year_dir / "perfil.json"
+                with open(perfil_file, 'w', encoding='utf-8') as f:
+                    json.dump(data.get_profile_dict(), f, ensure_ascii=False, indent=2)
+                
+                self.logger.info(f"Saved data for {data.name} ({data.year}) to {resultado_file} and profile to {perfil_file}")
+            else:
+                self.logger.info(f"Saved data for {data.name} ({data.year}) to {resultado_file}")
             
             # Update cache
             cache_key = f"{data.name}_{data.year}"
             self._person_data_cache[cache_key] = data
             
-            self.logger.info(f"Saved data for {data.name} ({data.year}) to {file_path}")
             return True
         except Exception as e:
             self.logger.error(f"Error saving data for {data.name} ({data.year}): {e}")
@@ -157,26 +222,70 @@ class DataProcessor:
             return False, f"File not found: {file_path}"
             
         try:
-            # Load and parse the file
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
-            # Create PersonData object
-            person_data = PersonData.from_dict(data)
+            # Detect file type (resultado.json, perfil.json, or other JSON)
+            file_name = file_path.name.lower()
             
+            # Check if it's a profile file
+            if file_name == "perfil.json":
+                # Find the corresponding resultado.json in the same directory
+                resultado_file = file_path.parent / "resultado.json"
+                if not resultado_file.exists():
+                    return False, f"Found profile file but no matching resultado.json in {file_path.parent}"
+                    
+                # Load both files and create a complete PersonData
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    profile_data = json.load(f)
+                    
+                with open(resultado_file, 'r', encoding='utf-8') as f:
+                    result_data = json.load(f)
+                    
+                # Create a new PersonData with both datasets
+                person_data = PersonData.from_dict(result_data, profile_data)
+                
+            # Check if it's a resultado file
+            elif file_name == "resultado.json":
+                # Load the resultado file
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    result_data = json.load(f)
+                    
+                # Check if there's a matching profile file
+                profile_file = file_path.parent / "perfil.json"
+                profile_data = None
+                if profile_file.exists():
+                    try:
+                        with open(profile_file, 'r', encoding='utf-8') as f:
+                            profile_data = json.load(f)
+                    except Exception as e:
+                        self.logger.warning(f"Error reading profile file {profile_file}: {e}")
+                    
+                # Create a new PersonData with both datasets
+                person_data = PersonData.from_dict(result_data, profile_data)
+                
+            # Any other JSON file
+            else:
+                # Load and parse the file
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                # Create PersonData object
+                person_data = PersonData.from_dict(data)
+            
+            # Check for required fields
+            if not person_data.name or not person_data.year:
+                return False, f"Invalid data file: missing name or year in {file_path}"
+                
             # Check if data already exists
-            existing_file = self.data_path / person_data.name / str(person_data.year) / "data.json"
-            if existing_file.exists() and not overwrite:
+            existing_path = self.data_path / person_data.name / str(person_data.year)
+            existing_resultado = existing_path / "resultado.json"
+            
+            if existing_resultado.exists() and not overwrite:
                 return False, f"Data already exists for {person_data.name} ({person_data.year}). Use overwrite=True to replace."
                 
-            # Save the data
-            file_path = person_data.save(self.data_path)
-            
-            # Update cache
-            cache_key = f"{person_data.name}_{person_data.year}"
-            self._person_data_cache[cache_key] = person_data
-            
-            return True, f"Successfully imported data for {person_data.name} ({person_data.year}) to {file_path}"
+            # Save the data using our save method
+            if self.save_person_data(person_data):
+                return True, f"Successfully imported data for {person_data.name} ({person_data.year})"
+            else:
+                return False, f"Error saving imported data for {person_data.name} ({person_data.year})"
         
         except Exception as e:
             self.logger.error(f"Error importing file {file_path}: {e}")
@@ -383,14 +492,33 @@ class DataProcessor:
                     
                 data = self.load_person_data(person, y)
                 if data:
+                    # Get profile information
+                    department = ""
+                    position = ""
+                    manager = ""
+                    if data.profile:
+                        department = data.profile.department
+                        position = data.profile.position
+                        manager = data.profile.manager_name or ""
+                    
                     for record in data.attendance_records:
-                        all_attendance.append({
+                        attendance_entry = {
                             "person": person,
                             "year": y,
                             "date": record.date.isoformat(),
                             "present": record.present,
                             "notes": record.notes
-                        })
+                        }
+                        
+                        # Add profile information if available
+                        if data.profile:
+                            attendance_entry.update({
+                                "department": department,
+                                "position": position,
+                                "manager": manager
+                            })
+                            
+                        all_attendance.append(attendance_entry)
         
         # Create DataFrame
         df = pd.DataFrame(all_attendance)
@@ -407,13 +535,28 @@ class DataProcessor:
                 
                 # Create summary sheet
                 if not df.empty:
-                    summary = df.groupby(['person', 'year']).agg({
-                        'present': ['count', 'sum']
-                    })
+                    # Group by person, department, and year if profile info is available
+                    if 'department' in df.columns:
+                        summary = df.groupby(['person', 'department', 'position', 'year']).agg({
+                            'present': ['count', 'sum']
+                        })
+                    else:
+                        summary = df.groupby(['person', 'year']).agg({
+                            'present': ['count', 'sum']
+                        })
                     
                     summary.columns = ['total_days', 'days_present']
                     summary['attendance_rate'] = (summary['days_present'] / summary['total_days']) * 100
                     summary.reset_index().to_excel(writer, sheet_name="Summary", index=False)
+                    
+                    # Add department summary if available
+                    if 'department' in df.columns:
+                        dept_summary = df.groupby(['department']).agg({
+                            'present': ['count', 'sum']
+                        })
+                        dept_summary.columns = ['total_days', 'days_present']
+                        dept_summary['attendance_rate'] = (dept_summary['days_present'] / dept_summary['total_days']) * 100
+                        dept_summary.reset_index().to_excel(writer, sheet_name="Department Summary", index=False)
         
         return str(report_file)
         
@@ -446,15 +589,34 @@ class DataProcessor:
                     
                 data = self.load_person_data(person, y)
                 if data:
+                    # Get profile information
+                    department = ""
+                    position = ""
+                    manager = ""
+                    if data.profile:
+                        department = data.profile.department
+                        position = data.profile.position
+                        manager = data.profile.manager_name or ""
+                    
                     for record in data.payment_records:
-                        all_payments.append({
+                        payment_entry = {
                             "person": person,
                             "year": y,
                             "date": record.date.isoformat(),
                             "amount": record.amount,
                             "status": record.status,
                             "reference": record.reference
-                        })
+                        }
+                        
+                        # Add profile information if available
+                        if data.profile:
+                            payment_entry.update({
+                                "department": department,
+                                "position": position,
+                                "manager": manager
+                            })
+                            
+                        all_payments.append(payment_entry)
         
         # Create DataFrame
         df = pd.DataFrame(all_payments)
@@ -471,20 +633,114 @@ class DataProcessor:
                 
                 # Create summary sheet
                 if not df.empty:
-                    summary = df.groupby(['person', 'year']).agg({
-                        'amount': ['count', 'sum', 'mean']
-                    })
+                    # Group by person, department, and year if profile info is available
+                    if 'department' in df.columns:
+                        summary = df.groupby(['person', 'department', 'position', 'year']).agg({
+                            'amount': ['count', 'sum', 'mean']
+                        })
+                    else:
+                        summary = df.groupby(['person', 'year']).agg({
+                            'amount': ['count', 'sum', 'mean']
+                        })
                     
                     summary.columns = ['payment_count', 'total_amount', 'average_payment']
                     summary.reset_index().to_excel(writer, sheet_name="Summary", index=False)
+                    
+                    # Add department summary if available
+                    if 'department' in df.columns:
+                        dept_summary = df.groupby(['department']).agg({
+                            'amount': ['count', 'sum', 'mean']
+                        })
+                        dept_summary.columns = ['payment_count', 'total_amount', 'average_payment']
+                        dept_summary.reset_index().to_excel(writer, sheet_name="Department Summary", index=False)
         
         return str(report_file)
         
+    def validate_person_data(self, person: str, year: str) -> Dict[str, Any]:
+        """Validate data for a specific person and year.
+        
+        Args:
+            person: Person name
+            year: Year
+            
+        Returns:
+            Dict with validation status and messages
+        """
+        try:
+            # Load the data
+            data = self.load_person_data(person, year)
+            
+            if not data:
+                return {
+                    "status": RecordStatus.ERROR,
+                    "message": f"Could not load data for {person}/{year}"
+                }
+                
+            # Basic validation
+            status = data.validate()
+            
+            # Prepare result
+            result = {
+                "status": status,
+                "message": ""
+            }
+            
+            # Add more detailed validation
+            if status == RecordStatus.INCOMPLETE:
+                result["message"] = "Missing required fields"
+            elif status == RecordStatus.INVALID:
+                result["message"] = "Invalid data"
+            elif status == RecordStatus.ERROR:
+                result["message"] = "Error validating data"
+            
+            # Check for errors in attendance records
+            errors = []
+            warnings = []
+            
+            # Validate attendance records
+            if not data.attendance_records:
+                warnings.append("No attendance records found")
+            else:
+                for i, record in enumerate(data.attendance_records):
+                    if not record.date:
+                        errors.append(f"Missing date in attendance record #{i+1}")
+            
+            # Validate payment records
+            if not data.payment_records:
+                warnings.append("No payment records found")
+            else:
+                for i, record in enumerate(data.payment_records):
+                    if not record.date:
+                        errors.append(f"Missing date in payment record #{i+1}")
+                    if record.amount <= 0:
+                        errors.append(f"Invalid amount in payment record #{i+1}")
+            
+            # Validate profile
+            if not data.profile:
+                warnings.append("No profile data found")
+            elif not data.profile.full_name:
+                warnings.append("Profile missing full name")
+            
+            # Add error and warning messages
+            if errors:
+                result["status"] = RecordStatus.INVALID
+                result["message"] = "; ".join(errors)
+            elif warnings and not result["message"]:
+                result["message"] = "; ".join(warnings)
+                
+            return result
+            
+        except Exception as e:
+            return {
+                "status": RecordStatus.ERROR,
+                "message": str(e)
+            }
+        
     def validate_all_data(self) -> Dict[str, Any]:
-        """Validate all data files in the system.
+        """Validate all data in the system.
         
         Returns:
-            Dictionary with validation results
+            Dict with validation results
         """
         results = {
             "total": 0,
@@ -493,34 +749,32 @@ class DataProcessor:
             "issues": []
         }
         
-        for person in self.get_all_people():
-            for year in self.get_all_years_for_person(person):
+        # Get all people and years
+        people = self.get_all_people()
+        
+        # Validate each person's data
+        for person in people:
+            years = self.get_all_years_for_person(person)
+            
+            for year in years:
                 results["total"] += 1
                 
-                data = self.load_person_data(person, year)
-                if not data:
-                    results["invalid"] += 1
-                    results["issues"].append({
-                        "person": person,
-                        "year": year,
-                        "status": "ERROR",
-                        "message": "Could not load data"
-                    })
-                    continue
-                    
-                status = data.validate()
+                # Validate the data
+                validation_result = self.validate_person_data(person, year)
                 
-                if status == RecordStatus.VALID:
+                if validation_result["status"] == RecordStatus.VALID:
                     results["valid"] += 1
                 else:
                     results["invalid"] += 1
+                    
+                    # Add issue details
                     results["issues"].append({
                         "person": person,
                         "year": year,
-                        "status": status.value,
-                        "message": f"Validation failed with status {status.value}"
+                        "status": validation_result["status"].value,
+                        "message": validation_result["message"]
                     })
-                    
+        
         return results
         
     def create_backup(self) -> str:

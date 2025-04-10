@@ -3,8 +3,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="peopleanalytics",
-    version="0.1.0",
-    description="A tool for analyzing 360-degree evaluations and generating reports",
+    version="2.0.0",
+    description="A modern tool for analyzing people data with structured JSON file storage",
     author="Your Name",
     author_email="your.email@example.com",
     packages=find_packages(),
@@ -22,7 +22,7 @@ setup(
         ],
     },
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Business",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",

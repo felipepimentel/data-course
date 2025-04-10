@@ -8,6 +8,9 @@ import argparse
 import sys
 import json
 from pathlib import Path
+import os
+from datetime import datetime
+from typing import List
 
 from rich.console import Console
 from rich.table import Table
@@ -15,7 +18,8 @@ from rich.panel import Panel
 from rich.progress import Progress
 
 from .data_processor import DataProcessor
-from .data_model import PersonData
+from .data_model import PersonData, AttendanceRecord, PaymentRecord, ProfileData
+from .reports_generator import generate_attendance_report, generate_payment_report
 
 
 class CLI:
@@ -56,6 +60,14 @@ class CLI:
             self.handle_backup()
         elif self.args.command == "plot":
             self.handle_plot()
+        elif self.args.command == "add-attendance":
+            self.handle_add_attendance()
+        elif self.args.command == "add-payment":
+            self.handle_add_payment()
+        elif self.args.command == "update-profile":
+            self.handle_update_profile()
+        elif self.args.command == "create-sample":
+            self.handle_create_sample()
         else:
             self.console.print("[red]Unknown command[/red]")
             
@@ -164,6 +176,37 @@ class CLI:
             help="Year for filtering plots"
         )
         
+        # Add attendance record
+        attendance_parser = subparsers.add_parser('add-attendance', help='Add attendance record')
+        attendance_parser.add_argument('--person', required=True, help='Person name')
+        attendance_parser.add_argument('--year', required=True, help='Year')
+        attendance_parser.add_argument('--date', required=True, help='Date (YYYY-MM-DD)')
+        attendance_parser.add_argument('--status', required=True, choices=['present', 'absent', 'late'], help='Status')
+        attendance_parser.add_argument('--hours', type=float, default=8.0, help='Hours worked')
+        attendance_parser.add_argument('--notes', default='', help='Notes')
+        
+        # Add payment record
+        payment_parser = subparsers.add_parser('add-payment', help='Add payment record')
+        payment_parser.add_argument('--person', required=True, help='Person name')
+        payment_parser.add_argument('--year', required=True, help='Year')
+        payment_parser.add_argument('--date', required=True, help='Date (YYYY-MM-DD)')
+        payment_parser.add_argument('--amount', type=float, required=True, help='Amount')
+        payment_parser.add_argument('--type', required=True, choices=['salary', 'bonus', 'commission'], help='Payment type')
+        payment_parser.add_argument('--notes', default='', help='Notes')
+        
+        # Update profile
+        profile_parser = subparsers.add_parser('update-profile', help='Update person profile')
+        profile_parser.add_argument('--person', required=True, help='Person name')
+        profile_parser.add_argument('--year', required=True, help='Year')
+        profile_parser.add_argument('--full-name', help='Full name')
+        profile_parser.add_argument('--position', help='Position')
+        profile_parser.add_argument('--department', help='Department')
+        profile_parser.add_argument('--manager', help='Manager')
+        profile_parser.add_argument('--is-manager', action='store_true', help='Is a manager')
+        
+        # Create sample data
+        sample_parser = subparsers.add_parser('create-sample', help='Create sample data')
+        
         return parser
         
     def handle_validate(self):
@@ -259,6 +302,7 @@ class CLI:
             # Display summary
             attendance_summary = data.get_attendance_summary()
             payment_summary = data.get_payment_summary()
+            profile_summary = data.get_profile_summary()
             
             # Create tables
             info_table = Table(title=f"Data for {self.args.person} ({self.args.year})")
@@ -269,8 +313,23 @@ class CLI:
             info_table.add_row("Year", str(data.year))
             info_table.add_row("Attendance Records", str(len(data.attendance_records)))
             info_table.add_row("Payment Records", str(len(data.payment_records)))
+            info_table.add_row("Profile Information", "Available" if data.profile else "Not Available")
             
             self.console.print(info_table)
+            
+            # Profile summary if available
+            if profile_summary["available"]:
+                profile_table = Table(title="Profile Information")
+                profile_table.add_column("Field", style="cyan")
+                profile_table.add_column("Value", style="green")
+                
+                profile_table.add_row("Full Name", profile_summary["full_name"])
+                profile_table.add_row("Position", profile_summary["position"])
+                profile_table.add_row("Department", profile_summary["department"])
+                profile_table.add_row("Manager", profile_summary["manager"])
+                profile_table.add_row("Is Manager", "Yes" if profile_summary["is_manager"] else "No")
+                
+                self.console.print(profile_table)
             
             # Attendance summary
             attendance_table = Table(title="Attendance Summary")
@@ -441,6 +500,151 @@ class CLI:
                 progress.update(task, completed=1)
                 
             self.console.print(f"[green]Payment plot generated at: {output_file}[/green]")
+
+    def handle_add_attendance(self):
+        """Handle the add-attendance command."""
+        person_data = self.processor.load_person_data(self.args.person, self.args.year)
+        
+        if not person_data:
+            self.console.print(f"[red]No data found for {self.args.person} ({self.args.year}). Creating new record.[/red]")
+            person_data = self.processor.create_person_data(self.args.person, int(self.args.year))
+        
+        # Convert date string to date object
+        try:
+            record_date = datetime.strptime(self.args.date, "%Y-%m-%d").date()
+        except ValueError:
+            self.console.print("[red]Invalid date format. Use YYYY-MM-DD.[/red]")
+            return
+            
+        # Map status to present value
+        present = self.args.status == "present"
+        
+        # Check if the record already exists
+        for record in person_data.attendance_records:
+            if record.date == record_date:
+                self.console.print(f"[yellow]Attendance record for {self.args.date} already exists. Updating...[/yellow]")
+                record.present = present
+                record.notes = self.args.notes
+                self.processor.save_person_data(person_data)
+                self.console.print("[green]Attendance record updated successfully[/green]")
+                return
+        
+        # Add new record
+        person_data.add_attendance(self.args.date, present, self.args.notes)
+        self.processor.save_person_data(person_data)
+        self.console.print("[green]Attendance record added successfully[/green]")
+
+    def handle_add_payment(self):
+        """Handle the add-payment command."""
+        person_data = self.processor.load_person_data(self.args.person, self.args.year)
+        
+        if not person_data:
+            self.console.print(f"[red]No data found for {self.args.person} ({self.args.year}). Creating new record.[/red]")
+            person_data = self.processor.create_person_data(self.args.person, int(self.args.year))
+        
+        # Convert date string to date object
+        try:
+            record_date = datetime.strptime(self.args.date, "%Y-%m-%d").date()
+        except ValueError:
+            self.console.print("[red]Invalid date format. Use YYYY-MM-DD.[/red]")
+            return
+        
+        # Check if the record already exists
+        for record in person_data.payment_records:
+            if record.date == record_date:
+                self.console.print(f"[yellow]Payment record for {self.args.date} already exists. Updating...[/yellow]")
+                record.amount = self.args.amount
+                record.reference = self.args.notes
+                self.processor.save_person_data(person_data)
+                self.console.print("[green]Payment record updated successfully[/green]")
+                return
+        
+        # Add new record
+        person_data.add_payment(self.args.date, self.args.amount, self.args.type, self.args.notes)
+        self.processor.save_person_data(person_data)
+        self.console.print("[green]Payment record added successfully[/green]")
+
+    def handle_update_profile(self):
+        """Handle the update-profile command."""
+        person_data = self.processor.load_person_data(self.args.person, self.args.year)
+        
+        if not person_data:
+            self.console.print(f"[red]No data found for {self.args.person} ({self.args.year}). Creating new record.[/red]")
+            person_data = self.processor.create_person_data(self.args.person, int(self.args.year))
+        
+        # Create profile if it doesn't exist
+        if not person_data.profile:
+            person_data.profile = ProfileData(
+                full_name=self.args.person if not self.args.full_name else self.args.full_name
+            )
+        
+        # Update profile fields
+        if self.args.full_name:
+            person_data.profile.full_name = self.args.full_name
+        if self.args.position:
+            person_data.profile.position = self.args.position
+        if self.args.department:
+            person_data.profile.department = self.args.department
+        if self.args.manager:
+            person_data.profile.manager_name = self.args.manager
+        if self.args.is_manager:
+            person_data.profile.is_manager = self.args.is_manager
+        
+        self.processor.save_person_data(person_data)
+        self.console.print("[green]Profile updated successfully[/green]")
+
+    def handle_create_sample(self):
+        """Handle the create-sample command."""
+        # Create sample person data
+        sample_people = ["Ana Costa", "Bruno Santos", "Carla Oliveira"]
+        current_year = str(datetime.now().year)
+        current_year_int = int(current_year)
+        
+        for person in sample_people:
+            # Create person data first
+            person_data = PersonData(name=person, year=current_year_int)
+            
+            # Add profile data
+            if person == "Ana Costa":
+                person_data.profile = ProfileData(
+                    full_name="Ana Costa",
+                    position="Software Engineer",
+                    department="Engineering",
+                    manager_name="Bruno Santos",
+                    is_manager=False
+                )
+            elif person == "Bruno Santos":
+                person_data.profile = ProfileData(
+                    full_name="Bruno Santos",
+                    position="Engineering Manager",
+                    department="Engineering",
+                    manager_name="Carla Oliveira",
+                    is_manager=True
+                )
+            elif person == "Carla Oliveira":
+                person_data.profile = ProfileData(
+                    full_name="Carla Oliveira",
+                    position="CTO",
+                    department="Executive",
+                    is_manager=True
+                )
+            
+            # Add attendance records
+            person_data.add_attendance(f"{current_year}-01-15", True, "Regular day")
+            person_data.add_attendance(f"{current_year}-01-16", False, "Traffic")
+            person_data.add_attendance(f"{current_year}-01-17", False, "Sick")
+            
+            # Add payment records
+            salary = 5000.0 if person == "Carla Oliveira" else (3500.0 if person == "Bruno Santos" else 2500.0)
+            bonus = 1000.0 if person == "Carla Oliveira" else (500.0 if person == "Bruno Santos" else 250.0)
+            
+            person_data.add_payment(f"{current_year}-01-31", salary, "salary", "January salary")
+            person_data.add_payment(f"{current_year}-01-15", bonus, "bonus", "Q4 performance bonus")
+            
+            # Save the data
+            self.processor.save_person_data(person_data)
+        
+        self.console.print(f"[green]Created sample data for {', '.join(sample_people)} for year {current_year}[/green]")
 
 
 def main():
