@@ -240,3 +240,24 @@ data/Legacy User/2023/perfil.json
 data/Legacy User/2023/resultado.json
 data/Ana Costa/2023/data.json
 data/João Silva/2023/data.json
+
+# Specific project files
+.specstory
+rawdata.json
+erros.txt
+test_json_without_year.json
+
+# Data folders
+data/
+output/
+random_structure/
+Year*/
+complex/
+202[0-9]/
+
+# Test data files
+test_data/
+feedback_reports/
+latest_feedback/
+feedback_reports_improved/
+teste_feedback/
