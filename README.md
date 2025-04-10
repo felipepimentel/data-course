@@ -37,12 +37,15 @@ pip install -r requirements.txt
 ```bash
 # Generate attendance report for all years
 python -m peopleanalytics report attendance
+# Output: Attendance report generated at: output/reports/attendance_report_TIMESTAMP.xlsx
 
 # Generate payment plots for 2023
 python -m peopleanalytics plot payment --year 2023
+# Output: Payment plot generated at: output/plots/payment_plot_2023_TIMESTAMP.png
 
 # Create a comprehensive summary
 python -m peopleanalytics summary --format html
+# Output: Summary generated at: output/summary/summary_TIMESTAMP.html
 ```
 
 ## Getting Started Guide
@@ -61,18 +64,23 @@ Here's a sample workflow:
 ```bash
 # Import data from a directory
 python -m peopleanalytics import path/to/my/data --recursive
+# Output: Imported X files
 
 # Validate all data
 python -m peopleanalytics validate
+# Output: Shows validation results with total, valid, and invalid files
 
 # Generate all reports for 2023
 python -m peopleanalytics report all --year 2023
+# Output: Generates both attendance and payment reports
 
 # Create a HTML summary
 python -m peopleanalytics summary --format html
+# Output: Summary generated at: output/summary/summary_TIMESTAMP.html
 
 # Back up all data
 python -m peopleanalytics backup
+# Output: Backup created at: output/backups/data_backup_TIMESTAMP.zip
 ```
 
 ## Data Structure
@@ -140,15 +148,27 @@ python -m peopleanalytics [--data-path PATH] [--output-path PATH] COMMAND
 ```bash
 # List all people
 python -m peopleanalytics list people
+# Output:
+#     All People    
+# ┏━━━━━━━━━━━━━━━━┓
+# ┃ Name           ┃
+# ┡━━━━━━━━━━━━━━━━┩
+# │ Ana Costa      │
+# │ João Silva     │
+# │ Maria Oliveira │
+# └────────────────┘
 
 # List people for a specific year
 python -m peopleanalytics list people --year 2023
+# Output: Shows people for the specified year
 
 # List all years for a person
 python -m peopleanalytics list years --person "Ana Costa"
+# Output: Shows years available for the specified person
 
 # Show detailed data for a person/year
 python -m peopleanalytics list data --person "Ana Costa" --year 2023
+# Output: Shows detailed information, attendance, and payment summaries
 ```
 
 #### Import Data
@@ -156,9 +176,11 @@ python -m peopleanalytics list data --person "Ana Costa" --year 2023
 ```bash
 # Import data from a file
 python -m peopleanalytics import path/to/file.json
+# Output: Successfully imported data for Person (Year) to data/Person/Year/data.json
 
 # Import all files from a directory
 python -m peopleanalytics import path/to/directory --recursive
+# Output: Imported X files
 ```
 
 #### Export Data
@@ -166,9 +188,11 @@ python -m peopleanalytics import path/to/directory --recursive
 ```bash
 # Export all data
 python -m peopleanalytics export --all
+# Output: Exported X files
 
 # Export data for a specific person and year
 python -m peopleanalytics export --person "Ana Costa" --year 2023
+# Output: Successfully exported data to output/exports/Ana Costa/2023.json
 ```
 
 #### Generate Reports
@@ -176,12 +200,15 @@ python -m peopleanalytics export --person "Ana Costa" --year 2023
 ```bash
 # Generate attendance report for all years
 python -m peopleanalytics report attendance
+# Output: Attendance report generated at: output/reports/attendance_report_TIMESTAMP.xlsx
 
 # Generate payment report for a specific year
 python -m peopleanalytics report payment --year 2023
+# Output: Payment report generated at: output/reports/payment_report_2023_TIMESTAMP.xlsx
 
 # Generate all reports for a specific year
 python -m peopleanalytics report all --year 2023
+# Output: Generates both attendance and payment reports for the specified year
 ```
 
 #### Create Visualizations
@@ -189,12 +216,15 @@ python -m peopleanalytics report all --year 2023
 ```bash
 # Generate attendance plots for all years
 python -m peopleanalytics plot attendance
+# Output: Attendance plot generated at: output/plots/attendance_plot_TIMESTAMP.png
 
 # Generate payment plots for a specific year
 python -m peopleanalytics plot payment --year 2023
+# Output: Payment plot generated at: output/plots/payment_plot_2023_TIMESTAMP.png
 
 # Generate all plots for a specific year
 python -m peopleanalytics plot all --year 2023
+# Output: Generates both attendance and payment plots for the specified year
 ```
 
 #### Generate Summary
@@ -202,12 +232,15 @@ python -m peopleanalytics plot all --year 2023
 ```bash
 # Generate JSON summary
 python -m peopleanalytics summary
+# Output: Summary generated at: output/summary/summary_TIMESTAMP.json
 
 # Generate CSV summary
 python -m peopleanalytics summary --format csv
+# Output: Summary generated at: output/summary/summary_TIMESTAMP.csv
 
 # Generate HTML summary
 python -m peopleanalytics summary --format html
+# Output: Summary generated at: output/summary/summary_TIMESTAMP.html
 ```
 
 #### Create Backup
@@ -215,6 +248,7 @@ python -m peopleanalytics summary --format html
 ```bash
 # Create a backup of all data
 python -m peopleanalytics backup
+# Output: Backup created at: output/backups/data_backup_TIMESTAMP.zip
 ```
 
 #### Validate Data
@@ -222,6 +256,15 @@ python -m peopleanalytics backup
 ```bash
 # Validate all data
 python -m peopleanalytics validate
+# Output:
+#   Validation Results   
+# ┏━━━━━━━━━━━━━┳━━━━━━━┓
+# ┃ Metric      ┃ Value ┃
+# ┡━━━━━━━━━━━━━╇━━━━━━━┩
+# │ Total Files │ 6     │
+# │ Valid       │ 6     │
+# │ Invalid     │ 0     │
+# └─────────────┴───────┘
 ```
 
 ## Sample Outputs
@@ -387,31 +430,37 @@ def handle_new_command(self):
 1. **Import Data**:
    ```bash
    python -m peopleanalytics import sample_data/ --recursive
+   # Output: Imported X files
    ```
 
 2. **Validate Data**:
    ```bash
    python -m peopleanalytics validate
+   # Output: Shows validation results
    ```
 
 3. **Generate Reports**:
    ```bash
    python -m peopleanalytics report all
+   # Output: Generates attendance and payment reports
    ```
 
 4. **Create Visualizations**:
    ```bash
    python -m peopleanalytics plot all
+   # Output: Generates attendance and payment plots
    ```
 
 5. **Export as Summary**:
    ```bash
    python -m peopleanalytics summary --format html
+   # Output: Summary generated at: output/summary/summary_TIMESTAMP.html
    ```
 
 6. **Backup Your Data**:
    ```bash
    python -m peopleanalytics backup
+   # Output: Backup created at: output/backups/data_backup_TIMESTAMP.zip
    ```
 
 ## Troubleshooting
