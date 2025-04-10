@@ -319,6 +319,26 @@ class DataProcessor:
                             potential_year = year_matches[0]
                             self.logger.info(f"Year not found in file, extracted from filename: {potential_year}")
                             person_data.year = int(potential_year)
+                    
+                    # If we still don't have a year, check for "Year20XX" pattern in path
+                    if not person_data.year:
+                        for part in parts:
+                            year_matches = re.findall(r'Year(20\d{2})', part)
+                            if year_matches:
+                                potential_year = year_matches[0]
+                                self.logger.info(f"Year not found in file, extracted from 'Year' prefix in path: {potential_year}")
+                                person_data.year = int(potential_year)
+                                break
+                    
+                    # If we still don't have a year, check for "year_XXXX" pattern in path
+                    if not person_data.year:
+                        for part in parts:
+                            year_matches = re.findall(r'year[_-]?(20\d{2})', part.lower())
+                            if year_matches:
+                                potential_year = year_matches[0]
+                                self.logger.info(f"Year not found in file, extracted from 'year_' pattern in path: {potential_year}")
+                                person_data.year = int(potential_year)
+                                break
                                 
                 except Exception as e:
                     self.logger.warning(f"Failed to extract year from path: {e}")
