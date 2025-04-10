@@ -281,6 +281,14 @@ class DataProcessor:
                     # Extract year from path (expected structure: */nome_pessoa/ano/* or */ano/nome_pessoa/*)
                     parts = file_path.parts
                     
+                    # Estratégia de extração de ano:
+                    # 1. Primeiro tenta estrutura padrão: */nome_pessoa/ano/*
+                    # 2. Depois tenta estrutura invertida: */ano/nome_pessoa/*
+                    # 3. Procura qualquer número de 4 dígitos no caminho
+                    # 4. Procura um número de 4 dígitos no nome do arquivo
+                    # 5. Procura padrão "Year2XXX" no caminho
+                    # 6. Procura padrão "year_2XXX" no caminho
+                    
                     # First check for */nome_pessoa/ano/* structure
                     for i, part in enumerate(parts):
                         if part == person_data.name and i+1 < len(parts):
