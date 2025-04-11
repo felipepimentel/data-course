@@ -73,6 +73,7 @@ class DataProcessor:
             files = list(directory.glob("*/resultado.json"))
             
         if not files:
+            self.logger.info(f"No files found in {directory}")
             return {"success": True, "imported": 0, "message": "No files found"}
             
         # Process each file
@@ -81,11 +82,18 @@ class DataProcessor:
             "total": len(files),
             "imported": 0,
             "failed": 0,
+            "skipped": 0,
             "errors": []
         }
         
         for file_path in files:
             try:
+                # Skip empty files
+                if file_path.stat().st_size == 0:
+                    self.logger.warning(f"Skipping empty file: {file_path}")
+                    results["skipped"] += 1
+                    continue
+                
                 # Extract person and year from path
                 parts = file_path.parts
                 if len(parts) < 3:
@@ -93,6 +101,13 @@ class DataProcessor:
                     
                 person = parts[-3]
                 year = parts[-2]
+                
+                # Check if perfil.json exists and is not empty
+                perfil_path = file_path.parent / "perfil.json"
+                if not perfil_path.exists() or perfil_path.stat().st_size == 0:
+                    self.logger.warning(f"Skipping {file_path} - perfil.json missing or empty")
+                    results["skipped"] += 1
+                    continue
                 
                 # Load and validate the file
                 with open(file_path, 'r', encoding='utf-8') as f:
