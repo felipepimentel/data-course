@@ -511,15 +511,15 @@ class DataProcessor:
             content.append("")
             content.append("```mermaid")
             content.append("%%{init: {'theme':'forest'}}%%")
-            content.append("barchart")
-            content.append(f"    title Performance Scores for {person}")
-            content.append("    x-axis [Competency Areas]")
-            content.append("    y-axis [Score (0-4)]")
-            
+            content.append("graph TD")
+            content.append(f"    title[\"Performance Scores for {person}\"]")
+            content.append("    style title fill:#f9f,stroke:#333,stroke-width:4px")
+
             for direcionador in person_data['direcionador'].unique():
                 direcionador_data = person_data[person_data['direcionador'] == direcionador]
                 avg_score = direcionador_data['frequencia_colaborador'].mean()
-                content.append(f"    \"{direcionador}\" {avg_score:.2f}")
+                content.append(f"    {direcionador.replace(' ', '_')}[\"{direcionador}: {avg_score:.2f}\"]")
+                content.append(f"    style {direcionador.replace(' ', '_')} fill:#bbf,stroke:#333,stroke-width:1px")
                 
             content.append("```")
             content.append("")
@@ -544,17 +544,20 @@ class DataProcessor:
             content.append("")
             content.append("```mermaid")
             content.append("%%{init: {'theme':'forest'}}%%")
-            content.append("barchart")
-            content.append(f"    title Individual vs. Group Performance for {person}")
-            content.append("    x-axis [Competency Areas]")
-            content.append("    y-axis [Score Difference]")
+            content.append("graph TD")
+            content.append(f"    title[\"Individual vs. Group Performance for {person}\"]")
+            content.append("    style title fill:#f9f,stroke:#333,stroke-width:4px")
             
             for direcionador in person_data['direcionador'].unique():
                 direcionador_data = person_data[person_data['direcionador'] == direcionador]
                 avg_indiv = direcionador_data['frequencia_colaborador'].mean()
                 avg_group = direcionador_data['frequencia_grupo'].mean()
                 diff = avg_indiv - avg_group
-                content.append(f"    \"{direcionador}\" {diff:.2f}")
+                content.append(f"    {direcionador.replace(' ', '_')}_diff[\"{direcionador} Difference: {diff:.2f}\"]")
+                if diff >= 0:
+                    content.append(f"    style {direcionador.replace(' ', '_')}_diff fill:#9f9,stroke:#333,stroke-width:1px")
+                else:
+                    content.append(f"    style {direcionador.replace(' ', '_')}_diff fill:#f99,stroke:#333,stroke-width:1px")
                 
             content.append("```")
             
