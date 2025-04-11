@@ -271,6 +271,13 @@ The sync command will:
      - MermaidJS visualizations (`visualization.md`)
      - AI prompt for generating feedback (`ai_prompt.md`)
      - Stakeholder comparison report (`stakeholder_comparison.md`)
+     - Time series analysis (`time_series.md`)
+     - Radar chart visualization (`radar_chart.html`)
+     - Team aggregation report (`team_report.md`)
+     - Benchmark report (`benchmark_report.md`)
+     - Heat map visualization (`heat_map.md`)
+     - Natural language summary (`narrative_summary.md`)
+     - Development action plan (`action_plan.md`)
 
 The MermaidJS visualizations include:
 - Bar charts showing performance by competency area
@@ -285,6 +292,48 @@ The stakeholder comparison report analyzes evaluations from different perspectiv
 - Highlights the strongest and development areas
 - Identifies gaps between different stakeholder perspectives
 - Shows areas with the most significant differences in perception
+
+The time series analysis tracks performance trends over time:
+- Shows performance evolution across multiple evaluation cycles
+- Highlights improvement and decline areas
+- Provides year-over-year comparisons with visual charts
+- Identifies long-term patterns in specific competency areas
+
+The radar chart visualization offers a multi-dimensional view:
+- Interactive graphical representation of all competencies
+- Compares individual scores against peer group averages
+- Shows multiple stakeholder perspectives in a single view
+- Clearly identifies strong and weak areas at a glance
+
+The team aggregation report offers organizational insights:
+- Aggregates performance data across departments or teams
+- Identifies collective strengths and development opportunities
+- Compares performance between different organizational units
+- Provides recommendations for team-wide training and development
+
+The benchmark report compares performance against standards:
+- Evaluates readiness for promotion to the next level
+- Shows gaps between current performance and expectations
+- Compares against both current level and next level benchmarks
+- Provides specific development focus areas for career advancement
+
+The heat map visualization offers a color-coded analysis:
+- Provides an easy-to-scan overview of all competency areas
+- Uses color coding to quickly identify strengths and weaknesses
+- Shows all stakeholder perspectives in a consolidated view
+- Offers a comprehensive view of performance at different granularity levels
+
+The natural language summary provides a narrative overview:
+- Translates data points into readable paragraphs
+- Highlights key findings in conversational language
+- Provides context and nuance to numerical ratings
+- Offers an accessible summary for quick understanding
+
+The development action plan provides structured next steps:
+- Targets specific improvement areas based on evaluation results
+- Includes suggested activities and resources for development
+- Provides templates for tracking progress and accountability
+- Focuses on leveraging strengths while addressing weaknesses
 
 #### Validate Data
 

@@ -745,6 +745,8 @@ class CLI:
                     if markdown_path:
                         shutil.copy2(markdown_path, analytics_dir / "summary.md")
                         
+            progress.update(task, completed=1)
+            
             # Generate MermaidJS charts
             task = progress.add_task("[green]Generating MermaidJS charts...", total=None)
             mermaid_files = self.processor.generate_mermaid_chart()
@@ -802,6 +804,143 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "stakeholder_comparison.md")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate time series analysis
+            task = progress.add_task("[green]Generating time series analysis...", total=None)
+            time_series_files = self.processor.generate_time_series_analysis()
+            
+            if time_series_files:
+                for person, file_path in time_series_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "time_series.md")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate radar charts
+            task = progress.add_task("[green]Generating radar charts...", total=None)
+            radar_files = self.processor.generate_radar_chart()
+            
+            if radar_files:
+                for person, file_path in radar_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "radar_chart.html")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate team aggregation report
+            task = progress.add_task("[green]Generating team aggregation report...", total=None)
+            team_report = self.processor.generate_team_aggregation()
+            
+            if team_report:
+                # Copy to all person/year directories for convenient access
+                for person_dir in base_path.glob("*"):
+                    if person_dir.is_dir():
+                        year_dirs = list(person_dir.glob("*"))
+                        for year_dir in year_dirs:
+                            if year_dir.is_dir() and year_dir.name.isdigit():
+                                analytics_dir = year_dir / "analytics"
+                                analytics_dir.mkdir(exist_ok=True)
+                                shutil.copy2(team_report, analytics_dir / "team_report.md")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate benchmark reports
+            task = progress.add_task("[green]Generating benchmark reports...", total=None)
+            benchmark_files = self.processor.generate_benchmark_report()
+            
+            if benchmark_files:
+                for person, file_path in benchmark_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "benchmark_report.md")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate heat maps
+            task = progress.add_task("[green]Generating heat maps...", total=None)
+            heat_map_files = self.processor.generate_heat_map()
+            
+            if heat_map_files:
+                for person, file_path in heat_map_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "heat_map.md")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate natural language summaries
+            task = progress.add_task("[green]Generating natural language summaries...", total=None)
+            summary_files = self.processor.generate_natural_language_summary()
+            
+            if summary_files:
+                for person, file_path in summary_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "narrative_summary.md")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate action plans
+            task = progress.add_task("[green]Generating action plans...", total=None)
+            action_plan_files = self.processor.generate_action_plan()
+            
+            if action_plan_files:
+                for person, file_path in action_plan_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "action_plan.md")
                             
             progress.update(task, completed=1)
             
