@@ -260,4 +260,72 @@ DEFAULT_SCHEMA_FILE = "schema/evaluation_schema.json"
 # CLI Configuration
 MAX_TABLE_WIDTH = 120
 MAX_DISPLAY_ROWS = 20
-DEFAULT_OUTPUT_FORMAT = "table" 
+DEFAULT_OUTPUT_FORMAT = "table"
+
+# Career event types
+CAREER_EVENT_TYPES = {
+    "promotion": "Promoção",
+    "lateral_move": "Movimentação Lateral",
+    "role_change": "Mudança de Função",
+    "skill_acquisition": "Nova Habilidade",
+    "certification": "Certificação"
+}
+
+# Skill level descriptions
+SKILL_LEVELS = {
+    1: "Básico - Conhecimento introdutório, requer supervisão constante",
+    2: "Iniciante - Pode executar tarefas simples com alguma autonomia",
+    3: "Intermediário - Bom domínio, autônomo na maioria das situações",
+    4: "Avançado - Domínio completo, pode ensinar outros",
+    5: "Especialista - Referência na área, contribui com inovações"
+}
+
+# Career goal status descriptions
+GOAL_STATUS = {
+    "not_started": "Não Iniciado",
+    "in_progress": "Em Andamento",
+    "completed": "Concluído",
+    "delayed": "Atrasado"
+}
+
+# Skill categories (examples for organization)
+SKILL_CATEGORIES = {
+    "technical": "Habilidades Técnicas",
+    "soft": "Habilidades Comportamentais",
+    "leadership": "Habilidades de Liderança",
+    "domain": "Conhecimento de Domínio",
+    "tools": "Ferramentas e Tecnologias",
+    "process": "Processos e Metodologias"
+}
+
+# Growth score interpretations
+GROWTH_SCORE_INTERPRETATION = {
+    "90-100": "Crescimento Excepcional - Progredindo muito acima da média",
+    "75-89": "Crescimento Acelerado - Progredindo acima da média",
+    "60-74": "Bom Crescimento - Progredindo conforme esperado",
+    "40-59": "Crescimento Moderado - Oportunidades para acelerar",
+    "0-39": "Crescimento Lento - Necessita atenção especial"
+}
+
+# Promotion velocity interpretations (in years)
+PROMOTION_VELOCITY_INTERPRETATION = {
+    "0-1.5": "Muito Rápida - Progredindo excepcionalmente rápido",
+    "1.5-2.5": "Rápida - Progredindo acima da média",
+    "2.5-3.5": "Média - Progredindo conforme esperado",
+    "3.5-5.0": "Lenta - Oportunidades para acelerar",
+    "5.0+": "Muito Lenta - Necessita atenção especial"
+}
+
+# Common career development actions
+CAREER_DEVELOPMENT_ACTIONS = [
+    "Iniciar programa de mentoria formal",
+    "Participar de treinamento especializado em {skill}",
+    "Assumir projeto visível para demonstrar competências",
+    "Obter certificação em {area}",
+    "Expandir rede de contatos através de eventos e grupos",
+    "Desenvolver projeto interno para adquirir experiência em {skill}",
+    "Participar de comunidades de prática",
+    "Criar conteúdo técnico para compartilhar conhecimento",
+    "Buscar feedback estruturado de pares e gestores",
+    "Participar de hackathons ou desafios técnicos"
+] 

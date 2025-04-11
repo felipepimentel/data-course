@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Tuple, Any
 import pandas as pd
+import os
 
 class DataProcessor:
     """Process and validate people evaluation data."""
@@ -3028,3 +3029,307 @@ class DataProcessor:
             self.logger.info(f"Action plan generated for {person}: {output_file}")
             
         return report_files
+
+    def generate_individual_report(self) -> dict:
+        """Generate a comprehensive individual report with comparisons and visualizations.
+        
+        This report includes:
+        - Self vs Manager vs Peers comparison
+        - Group distribution analysis
+        - Key points of attention
+        - Historical trends
+        - Competency radar chart
+        
+        Returns:
+            Dictionary mapping person names to report file paths
+        """
+        # Find all resultado.json files
+        files = list(self.data_path.glob("**/resultado.json"))
+        
+        if not files:
+            self.logger.warning("No files found to generate individual reports")
+            return None
+            
+        # Collect all data by person
+        all_data = []
+        
+        for file_path in files:
+            try:
+                # Skip empty files
+                if file_path.stat().st_size == 0:
+                    continue
+                    
+                # Extract person and year from path
+                parts = file_path.parts
+                person = parts[-3]
+                year = parts[-2]
+                
+                # Load the file
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # Load profile
+                perfil_path = file_path.parent / "perfil.json"
+                with open(perfil_path, 'r', encoding='utf-8') as f:
+                    perfil = json.load(f)
+                
+                # Process data
+                for direcionador in data['data']['direcionadores']:
+                    for comportamento in direcionador['comportamentos']:
+                        for avaliacao in comportamento['avaliacoes_grupo']:
+                            row = {
+                                "pessoa": person,
+                                "ano": year,
+                                "cargo": perfil['cargo'],
+                                "nivel": perfil['nivel_cargo'],
+                                "conceito": data['data']['conceito_ciclo_filho_descricao'],
+                                "direcionador": direcionador['direcionador'],
+                                "comportamento": comportamento['comportamento'],
+                                "avaliador": avaliacao['avaliador'],
+                                "frequencia_colaborador": sum(i * v for i, v in enumerate(avaliacao['frequencia_colaborador'])) / sum(avaliacao['frequencia_colaborador']),
+                                "frequencia_grupo": sum(i * v for i, v in enumerate(avaliacao['frequencia_grupo'])) / sum(avaliacao['frequencia_grupo'])
+                            }
+                            all_data.append(row)
+                            
+            except Exception as e:
+                self.logger.error(f"Error processing {file_path}: {e}")
+                continue
+        
+        if not all_data:
+            self.logger.warning("No valid data found to generate individual reports")
+            return None
+            
+        # Create DataFrame
+        df = pd.DataFrame(all_data)
+        
+        # Generate timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Create output directory
+        output_dir = self.output_path / "individual_reports"
+        output_dir.mkdir(exist_ok=True)
+        
+        # Generate report for each person
+        report_files = {}
+        
+        for person in df['pessoa'].unique():
+            person_data = df[df['pessoa'] == person]
+            
+            # Get latest year data
+            latest_year = max(person_data['ano'].unique())
+            latest_data = person_data[person_data['ano'] == latest_year]
+            
+            # Get job info
+            job_title = latest_data['cargo'].iloc[0] if 'cargo' in latest_data else "Unknown Role"
+            job_level = latest_data['nivel'].iloc[0] if 'nivel' in latest_data else "Unknown Level"
+            
+            # Generate content
+            content = []
+            content.append(f"# Individual Report for {person}")
+            content.append("")
+            content.append(f"**Position**: {job_title} ({job_level})")
+            content.append(f"**Year**: {latest_year}")
+            content.append("")
+            
+            # 1. Overall Assessment
+            content.append("## Overall Assessment")
+            content.append("")
+            
+            # Calculate overall scores
+            overall_score = latest_data['frequencia_colaborador'].mean()
+            group_score = latest_data['frequencia_grupo'].mean()
+            score_diff = overall_score - group_score
+            
+            content.append(f"**Overall Score**: {overall_score:.2f}")
+            content.append(f"**Group Average**: {group_score:.2f}")
+            content.append(f"**Difference**: {score_diff:+.2f}")
+            content.append("")
+            
+            # 2. Stakeholder Comparison
+            content.append("## Stakeholder Comparison")
+            content.append("")
+            
+            # Group by stakeholder type
+            stakeholder_scores = latest_data.groupby('avaliador')['frequencia_colaborador'].mean()
+            
+            content.append("| Stakeholder | Score | Difference from Group |")
+            content.append("|------------|-------|---------------------|")
+            
+            for stakeholder, score in stakeholder_scores.items():
+                diff = score - group_score
+                content.append(f"| {stakeholder} | {score:.2f} | {diff:+.2f} |")
+            
+            content.append("")
+            
+            # 3. Key Points of Attention
+            content.append("## Key Points of Attention")
+            content.append("")
+            
+            # Find largest gaps between self and others
+            stakeholder_gaps = []
+            for stakeholder in latest_data['avaliador'].unique():
+                stakeholder_data = latest_data[latest_data['avaliador'] == stakeholder]
+                for direcionador in stakeholder_data['direcionador'].unique():
+                    dir_data = stakeholder_data[stakeholder_data['direcionador'] == direcionador]
+                    avg_score = dir_data['frequencia_colaborador'].mean()
+                    group_avg = dir_data['frequencia_grupo'].mean()
+                    gap = abs(avg_score - group_avg)
+                    stakeholder_gaps.append({
+                        'stakeholder': stakeholder,
+                        'direcionador': direcionador,
+                        'score': avg_score,
+                        'group_avg': group_avg,
+                        'gap': gap
+                    })
+            
+            # Sort by gap size
+            stakeholder_gaps.sort(key=lambda x: x['gap'], reverse=True)
+            
+            content.append("### Largest Perception Gaps")
+            content.append("")
+            content.append("| Competency | Stakeholder | Score | Group Average | Gap |")
+            content.append("|------------|-------------|-------|---------------|-----|")
+            
+            for gap in stakeholder_gaps[:5]:  # Top 5 gaps
+                content.append(f"| {gap['direcionador']} | {gap['stakeholder']} | {gap['score']:.2f} | {gap['group_avg']:.2f} | {gap['gap']:.2f} |")
+            
+            content.append("")
+            
+            # 4. Group Distribution
+            content.append("## Group Distribution Analysis")
+            content.append("")
+            
+            # Calculate percentiles
+            all_scores = df[df['ano'] == latest_year]['frequencia_colaborador']
+            person_percentile = (all_scores < overall_score).mean() * 100
+            
+            content.append(f"**Your Position**: {person_percentile:.1f}th percentile")
+            content.append("")
+            
+            # 5. Historical Trends
+            content.append("## Historical Trends")
+            content.append("")
+            
+            # MermaidJS line chart for historical trends
+            content.append("```mermaid")
+            content.append("%%{init: {'theme':'forest'}}%%")
+            content.append("xychart-beta")
+            content.append(f"    title \"Performance Trend for {person}\"")
+            content.append("    x-axis [Year]")
+            content.append("    y-axis \"Score (0-4)\" [0 - 4]")
+            
+            # Sort years
+            years = sorted(person_data['ano'].unique())
+            
+            # Plot person's scores
+            content.append("    line [Your Score]")
+            for year in years:
+                year_data = person_data[person_data['ano'] == year]
+                avg_score = year_data['frequencia_colaborador'].mean()
+                content.append(f"      {year} {avg_score:.2f}")
+            
+            # Plot group averages
+            content.append("    line [Group Average]")
+            for year in years:
+                year_data = person_data[person_data['ano'] == year]
+                avg_score = year_data['frequencia_grupo'].mean()
+                content.append(f"      {year} {avg_score:.2f}")
+            
+            content.append("```")
+            content.append("")
+            
+            # 6. Competency Radar Chart
+            content.append("## Competency Analysis")
+            content.append("")
+            
+            # MermaidJS radar chart for competencies
+            content.append("```mermaid")
+            content.append("%%{init: {'theme':'forest'}}%%")
+            content.append("radarChart-beta")
+            content.append(f"    title \"Competency Profile for {person}\"")
+            content.append("    axis [Competency]")
+            
+            # Get unique competencies
+            competencies = latest_data['direcionador'].unique()
+            
+            # Add axes
+            for comp in competencies:
+                content.append(f"    axis {comp}")
+            
+            # Add data series
+            content.append("    series [Your Score]")
+            for comp in competencies:
+                comp_data = latest_data[latest_data['direcionador'] == comp]
+                score = comp_data['frequencia_colaborador'].mean()
+                content.append(f"      {score:.2f}")
+            
+            content.append("    series [Group Average]")
+            for comp in competencies:
+                comp_data = latest_data[latest_data['direcionador'] == comp]
+                score = comp_data['frequencia_grupo'].mean()
+                content.append(f"      {score:.2f}")
+            
+            content.append("```")
+            content.append("")
+            
+            # Save report file
+            output_file = output_dir / f"individual_report_{person.replace(' ', '_')}_{timestamp}.md"
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write("\n".join(content))
+                
+            report_files[person] = str(output_file)
+            self.logger.info(f"Individual report generated for {person}: {output_file}")
+            
+        return report_files
+
+    def generate_individual_reports(self) -> bool:
+        """
+        Generate individual reports for each person in the data.
+        
+        Returns:
+            bool: True if reports were generated successfully, False otherwise
+        """
+        # Create output directory if it doesn't exist
+        reports_dir = self.output_path / "individual_reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
+        # Find CSV files
+        csv_files = list(self.data_path.glob("*.csv"))
+        if not csv_files:
+            self.logger.warning("No files found to generate individual reports")
+            return False
+
+        # Process each CSV file
+        for csv_file in csv_files:
+            try:
+                df = pd.read_csv(csv_file)
+                
+                # Generate report for each person
+                for _, row in df.iterrows():
+                    report_content = self._generate_report_content(row)
+                    report_file = reports_dir / f"{row['name']}_report_{datetime.now().strftime('%Y%m%d')}.md"
+                    
+                    with open(report_file, 'w') as f:
+                        f.write(report_content)
+                
+                return True
+            except Exception as e:
+                self.logger.error(f"Error processing {csv_file}: {str(e)}")
+                return False
+
+    def _generate_report_content(self, data: pd.Series) -> str:
+        """Generate markdown report content for a person."""
+        return f"""# Performance Report for {data['name']}
+
+## Role Information
+- Department: {data['department']}
+- Role: {data['role']}
+
+## Performance
+- Score: {data['performance_score']}
+
+## Analysis
+{'Excellent performance!' if data['performance_score'] >= 4.5 else 'Good performance.' if data['performance_score'] >= 4.0 else 'Needs improvement.'}
+
+Generated on: {datetime.now().strftime('%Y-%m-%d')}
+"""

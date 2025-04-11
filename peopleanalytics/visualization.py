@@ -749,4 +749,882 @@ class Visualization:
             return config
         except Exception as e:
             logger.error(f"Error loading configuration: {str(e)}")
-            return None 
+            return None
+
+    def create_career_progression_charts(self, person_name: str, career_data: Dict[str, Any], output_path: Path) -> None:
+        """Create visualizations for career progression data.
+        
+        Args:
+            person_name: The name of the person
+            career_data: Dictionary containing career progression data
+            output_path: Path to save the visualizations to
+        """
+        try:
+            # Create career progression directory if it doesn't exist
+            charts_dir = output_path / "career_charts"
+            charts_dir.mkdir(exist_ok=True)
+            
+            # Extract data
+            events = career_data.get("eventos_carreira", [])
+            skills = career_data.get("matriz_habilidades", {})
+            metrics = career_data.get("metricas", {})
+            
+            # Only create visualizations if we have data
+            if events:
+                self._create_career_timeline(person_name, events, charts_dir)
+                
+            if skills:
+                self._create_skills_radar(person_name, skills, charts_dir)
+                
+            if metrics:
+                self._create_growth_metrics_chart(person_name, metrics, charts_dir)
+                
+            # Create a comprehensive growth dashboard if we have all components
+            if events and skills and metrics:
+                self._create_career_dashboard(person_name, career_data, charts_dir)
+                
+        except Exception as e:
+            self.logger.error(f"Error creating career charts for {person_name}: {e}")
+
+    def _create_career_timeline(self, person_name: str, events: List[Dict[str, Any]], output_path: Path) -> None:
+        """Create a career timeline visualization.
+        
+        Args:
+            person_name: The name of the person
+            events: List of career events
+            output_path: Path to save the visualization to
+        """
+        try:
+            # Sort events by date
+            sorted_events = sorted(events, key=lambda x: x.get("data", ""))
+            
+            # Create timeline as HTML/JavaScript using Chart.js
+            html_content = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linha do Tempo de Carreira - {person_name}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .container {{ max-width: 1000px; margin: 0 auto; }}
+        h1 {{ color: #333; text-align: center; }}
+        .chart-container {{ height: 600px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Linha do Tempo de Carreira - {person_name}</h1>
+        <div class="chart-container">
+            <canvas id="timeline"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('timeline').getContext('2d');
+        
+        // Dados dos eventos
+        const events = [
+"""
+            
+            # Add each event as a data point
+            for event in sorted_events:
+                date = event.get("data", "")
+                event_type = event.get("tipo_evento", "")
+                details = event.get("detalhes", "").replace("'", "\\'")  # Escape single quotes
+                
+                # Determine color and label based on event type
+                color = ""
+                if event_type == "promotion":
+                    color = "#4CAF50"  # Green
+                    label = "Promoção"
+                elif event_type == "lateral_move":
+                    color = "#2196F3"  # Blue
+                    label = "Movimentação Lateral"
+                elif event_type == "role_change":
+                    color = "#9C27B0"  # Purple
+                    label = "Mudança de Função"
+                elif event_type == "skill_acquisition":
+                    color = "#FF9800"  # Orange
+                    label = "Nova Habilidade"
+                elif event_type == "certification":
+                    color = "#F44336"  # Red
+                    label = "Certificação"
+                else:
+                    color = "#607D8B"  # Gray
+                    label = event_type.capitalize()
+                
+                new_position = event.get("cargo_novo", "")
+                if new_position and (event_type in ["promotion", "lateral_move", "role_change"]):
+                    details = f"{new_position}: {details}"
+                
+                html_content += f"            {{x: '{date}', y: '{label}', details: '{details}', color: '{color}'}},\n"
+            
+            html_content += """        ];
+            
+            // Configurar o gráfico
+            new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        data: events,
+                        backgroundColor: events.map(e => e.color),
+                        pointRadius: 10,
+                        pointHoverRadius: 12
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'month',
+                                displayFormats: {
+                                    month: 'MMM YYYY'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Data'
+                            }
+                        },
+                        y: {
+                            type: 'category',
+                            labels: ['Certificação', 'Nova Habilidade', 'Mudança de Função', 'Movimentação Lateral', 'Promoção'],
+                            title: {
+                                display: true,
+                                text: 'Tipo de Evento'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw.details;
+                                }
+                            }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Linha do Tempo de Carreira'
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        </script>
+    </body>
+</html>
+"""
+            
+            # Save the HTML file
+            timeline_file = output_path / f"{person_name}_career_timeline.html"
+            with open(timeline_file, 'w') as f:
+                f.write(html_content)
+                
+            # Also create a Mermaid version for Markdown
+            mermaid_content = self._create_mermaid_timeline(person_name, sorted_events)
+            mermaid_file = output_path / f"{person_name}_career_timeline.md"
+            with open(mermaid_file, 'w') as f:
+                f.write(mermaid_content)
+                
+        except Exception as e:
+            self.logger.error(f"Error creating career timeline for {person_name}: {e}")
+
+    def _create_mermaid_timeline(self, person_name: str, events: List[Dict[str, Any]]) -> str:
+        """Create a Mermaid timeline for career events.
+        
+        Args:
+            person_name: The name of the person
+            events: List of career events sorted by date
+            
+        Returns:
+            str: Mermaid timeline content
+        """
+        # Create Mermaid timeline
+        mermaid = f"""# Linha do Tempo de Carreira: {person_name}
+
+```mermaid
+timeline
+    title Trajetória de Carreira de {person_name}
+"""
+        
+        # Group events by year
+        years = {}
+        for event in events:
+            date_str = event.get("data", "")
+            if date_str:
+                year = date_str.split("-")[0]
+                if year not in years:
+                    years[year] = []
+                years[year].append(event)
+        
+        # Add events to timeline by year
+        for year in sorted(years.keys()):
+            mermaid += f"    section {year}\n"
+            
+            for event in years[year]:
+                date = event.get("data", "").replace("-", "/")
+                event_type = event.get("tipo_evento", "")
+                details = event.get("detalhes", "")
+                
+                # Format event text based on type
+                if event_type == "promotion":
+                    cargo_novo = event.get("cargo_novo", "")
+                    event_text = f"{date}: Promoção para {cargo_novo}"
+                elif event_type == "lateral_move":
+                    cargo_novo = event.get("cargo_novo", "")
+                    event_text = f"{date}: Movimento lateral para {cargo_novo}"
+                elif event_type == "role_change":
+                    cargo_novo = event.get("cargo_novo", "")
+                    event_text = f"{date}: Mudança de função para {cargo_novo}"
+                elif event_type == "skill_acquisition":
+                    event_text = f"{date}: Nova habilidade: {details}"
+                elif event_type == "certification":
+                    event_text = f"{date}: Certificação: {details}"
+                else:
+                    event_text = f"{date}: {event_type} - {details}"
+                
+                mermaid += f"        {event_text}\n"
+        
+        mermaid += "```\n"
+        
+        return mermaid
+
+    def _create_skills_radar(self, person_name: str, skills: Dict[str, int], output_path: Path) -> None:
+        """Create a radar chart for skills.
+        
+        Args:
+            person_name: The name of the person
+            skills: Dictionary mapping skill names to proficiency levels
+            output_path: Path to save the visualization to
+        """
+        try:
+            # Group skills by category (if using dot notation like "technical.python")
+            categorized_skills = {}
+            
+            for skill_name, level in skills.items():
+                if "." in skill_name:
+                    category, name = skill_name.split(".", 1)
+                else:
+                    category = "Habilidades Técnicas"
+                    name = skill_name
+                
+                if category not in categorized_skills:
+                    categorized_skills[category] = []
+                    
+                categorized_skills[category].append({
+                    "name": name,
+                    "level": level
+                })
+            
+            # Create the HTML/JavaScript radar chart
+            html_content = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matriz de Habilidades - {person_name}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .container {{ max-width: 1000px; margin: 0 auto; }}
+        h1, h2 {{ color: #333; text-align: center; }}
+        .chart-container {{ height: 400px; margin-bottom: 40px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Matriz de Habilidades - {person_name}</h1>
+"""
+            
+            # Add a radar chart for each category
+            chart_id = 1
+            for category, skill_list in categorized_skills.items():
+                html_content += f"""
+            <h2>{category}</h2>
+            <div class="chart-container">
+                <canvas id="radar{chart_id}"></canvas>
+            </div>
+            
+            <script>
+                const ctx{chart_id} = document.getElementById('radar{chart_id}').getContext('2d');
+                
+                new Chart(ctx{chart_id}, {{
+                    type: 'radar',
+                    data: {{
+                        labels: [{', '.join([f"'{skill['name']}'" for skill in skill_list])}],
+                        datasets: [{{
+                            label: 'Nível de Proficiência',
+                            data: [{', '.join([str(skill['level']) for skill in skill_list])}],
+                            fill: true,
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgb(54, 162, 235)',
+                            pointBackgroundColor: 'rgb(54, 162, 235)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(54, 162, 235)'
+                        }}]
+                    }},
+                    options: {{
+                        scales: {{
+                            r: {{
+                                angleLines: {{
+                                    display: true
+                                }},
+                                suggestedMin: 0,
+                                suggestedMax: 5
+                            }}
+                        }},
+                        plugins: {{
+                            legend: {{
+                                display: true
+                            }},
+                            title: {{
+                                display: true,
+                                text: '{category}'
+                            }}
+                        }},
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }}
+                }});
+            </script>
+"""
+                chart_id += 1
+            
+            html_content += """
+        </div>
+    </div>
+</body>
+</html>
+"""
+            
+            # Save the HTML file
+            skills_file = output_path / f"{person_name}_skills_radar.html"
+            with open(skills_file, 'w') as f:
+                f.write(html_content)
+                
+        except Exception as e:
+            self.logger.error(f"Error creating skills radar for {person_name}: {e}")
+
+    def _create_growth_metrics_chart(self, person_name: str, metrics: Dict[str, Any], output_path: Path) -> None:
+        """Create a chart visualizing growth metrics.
+        
+        Args:
+            person_name: The name of the person
+            metrics: Dictionary of career metrics
+            output_path: Path to save the visualization to
+        """
+        try:
+            # Extract growth score and other key metrics
+            growth_score = metrics.get("growth_score", 0)
+            promotion_velocity = metrics.get("media_anos_entre_promocoes", 0)
+            skill_avg = metrics.get("media_habilidades", 0)
+            cert_count = metrics.get("total_certificacoes", 0)
+            goal_completion = metrics.get("taxa_conclusao_metas", 0)
+            
+            # Create HTML/JavaScript gauge chart for growth score
+            html_content = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Métricas de Crescimento - {person_name}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-gauge"></script>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .container {{ max-width: 1000px; margin: 0 auto; }}
+        h1, h2 {{ color: #333; text-align: center; }}
+        .chart-container {{ height: 300px; margin-bottom: 30px; }}
+        .metrics-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 30px; }}
+        .metric-card {{ background-color: #f5f5f5; border-radius: 8px; padding: 15px; }}
+        .metric-title {{ font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }}
+        .metric-value {{ font-size: 2em; font-weight: bold; color: #2196F3; }}
+        .metric-description {{ font-size: 0.9em; color: #666; margin-top: 5px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Métricas de Crescimento Profissional - {person_name}</h1>
+        
+        <div class="chart-container">
+            <canvas id="growthScore"></canvas>
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">Velocidade de Promoção</div>
+                <div class="metric-value">{promotion_velocity:.1f} anos</div>
+                <div class="metric-description">Tempo médio entre promoções</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Nível Médio de Habilidades</div>
+                <div class="metric-value">{skill_avg:.1f}/5</div>
+                <div class="metric-description">Proficiência média em todas as habilidades</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Total de Certificações</div>
+                <div class="metric-value">{cert_count}</div>
+                <div class="metric-description">Número de certificações obtidas</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Taxa de Conclusão de Metas</div>
+                <div class="metric-value">{goal_completion:.1f}%</div>
+                <div class="metric-description">Percentual de metas de carreira concluídas</div>
+            </div>
+        </div>
+        
+        <script>
+            const ctx = document.getElementById('growthScore').getContext('2d');
+            
+            // Define gauge chart options
+            const gaugeChartOptions = {{
+                responsive: true,
+                maintainAspectRatio: false,
+                title: {{
+                    display: true,
+                    text: 'Score de Crescimento Profissional'
+                }},
+                layout: {{
+                    padding: 20
+                }},
+                needle: {{
+                    radiusPercentage: 2,
+                    widthPercentage: 3.2,
+                    lengthPercentage: 80,
+                    color: 'rgba(0, 0, 0, 1)'
+                }},
+                valueLabel: {{
+                    formatter: value => {{
+                        return Math.round(value);
+                    }}
+                }}
+            }};
+            
+            // Create gauge chart
+            new Chart(ctx, {{
+                type: 'gauge',
+                data: {{
+                    datasets: [{{
+                        value: {growth_score},
+                        data: [20, 40, 60, 80, 100],
+                        backgroundColor: ['#f44336', '#ff9800', '#ffeb3b', '#8bc34a', '#4caf50'],
+                        borderWidth: 0
+                    }}]
+                }},
+                options: gaugeChartOptions
+            }});
+        </script>
+    </div>
+</body>
+</html>
+"""
+            
+            # Save the HTML file
+            metrics_file = output_path / f"{person_name}_growth_metrics.html"
+            with open(metrics_file, 'w') as f:
+                f.write(html_content)
+                
+        except Exception as e:
+            self.logger.error(f"Error creating growth metrics chart for {person_name}: {e}")
+
+    def _create_career_dashboard(self, person_name: str, career_data: Dict[str, Any], output_path: Path) -> None:
+        """Create a comprehensive career dashboard.
+        
+        Args:
+            person_name: The name of the person
+            career_data: Dictionary containing all career progression data
+            output_path: Path to save the visualization to
+        """
+        try:
+            # Extract all needed data
+            events = career_data.get("eventos_carreira", [])
+            skills = career_data.get("matriz_habilidades", {})
+            goals = career_data.get("metas_carreira", [])
+            certifications = career_data.get("certificacoes", [])
+            metrics = career_data.get("metricas", {})
+            
+            # Sort events by date
+            sorted_events = sorted(events, key=lambda x: x.get("data", ""))
+            
+            # Group skills by category
+            categorized_skills = {}
+            for skill_name, level in skills.items():
+                if "." in skill_name:
+                    category, name = skill_name.split(".", 1)
+                else:
+                    category = "Habilidades Técnicas"
+                    name = skill_name
+                
+                if category not in categorized_skills:
+                    categorized_skills[category] = []
+                    
+                categorized_skills[category].append({
+                    "name": name,
+                    "level": level
+                })
+            
+            # Extract metrics
+            growth_score = metrics.get("growth_score", 0)
+            promotion_velocity = metrics.get("media_anos_entre_promocoes", 0)
+            skill_avg = metrics.get("media_habilidades", 0)
+            cert_count = metrics.get("total_certificacoes", 0)
+            goal_completion = metrics.get("taxa_conclusao_metas", 0)
+            
+            # Create HTML dashboard
+            html_content = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Carreira - {person_name}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }}
+        .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
+        header {{ background-color: #2196F3; color: white; padding: 20px; text-align: center; margin-bottom: 20px; }}
+        h1, h2, h3 {{ margin: 0; }}
+        .dashboard-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }}
+        .dashboard-item {{ background-color: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
+        .dashboard-item.full-width {{ grid-column: span 2; }}
+        .chart-container {{ height: 300px; margin-top: 15px; }}
+        .metrics-container {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }}
+        .metric-card {{ background-color: #f9f9f9; padding: 15px; border-radius: 5px; }}
+        .metric-value {{ font-size: 1.8em; font-weight: bold; color: #2196F3; }}
+        .metric-title {{ font-size: 0.9em; color: #666; }}
+        table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+        th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
+        th {{ background-color: #f2f2f2; }}
+        .progress-bar {{ height: 8px; background-color: #e0e0e0; border-radius: 4px; margin-top: 5px; }}
+        .progress-fill {{ height: 100%; background-color: #4CAF50; border-radius: 4px; }}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Dashboard de Carreira</h1>
+        <h2>{person_name}</h2>
+    </header>
+    
+    <div class="container">
+        <div class="dashboard-grid">
+            <!-- Métricas principais -->
+            <div class="dashboard-item">
+                <h3>Métricas de Crescimento</h3>
+                <div class="metrics-container">
+                    <div class="metric-card">
+                        <div class="metric-value">{growth_score:.1f}/100</div>
+                        <div class="metric-title">Score de Crescimento</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{promotion_velocity:.1f} anos</div>
+                        <div class="metric-title">Tempo entre Promoções</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{skill_avg:.1f}/5</div>
+                        <div class="metric-title">Nível Médio de Habilidades</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{cert_count}</div>
+                        <div class="metric-title">Certificações</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Distribuição de habilidades -->
+            <div class="dashboard-item">
+                <h3>Distribuição de Habilidades</h3>
+                <div class="chart-container">
+                    <canvas id="skillsDistribution"></canvas>
+                </div>
+            </div>
+            
+            <!-- Linha do tempo -->
+            <div class="dashboard-item full-width">
+                <h3>Linha do Tempo de Carreira</h3>
+                <div class="chart-container">
+                    <canvas id="timeline"></canvas>
+                </div>
+            </div>
+            
+            <!-- Metas de carreira -->
+            <div class="dashboard-item">
+                <h3>Metas de Carreira</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Meta</th>
+                            <th>Progresso</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+"""
+            
+            # Add goals to the table
+            if goals:
+                for goal in sorted(goals, key=lambda x: x.get("target_date", "")):
+                    title = goal.get("title", "")
+                    progress = goal.get("progress", 0)
+                    status_en = goal.get("status", "")
+                    status = {
+                        "not_started": "Não Iniciado",
+                        "in_progress": "Em Andamento",
+                        "completed": "Concluído",
+                        "delayed": "Atrasado"
+                    }.get(status_en, status_en)
+                    
+                    # Determine status color
+                    status_color = {
+                        "not_started": "#9e9e9e",  # Gray
+                        "in_progress": "#2196F3",  # Blue
+                        "completed": "#4CAF50",    # Green
+                        "delayed": "#F44336"       # Red
+                    }.get(status_en, "#9e9e9e")
+                    
+                    html_content += f"""
+                            <tr>
+                                <td>{title}</td>
+                                <td>
+                                    <div>{progress}%</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: {progress}%"></div>
+                                    </div>
+                                </td>
+                                <td style="color: {status_color}">{status}</td>
+                            </tr>"""
+            else:
+                html_content += """
+                            <tr>
+                                <td colspan="3">Nenhuma meta de carreira registrada</td>
+                            </tr>"""
+            
+            html_content += """
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Certificações -->
+            <div class="dashboard-item">
+                <h3>Certificações</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Certificação</th>
+                            <th>Emissor</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+"""
+            
+            # Add certifications to the table
+            if certifications:
+                for cert in sorted(certifications, key=lambda x: x.get("date_obtained", ""), reverse=True):
+                    name = cert.get("name", "")
+                    issuer = cert.get("issuer", "")
+                    date = cert.get("date_obtained", "").replace("-", "/")
+                    
+                    html_content += f"""
+                            <tr>
+                                <td>{name}</td>
+                                <td>{issuer}</td>
+                                <td>{date}</td>
+                            </tr>"""
+            else:
+                html_content += """
+                            <tr>
+                                <td colspan="3">Nenhuma certificação registrada</td>
+                            </tr>"""
+            
+            # Add chart initialization scripts
+            html_content += """
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Dados para os gráficos
+"""
+            
+            # Add timeline data
+            html_content += """
+        const events = [
+"""
+            for event in sorted_events:
+                date = event.get("data", "")
+                event_type = event.get("tipo_evento", "")
+                details = event.get("detalhes", "").replace("'", "\\'")  # Escape single quotes
+                
+                # Determine color and label based on event type
+                color = ""
+                if event_type == "promotion":
+                    color = "#4CAF50"  # Green
+                    label = "Promoção"
+                elif event_type == "lateral_move":
+                    color = "#2196F3"  # Blue
+                    label = "Movimentação Lateral"
+                elif event_type == "role_change":
+                    color = "#9C27B0"  # Purple
+                    label = "Mudança de Função"
+                elif event_type == "skill_acquisition":
+                    color = "#FF9800"  # Orange
+                    label = "Nova Habilidade"
+                elif event_type == "certification":
+                    color = "#F44336"  # Red
+                    label = "Certificação"
+                else:
+                    color = "#607D8B"  # Gray
+                    label = event_type.capitalize()
+                
+                new_position = event.get("cargo_novo", "")
+                if new_position and (event_type in ["promotion", "lateral_move", "role_change"]):
+                    details = f"{new_position}: {details}"
+                
+                html_content += f"            {{x: '{date}', y: '{label}', details: '{details}', color: '{color}'}},\n"
+            
+            html_content += "        ];\n"
+            
+            # Add skills distribution data
+            html_content += """
+        const skillDistribution = {
+"""
+            skill_distribution = metrics.get("distribuicao_habilidades", {})
+            for level in range(1, 6):
+                count = skill_distribution.get(f"nivel_{level}", 0)
+                html_content += f"            {level}: {count},\n"
+            
+            html_content += "        };\n"
+            
+            # Initialize charts
+            html_content += """
+        // Timeline chart
+        const timelineCtx = document.getElementById('timeline').getContext('2d');
+        new Chart(timelineCtx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    data: events,
+                    backgroundColor: events.map(e => e.color),
+                    pointRadius: 10,
+                    pointHoverRadius: 12
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month',
+                            displayFormats: {
+                                month: 'MMM YYYY'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Data'
+                        }
+                    },
+                    y: {
+                        type: 'category',
+                        labels: ['Certificação', 'Nova Habilidade', 'Mudança de Função', 'Movimentação Lateral', 'Promoção'],
+                        title: {
+                            display: true,
+                            text: 'Tipo de Evento'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.raw.details;
+                            }
+                        }
+                    },
+                    legend: {
+                        display: false
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+        
+        // Skills distribution chart
+        const skillsCtx = document.getElementById('skillsDistribution').getContext('2d');
+        new Chart(skillsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Nível 1', 'Nível 2', 'Nível 3', 'Nível 4', 'Nível 5'],
+                datasets: [{
+                    label: 'Número de Habilidades',
+                    data: [
+                        skillDistribution[1] || 0,
+                        skillDistribution[2] || 0,
+                        skillDistribution[3] || 0,
+                        skillDistribution[4] || 0,
+                        skillDistribution[5] || 0
+                    ],
+                    backgroundColor: [
+                        '#f44336',
+                        '#ff9800',
+                        '#ffeb3b',
+                        '#8bc34a',
+                        '#4caf50'
+                    ]
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Número de Habilidades'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Nível de Proficiência'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+            
+            # Save the HTML file
+            dashboard_file = output_path / f"{person_name}_career_dashboard.html"
+            with open(dashboard_file, 'w') as f:
+                f.write(html_content)
+                
+        except Exception as e:
+            self.logger.error(f"Error creating career dashboard for {person_name}: {e}") 

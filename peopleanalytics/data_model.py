@@ -23,6 +23,190 @@ class RecordStatus(Enum):
 
 
 @dataclass
+class CareerEvent:
+    """Single career progression event."""
+    date: date
+    event_type: str  # promotion, lateral_move, role_change, skill_acquisition, certification
+    details: str
+    previous_position: Optional[str] = None
+    new_position: Optional[str] = None
+    impact_score: Optional[int] = None  # 1-5 scale to measure impact
+    validated: bool = False
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CareerEvent':
+        """Create a CareerEvent from a dictionary."""
+        try:
+            if isinstance(data.get('data'), str):
+                event_date = datetime.strptime(data['data'], "%Y-%m-%d").date()
+            elif isinstance(data.get('date'), str):
+                event_date = datetime.strptime(data['date'], "%Y-%m-%d").date()
+            else:
+                raise ValueError("No valid date field found")
+                
+            return cls(
+                date=event_date,
+                event_type=data.get('tipo_evento', data.get('event_type', '')),
+                details=data.get('detalhes', data.get('details', '')),
+                previous_position=data.get('cargo_anterior', data.get('previous_position')),
+                new_position=data.get('cargo_novo', data.get('new_position')),
+                impact_score=int(data.get('impacto', data.get('impact_score', 0))) if data.get('impacto') or data.get('impact_score') else None,
+                validated=bool(data.get('validado', data.get('validated', False)))
+            )
+        except Exception as e:
+            raise ValueError(f"Invalid career event record: {e}")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "data": self.date.isoformat(),
+            "tipo_evento": self.event_type,
+            "detalhes": self.details,
+            "cargo_anterior": self.previous_position,
+            "cargo_novo": self.new_position,
+            "impacto": self.impact_score,
+            "validado": self.validated
+        }
+
+
+@dataclass
+class CareerProgressionData:
+    """Career progression data for a person."""
+    career_events: List[CareerEvent] = field(default_factory=list)
+    career_goals: List[Dict[str, Any]] = field(default_factory=list)
+    skills_matrix: Dict[str, int] = field(default_factory=dict)  # skill_name -> proficiency (1-5)
+    mentorship: List[Dict[str, Any]] = field(default_factory=list)
+    certifications: List[Dict[str, Any]] = field(default_factory=list)
+    growth_metrics: Dict[str, List[float]] = field(default_factory=dict)  # metric_name -> [values over time]
+    
+    def add_career_event(self, event: CareerEvent) -> None:
+        """Add a career event."""
+        self.career_events.append(event)
+        # Sort events by date
+        self.career_events.sort(key=lambda x: x.date)
+    
+    def add_skill(self, skill_name: str, proficiency: int) -> None:
+        """Add or update a skill."""
+        if proficiency < 1 or proficiency > 5:
+            raise ValueError("Proficiency must be between 1 and 5")
+        self.skills_matrix[skill_name] = proficiency
+    
+    def add_career_goal(self, title: str, target_date: date, details: str, 
+                         progress: int = 0, status: str = "not_started") -> None:
+        """Add a career goal."""
+        self.career_goals.append({
+            "title": title,
+            "target_date": target_date.isoformat(),
+            "details": details,
+            "progress": progress,  # 0-100%
+            "status": status  # not_started, in_progress, completed, delayed
+        })
+    
+    def add_certification(self, name: str, issuer: str, date_obtained: date, 
+                          expiry_date: Optional[date] = None, url: Optional[str] = None) -> None:
+        """Add a certification."""
+        self.certifications.append({
+            "name": name,
+            "issuer": issuer,
+            "date_obtained": date_obtained.isoformat(),
+            "expiry_date": expiry_date.isoformat() if expiry_date else None,
+            "url": url
+        })
+    
+    def add_mentor_relationship(self, mentor_name: str, start_date: date, 
+                               focus_areas: List[str], end_date: Optional[date] = None) -> None:
+        """Add a mentorship relationship."""
+        self.mentorship.append({
+            "mentor_name": mentor_name,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat() if end_date else None,
+            "focus_areas": focus_areas,
+            "active": end_date is None
+        })
+    
+    def add_growth_metric(self, metric_name: str, value: float, date: Optional[date] = None) -> None:
+        """Add a growth metric value."""
+        if metric_name not in self.growth_metrics:
+            self.growth_metrics[metric_name] = []
+        self.growth_metrics[metric_name].append(value)
+    
+    def get_promotion_velocity(self) -> Optional[float]:
+        """Calculate promotion velocity (years between promotions)."""
+        promotion_events = [e for e in self.career_events if e.event_type == 'promotion']
+        if len(promotion_events) < 2:
+            return None
+        
+        # Sort by date
+        promotion_events.sort(key=lambda x: x.date)
+        
+        # Calculate average time between promotions
+        time_diffs = []
+        for i in range(1, len(promotion_events)):
+            days_diff = (promotion_events[i].date - promotion_events[i-1].date).days
+            years_diff = days_diff / 365.25
+            time_diffs.append(years_diff)
+        
+        return sum(time_diffs) / len(time_diffs)
+    
+    def get_skill_growth_rate(self) -> Optional[float]:
+        """Calculate skill growth rate from career events and skills matrix."""
+        skill_events = [e for e in self.career_events if e.event_type == 'skill_acquisition']
+        if not skill_events:
+            return None
+        
+        earliest_event = min(skill_events, key=lambda x: x.date)
+        latest_event = max(skill_events, key=lambda x: x.date)
+        
+        days_diff = (latest_event.date - earliest_event.date).days
+        if days_diff == 0:
+            return None
+        
+        skills_per_year = (len(skill_events) / days_diff) * 365.25
+        return skills_per_year
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CareerProgressionData':
+        """Create a CareerProgressionData from a dictionary."""
+        career_data = cls()
+        
+        # Load career events
+        for event_data in data.get('eventos_carreira', data.get('career_events', [])):
+            try:
+                event = CareerEvent.from_dict(event_data)
+                career_data.career_events.append(event)
+            except Exception as e:
+                print(f"Error loading career event: {e}")
+        
+        # Load skills matrix
+        career_data.skills_matrix = data.get('matriz_habilidades', data.get('skills_matrix', {}))
+        
+        # Load career goals
+        career_data.career_goals = data.get('metas_carreira', data.get('career_goals', []))
+        
+        # Load certifications
+        career_data.certifications = data.get('certificacoes', data.get('certifications', []))
+        
+        # Load mentorship
+        career_data.mentorship = data.get('mentoria', data.get('mentorship', []))
+        
+        # Load growth metrics
+        career_data.growth_metrics = data.get('metricas_crescimento', data.get('growth_metrics', {}))
+        
+        return career_data
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "eventos_carreira": [event.to_dict() for event in self.career_events],
+            "matriz_habilidades": self.skills_matrix,
+            "metas_carreira": self.career_goals,
+            "certificacoes": self.certifications,
+            "mentoria": self.mentorship,
+            "metricas_crescimento": self.growth_metrics
+        }
+
+
+@dataclass
 class AttendanceRecord:
     """Single attendance record for a person."""
     date: date
@@ -200,6 +384,7 @@ class PersonData:
     payment_records: List[PaymentRecord] = field(default_factory=list)
     profile: Optional[ProfileData] = None
     evaluation_data: Optional[Dict[str, Any]] = None
+    career_progression: Optional[CareerProgressionData] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any], profile_data: Optional[Dict[str, Any]] = None) -> 'PersonData':
@@ -260,6 +445,10 @@ class PersonData:
         # Handle evaluation data
         if 'avaliacao' in data:
             person_data.evaluation_data = data['avaliacao']
+            
+        # Handle career progression data
+        if 'progressao_carreira' in data:
+            person_data.career_progression = CareerProgressionData.from_dict(data['progressao_carreira'])
         
         return person_data
     
@@ -298,7 +487,11 @@ class PersonData:
         
         # Add evaluation data if available
         if self.evaluation_data:
-            result['data'] = self.evaluation_data
+            result['avaliacao'] = self.evaluation_data
+            
+        # Add career progression data if available
+        if self.career_progression:
+            result['progressao_carreira'] = self.career_progression.to_dict()
         
         return result
     
@@ -533,6 +726,86 @@ class PersonData:
                 print(f"Error parsing payment record: {e}")
             
         return person_data
+
+    # Funções relacionadas à progressão de carreira
+    def init_career_progression(self) -> None:
+        """Initialize career progression data if not already initialized."""
+        if not self.career_progression:
+            self.career_progression = CareerProgressionData()
+    
+    def add_career_event(self, date_str: str, event_type: str, details: str, 
+                        prev_position: Optional[str] = None, new_position: Optional[str] = None,
+                        impact_score: Optional[int] = None) -> None:
+        """Add a career event."""
+        self.init_career_progression()
+        event_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        event = CareerEvent(
+            date=event_date,
+            event_type=event_type,
+            details=details,
+            previous_position=prev_position,
+            new_position=new_position,
+            impact_score=impact_score
+        )
+        self.career_progression.add_career_event(event)
+        
+    def add_skill(self, skill_name: str, proficiency: int) -> None:
+        """Add or update a skill in the skills matrix."""
+        self.init_career_progression()
+        self.career_progression.add_skill(skill_name, proficiency)
+        
+    def add_career_goal(self, title: str, target_date_str: str, details: str, 
+                       progress: int = 0, status: str = "not_started") -> None:
+        """Add a career goal."""
+        self.init_career_progression()
+        target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+        self.career_progression.add_career_goal(title, target_date, details, progress, status)
+        
+    def add_certification(self, name: str, issuer: str, date_obtained_str: str, 
+                         expiry_date_str: Optional[str] = None, url: Optional[str] = None) -> None:
+        """Add a certification."""
+        self.init_career_progression()
+        date_obtained = datetime.strptime(date_obtained_str, "%Y-%m-%d").date()
+        expiry_date = datetime.strptime(expiry_date_str, "%Y-%m-%d").date() if expiry_date_str else None
+        self.career_progression.add_certification(name, issuer, date_obtained, expiry_date, url)
+    
+    def get_career_summary(self) -> Dict[str, Any]:
+        """Get a summary of career progression."""
+        if not self.career_progression:
+            return {"available": False}
+            
+        # Get promotion velocity
+        promotion_velocity = self.career_progression.get_promotion_velocity()
+        
+        # Get skill stats
+        total_skills = len(self.career_progression.skills_matrix)
+        avg_skill_level = sum(self.career_progression.skills_matrix.values()) / total_skills if total_skills > 0 else 0
+        
+        # Get certification count
+        cert_count = len(self.career_progression.certifications)
+        
+        # Calculate growth score (combination of various metrics)
+        growth_score = 0
+        if promotion_velocity is not None:
+            # Lower promotion velocity (faster promotions) gives higher score
+            growth_score += min(5, 5 / promotion_velocity) if promotion_velocity > 0 else 0
+        
+        growth_score += min(5, avg_skill_level)
+        growth_score += min(5, cert_count / 2)  # 2 certs = 1 point, max 5 points
+        
+        growth_score = min(10, growth_score / 3 * 10)  # Scale to 0-10
+        
+        return {
+            "available": True,
+            "total_events": len(self.career_progression.career_events),
+            "promotion_count": len([e for e in self.career_progression.career_events if e.event_type == 'promotion']),
+            "promotion_velocity": promotion_velocity,
+            "total_skills": total_skills,
+            "average_skill_level": avg_skill_level,
+            "certification_count": cert_count,
+            "active_mentorships": len([m for m in self.career_progression.mentorship if m.get('active', False)]),
+            "growth_score": growth_score
+        }
 
 
 @dataclass

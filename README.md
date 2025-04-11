@@ -1,368 +1,238 @@
-# People Analytics
+# People Analytics Pro
 
-Sistema de análise de dados de pessoas usando DuckDB.
+Uma plataforma abrangente para análise e gestão de desenvolvimento de pessoas, focada em dados estruturados para tomada de decisão baseada em evidências. Avaliações, feedback, progressão de carreira e análise de equipes em um único sistema.
 
-## Estrutura
+![Licença](https://img.shields.io/badge/licença-Apache%202.0-blue.svg)
+![Python](https://img.shields.io/badge/python-3.7%2B-brightgreen.svg)
 
-```
-.
-├── assets/             # Recursos estáticos
-│   └── schemas/       # Esquemas JSON
-├── data/               # Dados de entrada
-│   └── rawdata.json   # Dados brutos
-├── notebooks/          # Jupyter notebooks
-│   ├── analyze_people_data.ipynb
-│   ├── analyze_people_data_enhanced.ipynb
-│   └── analyze_people_data_enhanced_complete.ipynb
-├── output/             # Diretório com resultados
-│   ├── action_plans/  # Planos de ação
-│   ├── ai_prompts/    # Prompts para IA
-│   ├── benchmark_reports/ # Relatórios de benchmark
-│   ├── heat_maps/     # Mapas de calor
-│   ├── logs/          # Logs de processamento
-│   ├── mermaid/       # Diagramas Mermaid
-│   ├── radar_charts/  # Gráficos de radar
-│   ├── reports/       # Relatórios em Excel
-│   ├── stakeholder_analysis/ # Análises de stakeholders
-│   ├── summaries/     # Resumos naturais
-│   ├── summary/       # Resumos em HTML/JSON
-│   └── team_reports/  # Relatórios de equipe
-├── peopleanalytics/    # Código fonte principal (pacote Python)
-│   ├── templates/     # Templates HTML
-│   └── *.py           # Módulos Python
-├── scripts/            # Scripts de utilidade
-├── tests/              # Testes
-│   ├── data/          # Dados para testes
-│   └── unit/          # Testes unitários
-└── requirements.txt    # Dependências do projeto
-```
+## 🌟 Recursos Principais
 
-## Instalação
+- **Progressão de Carreira**: Rastreamento completo da trajetória profissional de cada colaborador
+- **Análise 360°**: Coleta e processamento de feedback multidirecional
+- **Avaliações do Gestor**: Templates especializados por nível de senioridade
+- **Modelo de Pontuação NPS**: Sistema avançado para classificação de desempenho
+- **Análise de Equipes**: Otimização de composição e desenvolvimento de times
+- **PDI Automatizado**: Planos de desenvolvimento personalizados baseados em dados
+- **Fluxo de Trabalho Manual**: Suporte para preenchimento manual de templates
+- **Visualizações Avançadas**: Dashboards, gráficos e linhas do tempo interativas
 
-1. Clone o repositório
-2. Crie um ambiente virtual:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   # ou
-   venv\Scripts\activate     # Windows
-   ```
-3. Instale as dependências:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Uso
-
-Todos os comandos aceitam os argumentos `--data-path` e `--output-path` para especificar os diretórios de entrada e saída. Por padrão:
-- `--data-path`: Usa o diretório atual (`.`)
-- `--output-path`: Usa o diretório `./output` dentro do diretório atual
-
-### Validação de Dados
+## 🔧 Instalação
 
 ```bash
-# Validar dados no diretório atual
-python3 -m peopleanalytics validate
+# Clonar o repositório
+git clone https://github.com/seu-usuario/people-analytics.git
+cd people-analytics
 
-# Validar dados em um diretório específico
-python3 -m peopleanalytics validate --data-path ./meus_dados --output-path ./resultados
+# Criar ambiente virtual (opcional, mas recomendado)
+python -m venv venv
+source venv/bin/activate  # No Windows: venv\Scripts\activate
+
+# Instalar dependências
+pip install -r requirements.txt
+
+# Instalar o pacote em modo desenvolvimento
+pip install -e .
 ```
 
-### Importação de Dados
+## 🚀 Início Rápido
+
+### Fluxo de Trabalho Manual
 
 ```bash
-# Importar um arquivo específico
-python3 -m peopleanalytics import ./pessoa/2023/resultado.json
+# Gerar template para preenchimento manual
+python -m peopleanalytics generate-template --format json --output data/templates/colaborador.json
 
-# Importar um diretório específico
-python3 -m peopleanalytics import ./pessoa/2023
+# Preencher o template com dados e colocá-lo em data/templates/
 
-# Importar recursivamente a partir do diretório atual
-python3 -m peopleanalytics import . --recursive
+# Sincronizar para processar os dados
+python -m peopleanalytics sync --data-path data --output-path output
 
-# Importar recursivamente de um diretório específico
-python3 -m peopleanalytics import ./meus_dados --recursive
-
-# Importar com diretórios de entrada e saída personalizados
-python3 -m peopleanalytics import . --recursive --data-path ./meus_dados --output-path ./resultados
+# Verificar relatórios gerados na pasta output/
 ```
 
-### Exportação de Dados
+### Comandos de Carreira
 
 ```bash
-# Exportar todos os dados
-python3 -m peopleanalytics export --all
+# Adicionar evento de carreira
+python -m peopleanalytics career add-event joao --date 2023-05-15 --type promotion --details "Promoção por mérito" --previous-position "Desenvolvedor Jr" --new-position "Desenvolvedor Pleno" --impact 4
 
-# Exportar dados de uma pessoa específica
-python3 -m peopleanalytics export --person "Nome da Pessoa"
+# Adicionar habilidade
+python -m peopleanalytics career add-skill maria --name "technical.python" --level 4
 
-# Exportar dados de um ano específico
-python3 -m peopleanalytics export --year 2023
-
-# Exportar dados de um diretório específico
-python3 -m peopleanalytics export --all --data-path ./meus_dados --output-path ./exportados
+# Gerar análise de desenvolvimento de equipe
+python -m peopleanalytics team-development --data-path data --output-path output
 ```
 
-### Geração de Relatórios
+## 📊 Modelo de Pontuação NPS
 
-```bash
-# Gerar todos os relatórios para 2023
-python3 -m peopleanalytics report all --year 2023
+O sistema agora utiliza um modelo de pontuação inspirado no Net Promoter Score para avaliações:
 
-# Gerar relatório de frequência
-python3 -m peopleanalytics report attendance --year 2023
+- **Escala com valência**: Valores positivos e negativos (-10 a +10)
+- **Amplificação de extremos**: Destaca desempenhos notáveis (+10) e problemas críticos (-10)
+- **Categorização qualitativa**: Excelente, Bom, Regular, Abaixo, Insatisfatório
+- **Normalização opcional**: Conversão para escala 0-100
 
-# Gerar relatório de pagamentos
-python3 -m peopleanalytics report payment --year 2023
-
-# Gerar relatórios de um diretório específico
-python3 -m peopleanalytics report all --year 2023 --data-path ./dados --output-path ./relatorios
+Pesos do modelo NPS:
+```
+[0, 2, 10, 5, -5, -10]
 ```
 
-### Geração de Resumos
+Onde:
+- `n/a` (0): Neutro
+- `referencia` (2): Levemente positivo
+- `sempre` (10): Fortemente positivo
+- `quase sempre` (5): Moderadamente positivo
+- `poucas vezes` (-5): Moderadamente negativo
+- `raramente` (-10): Fortemente negativo
 
-```bash
-# Gerar resumo em JSON
-python3 -m peopleanalytics summary --format json
+Detalhes completos disponíveis em `docs/README_MODELO_NPS.md`.
 
-# Gerar resumo em HTML
-python3 -m peopleanalytics summary --format html
+## 📁 Estrutura do Projeto
 
-# Gerar resumo em CSV
-python3 -m peopleanalytics summary --format csv
-
-# Gerar resumo de um diretório específico
-python3 -m peopleanalytics summary --format json --data-path ./dados --output-path ./resumos
+```
+people-analytics/
+├── data/                   # Dados de entrada
+│   ├── career_progression/ # Dados de progressão de carreira
+│   ├── templates/          # Templates para preenchimento manual
+│   ├── team_development/   # Dados de desenvolvimento de equipes
+│   └── manager_feedback/   # Feedback de gestores
+├── docs/                   # Documentação
+│   ├── QUICK_REFERENCE.md  # Guia rápido de referência
+│   ├── workflow_guide.md   # Guia detalhado de fluxo de trabalho
+│   └── README_MODELO_NPS.md # Detalhes do modelo de pontuação NPS
+├── output/                 # Relatórios e visualizações geradas
+│   ├── reports/            # Relatórios de avaliação
+│   ├── people_analytics.duckdb # Banco de dados DuckDB
+│   ├── radar_charts/       # Gráficos de radar de habilidades
+│   ├── mermaid/            # Diagramas em formato Mermaid
+│   └── action_plans/       # Planos de ação gerados
+├── peopleanalytics/        # Código-fonte do pacote
+├── scripts/                # Scripts utilitários
+├── tests/                  # Testes automatizados
+├── notebooks/              # Jupyter notebooks para análises
+├── tools/                  # Ferramentas auxiliares
+├── assets/                 # Recursos estáticos
+├── requirements.txt        # Dependências Python
+├── setup.py                # Configuração do pacote
+├── README.md               # Este arquivo
+└── LICENSE                 # Licença Apache 2.0
 ```
 
-### Outros Comandos
+## 📄 Estrutura de Dados de Carreira
 
-```bash
-# Listar pessoas ou anos
-python3 -m peopleanalytics list people
-python3 -m peopleanalytics list years
-
-# Criar backup
-python3 -m peopleanalytics backup
-
-# Gerar gráficos
-python3 -m peopleanalytics plot all
-
-# Adicionar registro de frequência
-python3 -m peopleanalytics add-attendance --person "Nome" --year 2023 --date 2023-01-01 --status presente
-
-# Adicionar registro de pagamento
-python3 -m peopleanalytics add-payment --person "Nome" --year 2023 --date 2023-01-15 --amount 1000 --type salary
-
-# Atualizar perfil
-python3 -m peopleanalytics update-profile --person "Nome" --year 2023
-
-# Criar dados de exemplo
-python3 -m peopleanalytics create-sample
-```
-
-## Formatos de Dados
-
-### resultado.json
+Os dados de progressão de carreira seguem esta estrutura JSON:
 
 ```json
 {
-  "data": {
-    "nome": "Nome da Pessoa",
-    "ano": 2023,
-    "direcionadores": [
-      {
-        "nome": "Nome do Direcionador",
-        "peso": 25,
-        "comportamentos": [
-          {
-            "nome": "Nome do Comportamento",
-            "peso": 25,
-            "avaliacoes_grupo": [
-              {
-                "frequencia_colaborador": [1, 2, 3, 4, 5],
-                "frequencia_grupo": [1, 2, 3, 4, 5],
-                "peso": 20
-              }
-            ]
-          }
-        ]
-      }
-    ]
+  "nome": "Nome do Colaborador",
+  "eventos_carreira": [
+    {
+      "data": "2023-05-15",
+      "tipo_evento": "promotion",
+      "detalhes": "Promoção por mérito",
+      "cargo_anterior": "Desenvolvedor Jr",
+      "cargo_novo": "Desenvolvedor Pleno",
+      "impacto": 4
+    }
+  ],
+  "matriz_habilidades": {
+    "technical.python": 4,
+    "technical.javascript": 3,
+    "soft.comunicacao": 5
+  },
+  "metas_carreira": [
+    {
+      "title": "Liderar projeto estratégico",
+      "target_date": "2024-06-30",
+      "details": "Coordenar equipe de 5 pessoas em projeto de alta visibilidade",
+      "progress": 20,
+      "status": "in_progress"
+    }
+  ],
+  "certificacoes": [
+    {
+      "name": "AWS Solutions Architect",
+      "issuer": "Amazon Web Services",
+      "date_obtained": "2023-07-20"
+    }
+  ],
+  "mentoria": [
+    {
+      "mentor_name": "João Silva",
+      "start_date": "2023-01-15",
+      "focus_areas": ["Liderança Técnica", "Arquitetura de Software"],
+      "active": true
+    }
+  ],
+  "high_performer_index": {
+    "technical_excellence": 4.2,
+    "learning_velocity": 3.8,
+    "leadership": 3.5,
+    "execution": 4.0,
+    "overall": 3.9
   }
 }
 ```
 
-### perfil.json
+## 📊 Visualizações Geradas
 
-```json
-{
-  "nome_completo": "Nome da Pessoa",
-  "funcional": "12345",
-  "funcional_gestor": "67890", 
-  "nome_gestor": "Nome do Gestor",
-  "cargo": "Analista",
-  "codigo_cargo": "AN01",
-  "nivel_cargo": "1",
-  "nome_nivel_cargo": "Junior",
-  "nome_departamento": "TI",
-  "tipo_carreira": "Técnica",
-  "codigo_comunidade": "COM01",
-  "nome_comunidade": "Backend",
-  "codigo_squad": "SQ01", 
-  "nome_squad": "Squad 1",
-  "codigo_papel": "DEV",
-  "nome_papel": "Desenvolvedor",
-  "tipo_gestao": false,
-  "is_congelamento": false,
-  "data_congelamento": null
-}
+- **Linha do tempo de carreira**: Representação visual da trajetória profissional
+- **Radar de habilidades**: Visualização por categorias técnicas e comportamentais
+- **Métricas de crescimento**: Gráficos de gauge mostrando evolução
+- **Heatmaps de time**: Identificação de pontos fortes e gaps na equipe
+- **Gráficos de benchmark**: Comparação entre membros e equipes
+- **Dashboards interativos**: Visões consolidadas em HTML e JSON
+
+## 🔍 Métricas Calculadas
+
+- **High Performer Index**: Combinação ponderada de excelência técnica, velocidade de aprendizado, liderança e execução
+- **Learning Velocity**: Taxa de aquisição de novas habilidades ao longo do tempo
+- **Promotion Velocity**: Tempo médio entre promoções
+- **Skill Growth Rate**: Taxa de melhoria em habilidades específicas
+- **Team Compatibility Score**: Medida de complementaridade de habilidades em uma equipe
+
+## 🛠️ Comandos Disponíveis
+
+### Fluxo de Trabalho Manual
+
+```
+generate-template   Gerar template para preenchimento manual
+update-career       Extrair dados existentes para atualização
+sync                Sincronizar e processar todos os dados
+docs                Gerar documentação específica
 ```
 
-### frequencias.json
-```json
-[
-  {
-    "data": "2023-01-01",
-    "status": "presente",
-    "justificativa": ""
-  }
-]
+### Análise de Pessoas e Equipes
+
+```
+career              Gerenciar dados de progressão de carreira
+team-development    Gerar análise de desenvolvimento de equipe
+validate            Validar integridade dos dados
+list                Listar dados disponíveis no sistema
 ```
 
-### pagamentos.json
-```json
-[
-  {
-    "data": "2023-01-15",
-    "valor": 1000,
-    "descricao": ""
-  }
-]
+Um guia completo com exemplos está disponível em `docs/QUICK_REFERENCE.md`.
+
+## ⚙️ Configuração Avançada
+
+O sistema pode ser configurado através de arquivo `.env` ou variáveis de ambiente:
+
+```
+PA_DATA_PATH=./data            # Caminho para diretório de dados
+PA_OUTPUT_PATH=./output        # Caminho para saída de relatórios
+PA_USE_NPS_MODEL=true          # Usar modelo NPS para pontuação
+PA_DEFAULT_TEMPLATE=json       # Formato padrão para templates
+PA_LOG_LEVEL=INFO              # Nível de log (DEBUG, INFO, WARNING, ERROR)
 ```
 
-## Usage
+## 📄 Licença
 
-### Commands
+Este projeto está licenciado sob os termos da Licença Apache 2.0. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
-#### Import Data
-```bash
-# Import a single file
-python3 -m peopleanalytics import ./pessoa/2023/resultado.json
+## 🤝 Contribuição
 
-# Import a directory
-python3 -m peopleanalytics import ./pessoa/2023
+Contribuições são bem-vindas! Por favor, consulte o arquivo CONTRIBUTING.md para guidelines sobre como contribuir.
 
-# Import recursively from current directory
-python3 -m peopleanalytics import . --recursive
+---
 
-# Import from specific directory
-python3 -m peopleanalytics import ./meus_dados --recursive
-
-# Import with custom paths
-python3 -m peopleanalytics import . --recursive --data-path ./meus_dados --output-path ./resultados
-```
-
-#### Sync and Generate Reports
-```bash
-# Sync and generate reports for all data
-python3 -m peopleanalytics sync
-
-# Sync recursively from current directory
-python3 -m peopleanalytics sync --recursive
-
-# Sync from specific directory
-python3 -m peopleanalytics sync --data-path ./meus_dados
-
-# Sync with custom output path
-python3 -m peopleanalytics sync --data-path ./meus_dados --output-path ./resultados
-```
-
-The sync command will:
-1. Import all data from the specified directory
-2. For each person/year directory:
-   - Create an `analytics` subdirectory
-   - Generate and save:
-     - Excel report (`report.xlsx`)
-     - HTML summary (`summary.html`)
-     - Markdown summary (`summary.md`)
-     - MermaidJS visualizations (`visualization.md`)
-     - AI prompt for generating feedback (`ai_prompt.md`)
-     - Stakeholder comparison report (`stakeholder_comparison.md`)
-     - Time series analysis (`time_series.md`)
-     - Radar chart visualization (`radar_chart.html`)
-     - Team aggregation report (`team_report.md`)
-     - Benchmark report (`benchmark_report.md`)
-     - Heat map visualization (`heat_map.md`)
-     - Natural language summary (`narrative_summary.md`)
-     - Development action plan (`action_plan.md`)
-
-The MermaidJS visualizations include:
-- Bar charts showing performance by competency area
-- Pie charts showing assessment distribution
-- Comparison charts between individual and group performance
-
-The AI prompt file contains structured data about the employee's performance that can be used with AI tools like ChatGPT to generate comprehensive feedback reports automatically.
-
-The stakeholder comparison report analyzes evaluations from different perspectives:
-- Compares manager, peer/partner, and self-evaluations against peer group averages
-- Provides a detailed breakdown by competency area and behavior
-- Highlights the strongest and development areas
-- Identifies gaps between different stakeholder perspectives
-- Shows areas with the most significant differences in perception
-
-The time series analysis tracks performance trends over time:
-- Shows performance evolution across multiple evaluation cycles
-- Highlights improvement and decline areas
-- Provides year-over-year comparisons with visual charts
-- Identifies long-term patterns in specific competency areas
-
-The radar chart visualization offers a multi-dimensional view:
-- Interactive graphical representation of all competencies
-- Compares individual scores against peer group averages
-- Shows multiple stakeholder perspectives in a single view
-- Clearly identifies strong and weak areas at a glance
-
-The team aggregation report offers organizational insights:
-- Aggregates performance data across departments or teams
-- Identifies collective strengths and development opportunities
-- Compares performance between different organizational units
-- Provides recommendations for team-wide training and development
-
-The benchmark report compares performance against standards:
-- Evaluates readiness for promotion to the next level
-- Shows gaps between current performance and expectations
-- Compares against both current level and next level benchmarks
-- Provides specific development focus areas for career advancement
-
-The heat map visualization offers a color-coded analysis:
-- Provides an easy-to-scan overview of all competency areas
-- Uses color coding to quickly identify strengths and weaknesses
-- Shows all stakeholder perspectives in a consolidated view
-- Offers a comprehensive view of performance at different granularity levels
-
-The natural language summary provides a narrative overview:
-- Translates data points into readable paragraphs
-- Highlights key findings in conversational language
-- Provides context and nuance to numerical ratings
-- Offers an accessible summary for quick understanding
-
-The development action plan provides structured next steps:
-- Targets specific improvement areas based on evaluation results
-- Includes suggested activities and resources for development
-- Provides templates for tracking progress and accountability
-- Focuses on leveraging strengths while addressing weaknesses
-
-#### Validate Data
-
-```bash
-# Validar dados no diretório atual
-python3 -m peopleanalytics validate
-
-# Validar dados em um diretório específico
-python3 -m peopleanalytics validate --data-path ./meus_dados --output-path ./resultados
-```
-
-## Licença
-
-MIT
+Documentação completa disponível em `docs/`. Para dúvidas ou suporte, abra uma issue no repositório.
