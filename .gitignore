@@ -260,3 +260,22 @@ feedback_reports/
 latest_feedback/
 feedback_reports_improved/
 teste_feedback/
+
+# Evitar arquivos em .git/refs que não são referências Git reais
+.git/refs/analytics/
+.git/refs/reports/
+.git/refs/*.xlsx
+.git/refs/*.html
+.git/refs/*.md
+
+# Reforçando exclução de relatórios e arquivos binários
+output/reports/
+output/radar_charts/
+output/mermaid/
+output/action_plans/
+output/ai_prompts/
+output/benchmark_reports/
+output/heat_maps/
+output/summaries/
+output/summary/
+output/team_reports/
