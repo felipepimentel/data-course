@@ -31,8 +31,8 @@ def test_data_dir(tmp_path):
                             "avaliacoes_grupo": [
                                 {
                                     "avaliador": "Manager",
-                                    "frequencia_colaborador": [0, 0, 1, 2, 0],
-                                    "frequencia_grupo": [0, 0, 0, 2, 1]
+                                    "frequencia_colaborador": [0, 1, 2, 1, 0, 0],
+                                    "frequencia_grupo": [0, 0, 1, 2, 1, 0]
                                 }
                             ]
                         }
@@ -95,6 +95,10 @@ def test_import_invalid_file(processor, test_data_dir):
     
     with open(invalid_dir / "resultado.json", 'w') as f:
         f.write("invalid json")
+
+    # Também criar o arquivo perfil.json para evitar que seja pulado
+    with open(invalid_dir / "perfil.json", 'w') as f:
+        f.write("{}")
     
     result = processor.import_directory(test_data_dir)
     
@@ -121,7 +125,7 @@ def test_generate_report(processor, test_data_dir):
     
     assert len(df) == 1
     assert df.iloc[0]['pessoa'] == 'John Doe'
-    assert df.iloc[0]['ano'] == '2023'
+    assert str(df.iloc[0]['ano']) == '2023'  # Convertendo para string para a comparação
     assert df.iloc[0]['cargo'] == 'Software Engineer'
     assert df.iloc[0]['nivel'] == 'Senior'
     assert df.iloc[0]['conceito'] == 'Exceeds Expectations'

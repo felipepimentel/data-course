@@ -5,10 +5,10 @@ This module provides constants used throughout the package.
 """
 
 # Frequency labels for evaluation distributions
-FREQUENCY_LABELS = ["Nunca", "Raramente", "Às vezes", "Frequentemente", "Sempre"]
+FREQUENCY_LABELS = ["n/a", "referencia", "sempre", "quase sempre", "poucas vezes", "raramente"]
 
 # Weights for calculating weighted scores from frequencies
-FREQUENCY_WEIGHTS = [0, 1, 2, 3, 4]
+FREQUENCY_WEIGHTS = [0, 2.5, 4, 3, 2, 1]
 
 # Chart colors for concepts
 CONCEPT_CHART_COLORS = {

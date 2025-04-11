@@ -20,9 +20,9 @@ def fix_frequencies(data):
             for avaliacao in comportamento['avaliacoes_grupo']:
                 # Corrigir frequencia_colaborador
                 if 'frequencia_colaborador' not in avaliacao:
-                    avaliacao['frequencia_colaborador'] = [0, 0, 0, 0, 0]
+                    avaliacao['frequencia_colaborador'] = [0, 0, 0, 0, 0, 0]
                 elif not isinstance(avaliacao['frequencia_colaborador'], list):
-                    avaliacao['frequencia_colaborador'] = [0, 0, 0, 0, 0]
+                    avaliacao['frequencia_colaborador'] = [0, 0, 0, 0, 0, 0]
                 else:
                     # Garantir que são inteiros
                     avaliacao['frequencia_colaborador'] = [
@@ -30,15 +30,15 @@ def fix_frequencies(data):
                         for freq in avaliacao['frequencia_colaborador']
                     ]
                     
-                    # Garantir tamanho correto (5 elementos)
-                    if len(avaliacao['frequencia_colaborador']) < 5:
-                        avaliacao['frequencia_colaborador'].extend([0] * (5 - len(avaliacao['frequencia_colaborador'])))
+                    # Garantir tamanho correto (6 elementos)
+                    if len(avaliacao['frequencia_colaborador']) < 6:
+                        avaliacao['frequencia_colaborador'].extend([0] * (6 - len(avaliacao['frequencia_colaborador'])))
                 
                 # Corrigir frequencia_grupo
                 if 'frequencia_grupo' not in avaliacao:
-                    avaliacao['frequencia_grupo'] = [0, 0, 0, 0, 0]
+                    avaliacao['frequencia_grupo'] = [0, 0, 0, 0, 0, 0]
                 elif not isinstance(avaliacao['frequencia_grupo'], list):
-                    avaliacao['frequencia_grupo'] = [0, 0, 0, 0, 0]
+                    avaliacao['frequencia_grupo'] = [0, 0, 0, 0, 0, 0]
                 else:
                     # Garantir que são inteiros
                     avaliacao['frequencia_grupo'] = [
@@ -46,9 +46,9 @@ def fix_frequencies(data):
                         for freq in avaliacao['frequencia_grupo']
                     ]
                     
-                    # Garantir tamanho correto (5 elementos)
-                    if len(avaliacao['frequencia_grupo']) < 5:
-                        avaliacao['frequencia_grupo'].extend([0] * (5 - len(avaliacao['frequencia_grupo'])))
+                    # Garantir tamanho correto (6 elementos)
+                    if len(avaliacao['frequencia_grupo']) < 6:
+                        avaliacao['frequencia_grupo'].extend([0] * (6 - len(avaliacao['frequencia_grupo'])))
     
     return data
 

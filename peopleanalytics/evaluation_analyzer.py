@@ -31,8 +31,8 @@ class EvaluationAnalyzer:
         self._cache = {}
         
         # Default values for frequency analysis
-        self.frequency_labels = ["N/A", "Raramente", "Às vezes", "Frequentemente", "Muito Frequentemente"]
-        self.frequency_weights = [0, 1, 2, 3, 4]
+        self.frequency_labels = ["n/a", "referencia", "sempre", "quase sempre", "poucas vezes", "raramente"]
+        self.frequency_weights = [0, 2.5, 4, 3, 2, 1]
         
         # For storing evaluations by person and year
         self.evaluations_by_person = defaultdict(dict)
@@ -121,7 +121,60 @@ class EvaluationAnalyzer:
             return result
 
         data = self.evaluations_by_person[person][year]
-        if not data.get("success", False) or "data" not in data or "direcionadores" not in data.get("data", {}):
+        if not data.get("success", False) or "data" not in data:
+            return result
+            
+        # Handle nested data structure - check if data["data"] is a dictionary with "data"
+        if "data" in data and isinstance(data["data"], dict) and "data" in data["data"]:
+            # Handle nested structure - one level deep
+            inner_data = data["data"]["data"]
+            if "direcionadores" in inner_data:
+                for direcionador in inner_data["direcionadores"]:
+                    dir_name = direcionador.get("direcionador", "Unknown")
+                    result[dir_name] = {}
+                    
+                    for comportamento in direcionador.get("comportamentos", []):
+                        comp_name = comportamento.get("comportamento", "Unknown")
+                        result[dir_name][comp_name] = {
+                            "scores": {}
+                        }
+                        
+                        # First try to get scores from consolidado
+                        has_consolidado_scores = False
+                        for avaliacao in comportamento.get("consolidado", []):
+                            avaliador = avaliacao.get("avaliador", "Unknown")
+                            freq_colaborador = avaliacao.get("frequencias_colaborador", [])
+                            freq_grupo = avaliacao.get("frequencias_grupo", [])
+                            
+                            try:
+                                result[dir_name][comp_name]["scores"][avaliador] = {
+                                    "score_colaborador": self.calculate_weighted_score(freq_colaborador),
+                                    "score_grupo": self.calculate_weighted_score(freq_grupo),
+                                    "comparison_by_category": self.compare_with_group(freq_colaborador, freq_grupo)
+                                }
+                                has_consolidado_scores = True
+                            except Exception as e:
+                                print(f"Error processing consolidado scores for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}")
+                        
+                        # If no consolidado scores, try avaliacoes_grupo
+                        if not has_consolidado_scores:
+                            for avaliacao in comportamento.get("avaliacoes_grupo", []):
+                                avaliador = avaliacao.get("avaliador", "Unknown")
+                                freq_colaborador = avaliacao.get("frequencia_colaborador", [])
+                                freq_grupo = avaliacao.get("frequencia_grupo", [])
+                                
+                                try:
+                                    result[dir_name][comp_name]["scores"][avaliador] = {
+                                        "score_colaborador": self.calculate_weighted_score(freq_colaborador),
+                                        "score_grupo": self.calculate_weighted_score(freq_grupo),
+                                        "comparison_by_category": self.compare_with_group(freq_colaborador, freq_grupo)
+                                    }
+                                except Exception as e:
+                                    print(f"Error processing avaliacoes_grupo scores for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}")
+                return result
+            
+        # Original code for standard structure
+        if "direcionadores" not in data.get("data", {}):
             return result
             
         for direcionador in data["data"]["direcionadores"]:
@@ -134,32 +187,58 @@ class EvaluationAnalyzer:
                     "scores": {}
                 }
                 
-                for avaliacao in comportamento.get("avaliacoes_grupo", []):
+                # First try to get scores from consolidado
+                has_consolidado_scores = False
+                for avaliacao in comportamento.get("consolidado", []):
                     avaliador = avaliacao.get("avaliador", "Unknown")
-                    freq_colaborador = avaliacao.get("frequencia_colaborador", [])
-                    freq_grupo = avaliacao.get("frequencia_grupo", [])
+                    freq_colaborador = avaliacao.get("frequencias_colaborador", [])
+                    freq_grupo = avaliacao.get("frequencias_grupo", [])
                     
-                    result[dir_name][comp_name]["scores"][avaliador] = {
-                        "score_colaborador": self.calculate_weighted_score(freq_colaborador),
-                        "score_grupo": self.calculate_weighted_score(freq_grupo),
-                        "comparison_by_category": self.compare_with_group(freq_colaborador, freq_grupo)
-                    }
+                    try:
+                        result[dir_name][comp_name]["scores"][avaliador] = {
+                            "score_colaborador": self.calculate_weighted_score(freq_colaborador),
+                            "score_grupo": self.calculate_weighted_score(freq_grupo),
+                            "comparison_by_category": self.compare_with_group(freq_colaborador, freq_grupo)
+                        }
+                        has_consolidado_scores = True
+                    except Exception as e:
+                        print(f"Error processing consolidado scores for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}")
+                
+                # If no consolidado scores, try avaliacoes_grupo
+                if not has_consolidado_scores:
+                    for avaliacao in comportamento.get("avaliacoes_grupo", []):
+                        avaliador = avaliacao.get("avaliador", "Unknown")
+                        freq_colaborador = avaliacao.get("frequencia_colaborador", [])
+                        freq_grupo = avaliacao.get("frequencia_grupo", [])
+                        
+                        try:
+                            result[dir_name][comp_name]["scores"][avaliador] = {
+                                "score_colaborador": self.calculate_weighted_score(freq_colaborador),
+                                "score_grupo": self.calculate_weighted_score(freq_grupo),
+                                "comparison_by_category": self.compare_with_group(freq_colaborador, freq_grupo)
+                            }
+                        except Exception as e:
+                            print(f"Error processing avaliacoes_grupo scores for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}")
         
         return result
         
     def calculate_weighted_score(self, frequencies: List[int]) -> float:
-        """Calculate a weighted score from frequency percentages"""
+        """Calculate a weighted score from frequency distribution vectors
+        
+        Args:
+            frequencies: List of integers representing the frequency distribution
+                where positions mean: [n/a, referencia, sempre, quase sempre, poucas vezes, raramente]
+                
+        Returns:
+            A weighted score based on the significance of each position in the vector
+        """
         # Check for None or empty input
         if not frequencies:
-            return 0.0
+            raise ValueError("Frequency vector cannot be empty")
         
-        # Ensure frequencies list has the right length
-        if len(frequencies) < len(self.frequency_weights):
-            # Pad with zeros if needed
-            frequencies = list(frequencies) + [0] * (len(self.frequency_weights) - len(frequencies))
-        elif len(frequencies) > len(self.frequency_weights):
-            # Truncate if too long
-            frequencies = frequencies[:len(self.frequency_weights)]
+        # Validate that frequencies vector has exactly 6 positions
+        if len(frequencies) != 6:
+            raise ValueError(f"Frequency vector must have exactly 6 positions, got {len(frequencies)}")
 
         # Calculate weighted sum using weights and frequencies
         try:
@@ -167,8 +246,8 @@ class EvaluationAnalyzer:
                 freq * weight for freq, weight in zip(frequencies, self.frequency_weights)
             )
             
-            # Normalize by total percentage (excluding n/a)
-            total = sum(frequencies)
+            # Normalize by total frequency count (excluding n/a position)
+            total = sum(frequencies[1:]) # Excluindo posição 0 (n/a)
             
             return weighted_sum / total if total > 0 else 0.0
         except Exception as e:
