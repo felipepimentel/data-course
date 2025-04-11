@@ -12,6 +12,7 @@ import os
 from datetime import datetime
 from typing import List
 import shutil
+import subprocess
 
 from rich.console import Console
 from rich.table import Table
@@ -690,6 +691,10 @@ class CLI:
         """Handle the sync command."""
         self.console.print("[bold]Syncing and generating reports...[/bold]")
         
+        # Diretório de saída unificado
+        output_base_dir = Path(self.args.output_path)
+        os.makedirs(output_base_dir, exist_ok=True)
+        
         with Progress() as progress:
             # Import data
             task = progress.add_task("[green]Importing data...", total=None)
@@ -744,6 +749,34 @@ class CLI:
                     markdown_path = self.processor.generate_summary("markdown")
                     if markdown_path:
                         shutil.copy2(markdown_path, analytics_dir / "summary.md")
+                    
+                    # Gerar relatório com o novo modelo NPS
+                    try:
+                        # Verificar se o arquivo resultado.json existe
+                        resultado_file = year_dir / "resultado.json"
+                        if resultado_file.exists():
+                            # Criar comando para gerar relatório NPS
+                            nps_output_dir = output_base_dir / person / year / "nps_reports"
+                            os.makedirs(nps_output_dir, exist_ok=True)
+                            
+                            # Gerar relatório usando o novo script
+                            cmd = [
+                                sys.executable,
+                                "generate_nps_score_report.py",
+                                str(resultado_file),
+                                str(nps_output_dir)
+                            ]
+                            try:
+                                subprocess.run(cmd, check=True)
+                                self.console.print(f"[green]Generated NPS report for {person}/{year}[/green]")
+                                
+                                # Copiar relatório também para o diretório analytics para manter compatibilidade
+                                for file in nps_output_dir.glob("*"):
+                                    shutil.copy2(file, analytics_dir / file.name)
+                            except subprocess.CalledProcessError as e:
+                                self.console.print(f"[yellow]Warning: Failed to generate NPS report for {person}/{year}: {e}[/yellow]")
+                    except Exception as e:
+                        self.console.print(f"[yellow]Error processing NPS report for {person}/{year}: {e}[/yellow]")
                         
             progress.update(task, completed=1)
             
@@ -764,6 +797,11 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "visualization.md")
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "visualization.md")
                             
             progress.update(task, completed=1)
             
@@ -784,6 +822,11 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "ai_prompt.md")
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "ai_prompt.md")
                             
             progress.update(task, completed=1)
             
@@ -804,6 +847,11 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "stakeholder_comparison.md")
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "stakeholder_comparison.md")
                             
             progress.update(task, completed=1)
             
@@ -824,6 +872,11 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "time_series.md")
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "time_series.md")
                             
             progress.update(task, completed=1)
             
@@ -844,6 +897,11 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "radar_chart.html")
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "radar_chart.html")
                             
             progress.update(task, completed=1)
             
@@ -852,6 +910,11 @@ class CLI:
             team_report = self.processor.generate_team_aggregation()
             
             if team_report:
+                # Create team reports directory in unified output
+                teams_dir = output_base_dir / "teams"
+                os.makedirs(teams_dir, exist_ok=True)
+                shutil.copy2(team_report, teams_dir / "team_report.md")
+                
                 # Copy to all person/year directories for convenient access
                 for person_dir in base_path.glob("*"):
                     if person_dir.is_dir():
@@ -861,6 +924,11 @@ class CLI:
                                 analytics_dir = year_dir / "analytics"
                                 analytics_dir.mkdir(exist_ok=True)
                                 shutil.copy2(team_report, analytics_dir / "team_report.md")
+                                
+                                # Copy to unified output directory
+                                unified_output_dir = output_base_dir / person_dir.name / year_dir.name
+                                os.makedirs(unified_output_dir, exist_ok=True)
+                                shutil.copy2(team_report, unified_output_dir / "team_report.md")
                             
             progress.update(task, completed=1)
             
@@ -869,7 +937,14 @@ class CLI:
             benchmark_files = self.processor.generate_benchmark_report()
             
             if benchmark_files:
+                # Create benchmark directory in unified output
+                benchmark_dir = output_base_dir / "benchmarks"
+                os.makedirs(benchmark_dir, exist_ok=True)
+                
                 for person, file_path in benchmark_files.items():
+                    # Copy to benchmark directory
+                    shutil.copy2(file_path, benchmark_dir / f"{person}_benchmark.md")
+                    
                     # Find person directories
                     for person_dir in base_path.glob(f"*{person}*"):
                         if person_dir.is_dir():
@@ -881,6 +956,11 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "benchmark_report.md")
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person_dir.name / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "benchmark_report.md")
                             
             progress.update(task, completed=1)
             
@@ -901,6 +981,11 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "heat_map.md")
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person_dir.name / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "heat_map.md")
                             
             progress.update(task, completed=1)
             
@@ -921,6 +1006,11 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "narrative_summary.md")
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person_dir.name / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "narrative_summary.md")
                             
             progress.update(task, completed=1)
             
@@ -941,9 +1031,25 @@ class CLI:
                                     analytics_dir = year_dir / "analytics"
                                     analytics_dir.mkdir(exist_ok=True)
                                     shutil.copy2(file_path, analytics_dir / "action_plan.md")
-                            
+                                    
+                                    # Copy to unified output directory
+                                    unified_output_dir = output_base_dir / person_dir.name / year_dir.name
+                                    os.makedirs(unified_output_dir, exist_ok=True)
+                                    shutil.copy2(file_path, unified_output_dir / "action_plan.md")
+            
             progress.update(task, completed=1)
             
+            # Copiar README do modelo NPS para a pasta de saída
+            try:
+                readme_nps_path = Path("README_MODELO_NPS.md")
+                if readme_nps_path.exists():
+                    docs_dir = output_base_dir / "docs"
+                    os.makedirs(docs_dir, exist_ok=True)
+                    shutil.copy2(readme_nps_path, docs_dir / "modelo_nps.md")
+                    self.console.print("[green]Copied NPS model documentation to output[/green]")
+            except Exception as e:
+                self.console.print(f"[yellow]Warning: Could not copy NPS documentation: {e}[/yellow]")
+        
         self.console.print("[green]Sync completed successfully[/green]")
 
 

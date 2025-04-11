@@ -6,17 +6,35 @@ Sistema de análise de dados de pessoas usando DuckDB.
 
 ```
 .
-├── <nome>/              # Diretório por pessoa
-│   └── <ano>/          # Diretório por ano
-│       └── resultado.json     # Arquivo de avaliações
+├── assets/             # Recursos estáticos
+│   └── schemas/       # Esquemas JSON
+├── data/               # Dados de entrada
+│   └── rawdata.json   # Dados brutos
+├── notebooks/          # Jupyter notebooks
+│   ├── analyze_people_data.ipynb
+│   ├── analyze_people_data_enhanced.ipynb
+│   └── analyze_people_data_enhanced_complete.ipynb
 ├── output/             # Diretório com resultados
-│   ├── backups/       # Backups dos dados
-│   ├── exports/       # Dados exportados
+│   ├── action_plans/  # Planos de ação
+│   ├── ai_prompts/    # Prompts para IA
+│   ├── benchmark_reports/ # Relatórios de benchmark
+│   ├── heat_maps/     # Mapas de calor
 │   ├── logs/          # Logs de processamento
-│   ├── plots/         # Gráficos gerados
+│   ├── mermaid/       # Diagramas Mermaid
+│   ├── radar_charts/  # Gráficos de radar
 │   ├── reports/       # Relatórios em Excel
-│   └── summary/       # Resumos em HTML/JSON
-└── peopleanalytics/   # Código fonte
+│   ├── stakeholder_analysis/ # Análises de stakeholders
+│   ├── summaries/     # Resumos naturais
+│   ├── summary/       # Resumos em HTML/JSON
+│   └── team_reports/  # Relatórios de equipe
+├── peopleanalytics/    # Código fonte principal (pacote Python)
+│   ├── templates/     # Templates HTML
+│   └── *.py           # Módulos Python
+├── scripts/            # Scripts de utilidade
+├── tests/              # Testes
+│   ├── data/          # Dados para testes
+│   └── unit/          # Testes unitários
+└── requirements.txt    # Dependências do projeto
 ```
 
 ## Instalação

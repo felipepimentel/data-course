@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # Importar as constantes do módulo constants
-from peopleanalytics.constants import CONCEPT_CHART_COLORS, FREQUENCY_LABELS, FREQUENCY_WEIGHTS
+from peopleanalytics.constants import CONCEPT_CHART_COLORS, FREQUENCY_LABELS, FREQUENCY_WEIGHTS, calculate_score
 
 
 class EvaluationAnalyzer:
@@ -150,33 +150,19 @@ class EvaluationAnalyzer:
                 result[year] = data["data"]["conceito_ciclo_filho_descricao"]
         return result
 
-    def calculate_weighted_score(self, frequencies: List[int]) -> float:
+    def calculate_weighted_score(self, frequencies: List[int], use_nps_model: bool = False) -> float:
         """Calculate a weighted score from frequency distribution vectors
         
         Args:
             frequencies: List of integers representing the frequency distribution
                 where positions mean: [n/a, referencia, sempre, quase sempre, poucas vezes, raramente]
+            use_nps_model: Whether to use the improved NPS-like scoring model
                 
         Returns:
             A weighted score based on the significance of each position in the vector
         """
-        # Check for None or empty input
-        if not frequencies:
-            raise ValueError("Frequency vector cannot be empty")
-            
-        # Validate that frequencies vector has exactly 6 positions
-        if len(frequencies) != 6:
-            raise ValueError(f"Frequency vector must have exactly 6 positions, got {len(frequencies)}")
-            
-        # Calculate weighted sum using weights and frequencies
-        weighted_sum = sum(
-            freq * weight for freq, weight in zip(frequencies, self.frequency_weights)
-        )
-        
-        # Normalize by total frequency count (excluding n/a position)
-        total = sum(frequencies[1:])  # Excluindo posição 0 (n/a)
-        
-        return weighted_sum / total if total > 0 else 0.0
+        # Use the centralized scoring function from constants module
+        return calculate_score(frequencies, use_nps_model)
 
     def calculate_score_distribution(self, frequencies: List[int]) -> Dict[str, float]:
         """Calculate the distribution of scores as percentages"""

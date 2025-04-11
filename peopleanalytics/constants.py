@@ -3,12 +3,112 @@ Constants for People Analytics.
 
 This module provides constants used throughout the package.
 """
+from typing import List, Tuple
 
 # Frequency labels for evaluation distributions
 FREQUENCY_LABELS = ["n/a", "referencia", "sempre", "quase sempre", "poucas vezes", "raramente"]
 
-# Weights for calculating weighted scores from frequencies
+# Traditional weights for calculating weighted scores from frequencies
 FREQUENCY_WEIGHTS = [0, 2.5, 4, 3, 2, 1]
+
+# New NPS-style weights for improved scoring model
+# [n/a, referencia, sempre, quase sempre, poucas vezes, raramente]
+FREQUENCY_WEIGHTS_NPS = [0, 2, 10, 5, -5, -10]  # Valores mais balanceados e intuitivos
+
+# Constantes para interpretação de scores
+SCORE_RANGES = {
+    "Excelente": (7.5, 10.0),
+    "Bom": (2.5, 7.5),
+    "Regular": (-2.5, 2.5),
+    "Abaixo": (-7.5, -2.5),
+    "Insatisfatório": (-10.0, -7.5)
+}
+
+# Constantes para interpretação de scores normalizados (0-100)
+NORMALIZED_SCORE_RANGES = {
+    "Excelente": (87.5, 100.0),
+    "Bom": (62.5, 87.5),
+    "Regular": (37.5, 62.5),
+    "Abaixo": (12.5, 37.5),
+    "Insatisfatório": (0.0, 12.5)
+}
+
+def get_score_category(score: float, normalized: bool = False) -> str:
+    """Retorna a categoria qualitativa correspondente a um score numérico.
+    
+    Args:
+        score: O score numérico
+        normalized: Se True, usa ranges para scores normalizados (0-100)
+        
+    Returns:
+        Uma string representando a categoria do score
+    """
+    ranges = NORMALIZED_SCORE_RANGES if normalized else SCORE_RANGES
+    
+    for category, (min_val, max_val) in ranges.items():
+        if min_val <= score <= max_val:
+            return category
+    
+    # Fallback para valores fora dos ranges definidos
+    return "Indefinido"
+
+def calculate_score(frequencies: List[int], use_nps_model: bool = True, normalize: bool = False) -> float:
+    """Calculate score from frequency distribution vectors using specified scoring model.
+    
+    This centralized function implements both the traditional weighted average model
+    and the improved NPS-like model with positive/negative scoring.
+    
+    Args:
+        frequencies: List of integers representing the frequency distribution
+            where positions mean: [n/a, referencia, sempre, quase sempre, poucas vezes, raramente]
+        use_nps_model: Whether to use the improved NPS-like model (True) or traditional weights (False)
+        normalize: Whether to normalize the score to a 0-100 scale (only for NPS model)
+            
+    Returns:
+        A score based on the selected model
+        
+    Raises:
+        ValueError: If frequency vector is empty or doesn't have exactly 6 positions
+    """
+    # Check for None or empty input
+    if not frequencies:
+        raise ValueError("Frequency vector cannot be empty")
+        
+    # Validate that frequencies vector has exactly 6 positions
+    if len(frequencies) != 6:
+        raise ValueError(f"Frequency vector must have exactly 6 positions, got {len(frequencies)}")
+    
+    # Choose appropriate weights based on the selected model
+    weights = FREQUENCY_WEIGHTS_NPS if use_nps_model else FREQUENCY_WEIGHTS
+    
+    if use_nps_model:
+        # Calculate using NPS-like model
+        # Include reference ratings with their small positive weight
+        positive_sum = sum(freq * weight for freq, weight in zip(frequencies[1:4], weights[1:4]) if weight > 0)
+        negative_sum = sum(freq * weight for freq, weight in zip(frequencies[4:], weights[4:]) if weight < 0)
+        
+        # Count applicable ratings (exclude n/a)
+        total_applicable = sum(frequencies[1:])
+        
+        # Calculate net score
+        if total_applicable > 0:
+            raw_score = (positive_sum + negative_sum) / total_applicable
+            
+            # Normalize to 0-100 scale if requested
+            if normalize:
+                # NPS scores range from -10 to 10, transform to 0-100
+                # -10 → 0, 0 → 50, 10 → 100
+                return 50 + (raw_score * 5)
+            else:
+                return raw_score
+        else:
+            return 0.0 if not normalize else 50.0  # Return middle of scale for normalized scores
+    else:
+        # Traditional weighted average calculation
+        weighted_sum = sum(freq * weight for freq, weight in zip(frequencies, weights))
+        total = sum(frequencies[1:])  # Excluding position 0 (n/a)
+        
+        return weighted_sum / total if total > 0 else 0.0
 
 # Chart colors for concepts
 CONCEPT_CHART_COLORS = {
