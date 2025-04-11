@@ -11,6 +11,7 @@ from pathlib import Path
 import os
 from datetime import datetime
 from typing import List
+import shutil
 
 from rich.console import Console
 from rich.table import Table
@@ -71,6 +72,8 @@ class CLI:
             self.handle_update_profile()
         elif self.args.command == "create-sample":
             self.handle_create_sample()
+        elif self.args.command == "sync":
+            self.handle_sync()
         else:
             self.console.print("[red]Unknown command[/red]")
             
@@ -233,6 +236,16 @@ class CLI:
         sample_parser = subparsers.add_parser('create-sample', help='Create sample data')
         sample_parser.add_argument("--data-path", **common_path_args["--data-path"])
         sample_parser.add_argument("--output-path", **common_path_args["--output-path"])
+        
+        # Sync command
+        sync_parser = subparsers.add_parser('sync', help='Sync and generate all reports')
+        sync_parser.add_argument("--data-path", **common_path_args["--data-path"])
+        sync_parser.add_argument("--output-path", **common_path_args["--output-path"])
+        sync_parser.add_argument(
+            "--recursive", 
+            action="store_true",
+            help="Process directories recursively"
+        )
         
         return parser
         
@@ -665,13 +678,134 @@ class CLI:
             salary = 5000.0 if person == "Carla Oliveira" else (3500.0 if person == "Bruno Santos" else 2500.0)
             bonus = 1000.0 if person == "Carla Oliveira" else (500.0 if person == "Bruno Santos" else 250.0)
             
-            person_data.add_payment(f"{current_year}-01-31", salary, "salary", "January salary")
-            person_data.add_payment(f"{current_year}-01-15", bonus, "bonus", "Q4 performance bonus")
+            person_data.add_payment(f"{current_year}-01-15", salary, "salary", "Monthly salary")
+            person_data.add_payment(f"{current_year}-01-16", bonus, "bonus", "Performance bonus")
             
             # Save the data
             self.processor.save_person_data(person_data)
         
-        self.console.print(f"[green]Created sample data for {', '.join(sample_people)} for year {current_year}[/green]")
+        self.console.print("[green]Sample data created successfully[/green]")
+        
+    def handle_sync(self):
+        """Handle the sync command."""
+        self.console.print("[bold]Syncing and generating reports...[/bold]")
+        
+        with Progress() as progress:
+            # Import data
+            task = progress.add_task("[green]Importing data...", total=None)
+            import_results = self.processor.import_directory(
+                self.args.data_path,
+                recursive=self.args.recursive
+            )
+            progress.update(task, completed=1)
+            
+            if not import_results["success"]:
+                self.console.print(f"[red]Import failed: {import_results['error']}[/red]")
+                return
+                
+            # Generate reports for each person/year
+            task = progress.add_task("[green]Generating reports...", total=None)
+            
+            # Find all person/year directories
+            base_path = Path(self.args.data_path)
+            if self.args.recursive:
+                person_dirs = list(base_path.glob("**/*"))
+            else:
+                person_dirs = list(base_path.glob("*"))
+                
+            for person_dir in person_dirs:
+                if not person_dir.is_dir():
+                    continue
+                    
+                person = person_dir.name
+                year_dirs = list(person_dir.glob("*"))
+                
+                for year_dir in year_dirs:
+                    if not year_dir.is_dir():
+                        continue
+                        
+                    year = year_dir.name
+                    
+                    # Create analytics directory
+                    analytics_dir = year_dir / "analytics"
+                    analytics_dir.mkdir(exist_ok=True)
+                    
+                    # Generate reports
+                    report_path = self.processor.generate_report()
+                    if report_path:
+                        shutil.copy2(report_path, analytics_dir / "report.xlsx")
+                        
+                    # Generate summary
+                    summary_path = self.processor.generate_summary("html")
+                    if summary_path:
+                        shutil.copy2(summary_path, analytics_dir / "summary.html")
+                        
+                    # Generate markdown
+                    markdown_path = self.processor.generate_summary("markdown")
+                    if markdown_path:
+                        shutil.copy2(markdown_path, analytics_dir / "summary.md")
+                        
+            # Generate MermaidJS charts
+            task = progress.add_task("[green]Generating MermaidJS charts...", total=None)
+            mermaid_files = self.processor.generate_mermaid_chart()
+            
+            if mermaid_files:
+                for person, file_path in mermaid_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "visualization.md")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate AI prompts
+            task = progress.add_task("[green]Generating AI prompts...", total=None)
+            prompt_files = self.processor.generate_ai_prompt()
+            
+            if prompt_files:
+                for person, file_path in prompt_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "ai_prompt.md")
+                            
+            progress.update(task, completed=1)
+            
+            # Generate stakeholder comparison reports
+            task = progress.add_task("[green]Generating stakeholder comparison reports...", total=None)
+            comparison_files = self.processor.generate_stakeholder_comparison()
+            
+            if comparison_files:
+                for person, file_path in comparison_files.items():
+                    # Find person directories
+                    for person_dir in base_path.glob(f"*{person}*"):
+                        if person_dir.is_dir():
+                            # Find year directories
+                            year_dirs = list(person_dir.glob("*"))
+                            for year_dir in year_dirs:
+                                if year_dir.is_dir() and year_dir.name.isdigit():
+                                    # Copy to analytics directory
+                                    analytics_dir = year_dir / "analytics"
+                                    analytics_dir.mkdir(exist_ok=True)
+                                    shutil.copy2(file_path, analytics_dir / "stakeholder_comparison.md")
+                            
+            progress.update(task, completed=1)
+            
+        self.console.print("[green]Sync completed successfully[/green]")
 
 
 def main():

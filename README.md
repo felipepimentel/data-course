@@ -223,6 +223,79 @@ python3 -m peopleanalytics create-sample
 ]
 ```
 
+## Usage
+
+### Commands
+
+#### Import Data
+```bash
+# Import a single file
+python3 -m peopleanalytics import ./pessoa/2023/resultado.json
+
+# Import a directory
+python3 -m peopleanalytics import ./pessoa/2023
+
+# Import recursively from current directory
+python3 -m peopleanalytics import . --recursive
+
+# Import from specific directory
+python3 -m peopleanalytics import ./meus_dados --recursive
+
+# Import with custom paths
+python3 -m peopleanalytics import . --recursive --data-path ./meus_dados --output-path ./resultados
+```
+
+#### Sync and Generate Reports
+```bash
+# Sync and generate reports for all data
+python3 -m peopleanalytics sync
+
+# Sync recursively from current directory
+python3 -m peopleanalytics sync --recursive
+
+# Sync from specific directory
+python3 -m peopleanalytics sync --data-path ./meus_dados
+
+# Sync with custom output path
+python3 -m peopleanalytics sync --data-path ./meus_dados --output-path ./resultados
+```
+
+The sync command will:
+1. Import all data from the specified directory
+2. For each person/year directory:
+   - Create an `analytics` subdirectory
+   - Generate and save:
+     - Excel report (`report.xlsx`)
+     - HTML summary (`summary.html`)
+     - Markdown summary (`summary.md`)
+     - MermaidJS visualizations (`visualization.md`)
+     - AI prompt for generating feedback (`ai_prompt.md`)
+     - Stakeholder comparison report (`stakeholder_comparison.md`)
+
+The MermaidJS visualizations include:
+- Bar charts showing performance by competency area
+- Pie charts showing assessment distribution
+- Comparison charts between individual and group performance
+
+The AI prompt file contains structured data about the employee's performance that can be used with AI tools like ChatGPT to generate comprehensive feedback reports automatically.
+
+The stakeholder comparison report analyzes evaluations from different perspectives:
+- Compares manager, peer/partner, and self-evaluations against peer group averages
+- Provides a detailed breakdown by competency area and behavior
+- Highlights the strongest and development areas
+- Identifies gaps between different stakeholder perspectives
+- Shows areas with the most significant differences in perception
+
+#### Validate Data
+
+```bash
+# Validar dados no diretório atual
+python3 -m peopleanalytics validate
+
+# Validar dados em um diretório específico
+python3 -m peopleanalytics validate --data-path ./meus_dados --output-path ./resultados
+```
+
 ## Licença
 
 MIT
