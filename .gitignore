@@ -279,3 +279,33 @@ output/heat_maps/
 output/summaries/
 output/summary/
 output/team_reports/
+
+# Proteção adicional para dados sensíveis
+# =======================================
+# Arquivos de dados sensíveis
+*.secret.json
+*_credentials.*
+*.key
+*.pem
+*.p12
+*password*
+*credential*
+*secret*
+
+# Git refs problemáticos
+.git/refs/analytics/
+.git/refs/reports/
+.git/refs/outputs/
+.git/refs/raw/
+.git/refs/data/
+.git/refs/*.xlsx
+.git/refs/*.json
+.git/refs/*.csv
+.git/refs/*.html
+.git/refs/*.pdf
+.git/refs/*.png
+.git/refs/*.jpg
+.git/refs/*.md
+
+# Diretórios temporários do Git-LFS
+.git/lfs/
