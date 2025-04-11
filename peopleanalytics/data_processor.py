@@ -667,21 +667,53 @@ class DataProcessor:
         
         for person, years_data in person_data.items():
             content = []
-            content.append(f"# AI Feedback Generation Prompt for {person}")
+            content.append(f"# Performance Feedback Report Generation for {person}")
             content.append("")
-            content.append("## Instructions")
-            content.append("You are an expert HR consultant specializing in performance evaluations and feedback. Your task is to write a comprehensive feedback report for the employee based on the data provided below. The report should:")
+            
+            # System context and role definition
+            content.append("## ROLE AND CONTEXT")
+            content.append("You are an expert HR consultant with 15+ years of experience in performance evaluations and employee development. You specialize in writing feedback reports that are specific, actionable, and growth-oriented. Your feedback is known for being balanced, evidence-based, and tailored to each individual's career context.")
             content.append("")
-            content.append("1. Start with a personalized introduction that mentions the employee's name, job title, and overall assessment")
-            content.append("2. Include a summary of strengths and development areas")
-            content.append("3. Provide detailed feedback for each competency area, highlighting specific behaviors")
-            content.append("4. Compare individual performance with group averages when relevant")
-            content.append("5. Suggest specific development actions for improvement")
-            content.append("6. End with a forward-looking conclusion that is encouraging and motivational")
+            
+            # Task definition with clear constraints
+            content.append("## TASK")
+            content.append("Generate a comprehensive performance feedback report based on the evaluation data provided below. The report must be:")
             content.append("")
-            content.append("Please maintain a balanced, constructive, and professional tone throughout the feedback.")
+            content.append("- **Personalized:** Reference the employee's specific name, role, and performance data throughout")
+            content.append("- **Balanced:** Highlight both strengths and development areas with equal attention")
+            content.append("- **Actionable:** Include specific, practical recommendations that can be implemented")
+            content.append("- **Data-driven:** Reference specific scores and comparison points provided in the data")
+            content.append("- **Growth-oriented:** Frame feedback as opportunities for development rather than criticisms")
+            content.append("- **Professional:** Maintain a formal but supportive tone throughout")
             content.append("")
-            content.append("## Employee Information")
+            
+            # Output format requirements
+            content.append("## OUTPUT FORMAT")
+            content.append("Structure your feedback report with these exact sections:")
+            content.append("")
+            content.append("1. **Executive Summary** (2-3 paragraphs summarizing overall performance)")
+            content.append("2. **Key Strengths** (3-5 bullet points with specific examples from the data)")
+            content.append("3. **Development Opportunities** (3-5 bullet points with specific examples from the data)")
+            content.append("4. **Competency Analysis** (One section for each competency area with:)")
+            content.append("   - Performance summary for this area")
+            content.append("   - Comparison to group averages")
+            content.append("   - Specific behaviors to continue or improve")
+            content.append("5. **Stakeholder Perspectives** (Analysis of how different evaluators perceive performance)")
+            content.append("6. **Development Plan** (3-5 specific actions with timeframes and success measures)")
+            content.append("7. **Conclusion** (Forward-looking, motivational close)")
+            content.append("")
+            
+            # Example language and style
+            content.append("## EXAMPLE LANGUAGE & STYLE")
+            content.append("Use these examples for tone and specificity:")
+            content.append("")
+            content.append("- \"Based on your consistently high scores in [specific competency] (4.2/5.0, +0.8 above peers), you demonstrate exceptional ability to [specific behavior]. Continue leveraging this strength by...\"")
+            content.append("- \"While you show competence in [specific area] (3.1/5.0), there's opportunity to further develop by focusing on [specific behavior]. Your manager particularly noted that...\"")
+            content.append("- \"A concrete development step would be to [specific action] over the next quarter, with success measured by [specific outcome].\"")
+            content.append("")
+            
+            # Employee information section
+            content.append("## EMPLOYEE INFORMATION")
             content.append("")
             
             # Sort years data by year
@@ -690,22 +722,25 @@ class DataProcessor:
             # Get latest job info
             latest_year = years_data[-1]
             
-            content.append(f"- **Name**: {person}")
-            content.append(f"- **Current Job Title**: {latest_year['job_title']}")
-            content.append(f"- **Current Level**: {latest_year['job_level']}")
-            content.append(f"- **Years of Evaluation Data**: {', '.join(y['year'] for y in years_data)}")
-            content.append(f"- **Most Recent Overall Assessment**: {latest_year['overall_assessment']}")
+            content.append(f"- **Name:** {person}")
+            content.append(f"- **Current Job Title:** {latest_year['job_title']}")
+            content.append(f"- **Current Level:** {latest_year['job_level']}")
+            content.append(f"- **Years of Evaluation Data:** {', '.join(y['year'] for y in years_data)}")
+            content.append(f"- **Most Recent Overall Assessment:** {latest_year['overall_assessment']}")
             content.append("")
             
             # Add detailed evaluation data for each year
-            content.append("## Detailed Evaluation Data")
+            content.append("## EVALUATION DATA")
             content.append("")
+            
+            # Collect all scores for summary
+            all_scores = []
             
             for year_data in years_data:
                 content.append(f"### Year: {year_data['year']}")
-                content.append(f"- **Job Title**: {year_data['job_title']}")
-                content.append(f"- **Job Level**: {year_data['job_level']}")
-                content.append(f"- **Overall Assessment**: {year_data['overall_assessment']}")
+                content.append(f"- **Job Title:** {year_data['job_title']}")
+                content.append(f"- **Job Level:** {year_data['job_level']}")
+                content.append(f"- **Overall Assessment:** {year_data['overall_assessment']}")
                 content.append("")
                 
                 content.append("#### Competency Areas")
@@ -713,19 +748,29 @@ class DataProcessor:
                 
                 for comp in year_data['competencies']:
                     content.append(f"##### {comp['name']}")
-                    content.append(f"- **Assessment Question**: {comp['final_question']}")
+                    content.append(f"- **Assessment Question:** {comp['final_question']}")
                     content.append("")
                     
                     for behavior in comp['behaviors']:
                         content.append(f"###### Behavior: {behavior['name']}")
-                        content.append(f"- **Behavior Question**: {behavior['final_question']}")
+                        content.append(f"- **Behavior Question:** {behavior['final_question']}")
                         content.append("")
                         
                         for eval in behavior['evaluations']:
-                            content.append(f"- **Evaluator**: {eval['evaluator']}")
-                            content.append(f"- **Individual Score**: {eval['individual_score']:.2f}/4.0")
-                            content.append(f"- **Group Score**: {eval['group_score']:.2f}/4.0")
-                            content.append(f"- **Score Difference**: {(eval['individual_score'] - eval['group_score']):.2f}")
+                            content.append(f"- **Evaluator:** {eval['evaluator']}")
+                            content.append(f"- **Individual Score:** {eval['individual_score']:.2f}/4.0")
+                            content.append(f"- **Group Score:** {eval['group_score']:.2f}/4.0")
+                            content.append(f"- **Score Difference:** {(eval['individual_score'] - eval['group_score']):.2f}")
+                            
+                            # Collect score data for summary
+                            all_scores.append({
+                                'competency': comp['name'],
+                                'behavior': behavior['name'],
+                                'evaluator': eval['evaluator'],
+                                'score': eval['individual_score'],
+                                'difference': eval['individual_score'] - eval['group_score']
+                            })
+                            
                             content.append("")
                     
                     content.append("")
@@ -733,9 +778,42 @@ class DataProcessor:
                 content.append("---")
                 content.append("")
             
-            # Prompt closing
-            content.append("## Request")
-            content.append("Based on the above data, please write a comprehensive performance feedback report for this employee that is detailed, balanced, and actionable.")
+            # Add data highlights to help focus the feedback
+            if all_scores:
+                content.append("## DATA HIGHLIGHTS")
+                content.append("Focus on these key areas in your feedback:")
+                content.append("")
+                
+                # Top strengths (highest scores)
+                top_strengths = sorted(all_scores, key=lambda x: x['score'], reverse=True)[:3]
+                content.append("### Top Strengths (Highest Scores)")
+                for strength in top_strengths:
+                    content.append(f"- **{strength['competency']} - {strength['behavior']}:** {strength['score']:.2f}/4.0 (Evaluated by {strength['evaluator']})")
+                content.append("")
+                
+                # Development areas (lowest scores)
+                development_areas = sorted(all_scores, key=lambda x: x['score'])[:3]
+                content.append("### Development Areas (Lowest Scores)")
+                for area in development_areas:
+                    content.append(f"- **{area['competency']} - {area['behavior']}:** {area['score']:.2f}/4.0 (Evaluated by {area['evaluator']})")
+                content.append("")
+                
+                # Largest gaps vs. peer group
+                largest_gaps = sorted(all_scores, key=lambda x: x['difference'])[:3]
+                content.append("### Largest Gaps vs. Peer Group")
+                for gap in largest_gaps:
+                    content.append(f"- **{gap['competency']} - {gap['behavior']}:** {gap['difference']:.2f} vs. peer group (Evaluated by {gap['evaluator']})")
+                content.append("")
+            
+            # Final instructions
+            content.append("## FINAL INSTRUCTIONS")
+            content.append("1. Focus on being specific and practical rather than generic")
+            content.append("2. Reference actual scores and data points from the evaluation")
+            content.append("3. Tailor the feedback to this employee's specific role and level")
+            content.append("4. Balance positive reinforcement with constructive development suggestions")
+            content.append("5. Generate a complete feedback report following exactly the OUTPUT FORMAT specified above")
+            content.append("")
+            content.append("Your report should be professional, specific to this employee, and immediately actionable.")
             
             # Save prompt file
             output_file = output_dir / f"ai_prompt_{person.replace(' ', '_')}_{timestamp}.md"
