@@ -22,6 +22,16 @@ from peopleanalytics.constants import COLOR_SCHEMES, RADAR_CHART_STYLE, CHART_CO
 # Configure logging
 logger = logging.getLogger("visualization")
 
+def create_visualization() -> 'Visualization':
+    """
+    Factory function to create a visualization instance.
+    This is the function imported in the __init__.py file.
+    
+    Returns:
+        A new Visualization instance
+    """
+    return Visualization()
+
 @dataclass
 class ChartConfig:
     """Configuration for chart generation"""

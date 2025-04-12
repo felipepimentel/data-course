@@ -1,27 +1,35 @@
 """
-People Analytics package.
+People Analytics Platform
 
-A modern data processing system for analyzing people data, 
-including attendance and payment information.
+Uma plataforma completa para processamento de dados de funcionários,
+feedback, avaliações e progressão de carreira, com ferramentas avançadas
+de visualização e desenvolvimento de talentos.
 """
 
-__version__ = "2.0.0"
+__version__ = '1.0.0'
 
-from .data_model import (
-    PersonData,
-    AttendanceRecord,
-    PaymentRecord,
-    PersonSummary,
-    RecordStatus
+# Importar submódulos principais
+from peopleanalytics.data_pipeline import DataPipeline
+from peopleanalytics.visualization import create_visualization
+from peopleanalytics.reports_generator import generate_report
+from peopleanalytics.talent_development import (
+    DynamicMatrix9Box,
+    IntegratedFeedbackCycle,
+    InfluenceNetwork,
+    PerformancePredictor,
+    CareerSimulator,
+    HolisticDashboard
 )
 
-from .data_processor import DataProcessor
-
+# Disponibilizar classes e funções principais
 __all__ = [
-    "PersonData",
-    "AttendanceRecord",
-    "PaymentRecord",
-    "PersonSummary",
-    "RecordStatus",
-    "DataProcessor"
+    'DataPipeline',
+    'create_visualization',
+    'generate_report',
+    'DynamicMatrix9Box',
+    'IntegratedFeedbackCycle',
+    'InfluenceNetwork',
+    'PerformancePredictor',
+    'CareerSimulator',
+    'HolisticDashboard',
 ] 

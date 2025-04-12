@@ -1,12 +1,57 @@
 import os
 import json
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Union
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
 from .data_model import PersonData
+
+def generate_report(report_type: str, data: Union[List[PersonData], Dict[str, Any]], output_dir: str = "output/reports") -> str:
+    """
+    Generate a report based on the specified type.
+    
+    Args:
+        report_type: Type of report to generate ('attendance', 'payment', etc.)
+        data: Data to include in the report
+        output_dir: Directory to save the report
+        
+    Returns:
+        Path to the generated report file
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    if report_type.lower() == 'attendance':
+        if not isinstance(data, list):
+            raise ValueError("Attendance report requires a list of PersonData objects")
+        return generate_attendance_report(data, output_dir)
+    
+    elif report_type.lower() == 'payment':
+        if not isinstance(data, list):
+            raise ValueError("Payment report requires a list of PersonData objects")
+        return generate_payment_report(data, output_dir)
+    
+    elif report_type.lower() == 'custom':
+        if not isinstance(data, dict):
+            raise ValueError("Custom report requires a dictionary with report parameters")
+        return generate_custom_report(data, output_dir)
+    
+    else:
+        raise ValueError(f"Unknown report type: {report_type}")
+
+def generate_custom_report(data: Dict[str, Any], output_dir: str) -> str:
+    """Generate a custom report based on provided data dictionary."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_name = data.get('report_name', 'custom')
+    
+    # Save the data as JSON
+    json_path = os.path.join(output_dir, f"{report_name}_{timestamp}.json")
+    with open(json_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    print(f"Generated custom report: {json_path}")
+    return json_path
 
 def generate_attendance_report(data_list: List[PersonData], output_dir: str) -> str:
     """Generate attendance report for the given data list."""
