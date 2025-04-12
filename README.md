@@ -5,6 +5,56 @@ Uma plataforma abrangente para análise e gestão de desenvolvimento de pessoas,
 ![Licença](https://img.shields.io/badge/licença-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.7%2B-brightgreen.svg)
 
+## 🚀 Início Rápido
+
+### Usando o Makefile
+
+```bash
+# Instalar o UV (opcional, recomendado para instalação mais rápida)
+make install-uv
+
+# Instalar dependências (usa UV se disponível, senão usa pip)
+make install
+
+# Gerar dados de exemplo
+make sample
+
+# Iniciar o dashboard
+make dashboard
+
+# Ou executar todos os passos em sequência
+make all
+```
+
+### Manualmente
+
+```bash
+# Instalar UV (opcional, para instalação mais rápida de pacotes)
+pip install uv
+
+# Criar ambiente virtual com UV (se instalado)
+uv venv
+source venv/bin/activate
+
+# Ou criar ambiente virtual com Python
+python -m venv venv
+source venv/bin/activate  # No Windows: venv\Scripts\activate
+
+# Instalar dependências
+uv pip install -r requirements.txt  # Com UV
+uv pip install -e .
+
+# Ou com pip padrão
+pip install -r requirements.txt  
+pip install -e .
+
+# Gerar dados de exemplo
+python -m scripts.dashboard.populate_sample_data
+
+# Iniciar o dashboard
+python -m scripts.run_dashboard
+```
+
 ## 🌟 Recursos Principais
 
 - **Progressão de Carreira**: Rastreamento completo da trajetória profissional de cada colaborador
@@ -13,6 +63,7 @@ Uma plataforma abrangente para análise e gestão de desenvolvimento de pessoas,
 - **Modelo de Pontuação NPS**: Sistema avançado para classificação de desempenho
 - **Análise de Equipes**: Otimização de composição e desenvolvimento de times
 - **PDI Automatizado**: Planos de desenvolvimento personalizados baseados em dados
+- **Dashboard Interativo**: Interface web para gestão de equipes e visualização de dados
 - **Fluxo de Trabalho Manual**: Suporte para preenchimento manual de templates
 - **Visualizações Avançadas**: Dashboards, gráficos e linhas do tempo interativas
 
@@ -27,11 +78,16 @@ cd people-analytics
 python -m venv venv
 source venv/bin/activate  # No Windows: venv\Scripts\activate
 
-# Instalar dependências
-pip install -r requirements.txt
+# Instalar o UV (opcional, recomendado para instalação mais rápida)
+make install-uv
+# OU instalar manualmente: curl -sSf https://astral.sh/uv/install.sh | sh
 
-# Instalar o pacote em modo desenvolvimento
-pip install -e .
+# Instalar dependências (usando UV se disponível, senão usa pip)
+make install
+
+# Ou instalar manualmente:
+# Com UV: uv pip install -r requirements.txt && uv pip install -e .
+# Com pip: pip install -r requirements.txt && pip install -e .
 ```
 
 ## 🚀 Início Rápido

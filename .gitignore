@@ -309,3 +309,8 @@ output/team_reports/
 
 # Diretórios temporários do Git-LFS
 .git/lfs/
+
+# Add specific project files to ignore
+data/people_analytics.duckdb
+data/test/
+output/team_analysis/

@@ -11,7 +11,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # Importar as constantes do módulo constants
-from peopleanalytics.constants import CONCEPT_CHART_COLORS, FREQUENCY_LABELS, FREQUENCY_WEIGHTS, calculate_score
+from peopleanalytics.constants import (
+    CONCEPT_CHART_COLORS,
+    FREQUENCY_LABELS,
+    FREQUENCY_WEIGHTS,
+    calculate_score,
+)
 
 
 class EvaluationAnalyzer:
@@ -19,16 +24,18 @@ class EvaluationAnalyzer:
         self.base_path = Path(base_path)
         if not self.base_path.exists():
             print(f"Warning: Base path {base_path} does not exist")
-        
+
         self.evaluations_by_person = defaultdict(dict)
         # Usar constantes importadas
         self.frequency_labels = FREQUENCY_LABELS
         self.frequency_weights = FREQUENCY_WEIGHTS
-        
+
         # Validate frequency labels and weights match in length
         if len(self.frequency_labels) != len(self.frequency_weights):
-            print(f"Warning: Frequency labels ({len(self.frequency_labels)}) and weights ({len(self.frequency_weights)}) have different lengths")
-        
+            print(
+                f"Warning: Frequency labels ({len(self.frequency_labels)}) and weights ({len(self.frequency_weights)}) have different lengths"
+            )
+
         self.load_all_evaluations()
         # Track the criteria for each year
         self.year_criteria = self._extract_year_criteria()
@@ -38,7 +45,7 @@ class EvaluationAnalyzer:
         if not self.base_path.exists():
             # If the base path doesn't exist, return without attempting to load files
             return
-            
+
         # First level should be people
         for person_dir in self.base_path.iterdir():
             if not person_dir.is_dir():
@@ -50,14 +57,14 @@ class EvaluationAnalyzer:
             for year_dir in person_dir.iterdir():
                 if not year_dir.is_dir():
                     continue
-                    
+
                 year = year_dir.name
-                
+
                 # Look specifically for resultado.json
                 resultado_file = year_dir / "resultado.json"
                 if not resultado_file.exists():
                     continue
-                    
+
                 # Process the resultado.json file
                 try:
                     with open(resultado_file, "r", encoding="utf-8") as f:
@@ -67,7 +74,7 @@ class EvaluationAnalyzer:
                             if year not in self.evaluations_by_person[person_name]:
                                 self.evaluations_by_person[person_name][year] = {
                                     "success": True,
-                                    "data": data
+                                    "data": data,
                                 }
                         except json.JSONDecodeError as e:
                             # More detailed error message including the specific error
@@ -76,8 +83,8 @@ class EvaluationAnalyzer:
                             # Initialize with empty but valid structure to prevent downstream errors
                             if year not in self.evaluations_by_person[person_name]:
                                 self.evaluations_by_person[person_name][year] = {
-                                    "success": False, 
-                                    "data": {}
+                                    "success": False,
+                                    "data": {},
                                 }
                 except Exception as e:
                     # Catch other potential errors like permission issues
@@ -133,7 +140,7 @@ class EvaluationAnalyzer:
         for person, years in self.evaluations_by_person.items():
             all_years.update(years.keys())
         return sorted(all_years)
-    
+
     def get_all_people(self) -> List[str]:
         """Get all people in the dataset"""
         return sorted(list(self.evaluations_by_person.keys()))
@@ -150,14 +157,16 @@ class EvaluationAnalyzer:
                 result[year] = data["data"]["conceito_ciclo_filho_descricao"]
         return result
 
-    def calculate_weighted_score(self, frequencies: List[int], use_nps_model: bool = False) -> float:
+    def calculate_weighted_score(
+        self, frequencies: List[int], use_nps_model: bool = False
+    ) -> float:
         """Calculate a weighted score from frequency distribution vectors
-        
+
         Args:
             frequencies: List of integers representing the frequency distribution
                 where positions mean: [n/a, referencia, sempre, quase sempre, poucas vezes, raramente]
             use_nps_model: Whether to use the improved NPS-like scoring model
-                
+
         Returns:
             A weighted score based on the significance of each position in the vector
         """
@@ -169,19 +178,19 @@ class EvaluationAnalyzer:
         # Check if frequencies is None or empty
         if not frequencies:
             return {label: 0.0 for label in self.frequency_labels}
-        
+
         total = sum(frequencies)
         if total == 0:
             return {label: 0.0 for label in self.frequency_labels}
 
         # Ensure we have values for all expected labels by creating a complete dictionary
         distribution = {label: 0.0 for label in self.frequency_labels}
-        
+
         # Then fill in the actual calculated percentages
         for i, label in enumerate(self.frequency_labels):
             if i < len(frequencies):
                 distribution[label] = (frequencies[i] / total) * 100
-            
+
         return distribution
 
     def compare_with_group(
@@ -235,9 +244,13 @@ class EvaluationAnalyzer:
                             group_freq = avaliacao.get("frequencias_grupo", [])
 
                             try:
-                                person_score = self.calculate_weighted_score(person_freq)
+                                person_score = self.calculate_weighted_score(
+                                    person_freq
+                                )
                                 group_score = self.calculate_weighted_score(group_freq)
-                                comparison = self.compare_with_group(person_freq, group_freq)
+                                comparison = self.compare_with_group(
+                                    person_freq, group_freq
+                                )
 
                                 scores[avaliador] = {
                                     "freq_colaborador": person_freq,
@@ -248,28 +261,41 @@ class EvaluationAnalyzer:
                                     "comparison_by_category": comparison,
                                 }
                             except Exception as e:
-                                print(f"Error processing scores for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}")
+                                print(
+                                    f"Error processing scores for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}"
+                                )
                                 # Add empty but valid data structure
                                 scores[avaliador] = {
-                                    "freq_colaborador": [0] * len(self.frequency_labels),
+                                    "freq_colaborador": [0]
+                                    * len(self.frequency_labels),
                                     "freq_grupo": [0] * len(self.frequency_labels),
                                     "score_colaborador": 0,
                                     "score_grupo": 0,
                                     "difference": 0,
-                                    "comparison_by_category": {label: 0 for label in self.frequency_labels},
+                                    "comparison_by_category": {
+                                        label: 0 for label in self.frequency_labels
+                                    },
                                 }
 
                         # Also check avaliacoes_grupo if no consolidado
                         if not scores:
                             for avaliacao in comportamento.get("avaliacoes_grupo", []):
                                 avaliador = avaliacao.get("avaliador", "Unknown")
-                                person_freq = avaliacao.get("frequencia_colaborador", [])
+                                person_freq = avaliacao.get(
+                                    "frequencia_colaborador", []
+                                )
                                 group_freq = avaliacao.get("frequencia_grupo", [])
 
                                 try:
-                                    person_score = self.calculate_weighted_score(person_freq)
-                                    group_score = self.calculate_weighted_score(group_freq)
-                                    comparison = self.compare_with_group(person_freq, group_freq)
+                                    person_score = self.calculate_weighted_score(
+                                        person_freq
+                                    )
+                                    group_score = self.calculate_weighted_score(
+                                        group_freq
+                                    )
+                                    comparison = self.compare_with_group(
+                                        person_freq, group_freq
+                                    )
 
                                     scores[avaliador] = {
                                         "freq_colaborador": person_freq,
@@ -280,15 +306,22 @@ class EvaluationAnalyzer:
                                         "comparison_by_category": comparison,
                                     }
                                 except Exception as e:
-                                    print(f"Error processing scores from avaliacoes_grupo for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}")
+                                    print(
+                                        f"Error processing scores from avaliacoes_grupo for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}"
+                                    )
 
                         # Also get individual evaluations
                         individual_evals = {}
-                        for avaliacao in comportamento.get("avaliacoes_individuais", []):
+                        for avaliacao in comportamento.get(
+                            "avaliacoes_individuais", []
+                        ):
                             avaliador = avaliacao.get("avaliador", "Unknown")
                             conceito = avaliacao.get("conceito", "n/a")
                             cor = avaliacao.get("cor", "#CCCCCC")
-                            individual_evals[avaliador] = {"conceito": conceito, "cor": cor}
+                            individual_evals[avaliador] = {
+                                "conceito": conceito,
+                                "cor": cor,
+                            }
 
                         result[dir_name][comp_name] = {
                             "scores": scores,
@@ -297,10 +330,7 @@ class EvaluationAnalyzer:
                 return result
 
         # Original code - check standard structure
-        if (
-            "data" not in data
-            or "direcionadores" not in data.get("data", {})
-        ):
+        if "data" not in data or "direcionadores" not in data.get("data", {}):
             return result
 
         # Extract all behavior scores
@@ -332,7 +362,9 @@ class EvaluationAnalyzer:
                             "comparison_by_category": comparison,
                         }
                     except Exception as e:
-                        print(f"Error processing scores for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}")
+                        print(
+                            f"Error processing scores for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}"
+                        )
                         # Add empty but valid data structure
                         scores[avaliador] = {
                             "freq_colaborador": [0] * len(self.frequency_labels),
@@ -340,7 +372,9 @@ class EvaluationAnalyzer:
                             "score_colaborador": 0,
                             "score_grupo": 0,
                             "difference": 0,
-                            "comparison_by_category": {label: 0 for label in self.frequency_labels},
+                            "comparison_by_category": {
+                                label: 0 for label in self.frequency_labels
+                            },
                         }
 
                 # Also check avaliacoes_grupo if no consolidado
@@ -353,7 +387,9 @@ class EvaluationAnalyzer:
                         try:
                             person_score = self.calculate_weighted_score(person_freq)
                             group_score = self.calculate_weighted_score(group_freq)
-                            comparison = self.compare_with_group(person_freq, group_freq)
+                            comparison = self.compare_with_group(
+                                person_freq, group_freq
+                            )
 
                             scores[avaliador] = {
                                 "freq_colaborador": person_freq,
@@ -364,7 +400,9 @@ class EvaluationAnalyzer:
                                 "comparison_by_category": comparison,
                             }
                         except Exception as e:
-                            print(f"Error processing scores from avaliacoes_grupo for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}")
+                            print(
+                                f"Error processing scores from avaliacoes_grupo for {person}, {year}, {dir_name}, {comp_name}, {avaliador}: {str(e)}"
+                            )
 
                 # Also get individual evaluations
                 individual_evals = {}
@@ -380,52 +418,55 @@ class EvaluationAnalyzer:
                 }
 
         return result
-    
+
     def get_evaluations_for_person(self, person: str, year: str) -> Dict[str, Any]:
         """Get raw evaluation data for a person in a specific year"""
-        if person in self.evaluations_by_person and year in self.evaluations_by_person[person]:
+        if (
+            person in self.evaluations_by_person
+            and year in self.evaluations_by_person[person]
+        ):
             return self.evaluations_by_person[person][year]
         return {}
-    
+
     def get_average_score(self, person: str, year: str) -> float:
         """Get the average score for a person in a specific year"""
         behavior_scores = self.get_behavior_scores(person, year)
         if not behavior_scores:
             return None
-            
+
         total_score = 0.0
         count = 0
-        
+
         for dir_name, behaviors in behavior_scores.items():
             for comp_name, details in behaviors.items():
                 for avaliador, scores in details.get("scores", {}).items():
                     if avaliador == "%todos":  # Use the overall evaluation
                         total_score += scores.get("score_colaborador", 0)
                         count += 1
-        
+
         return total_score / count if count > 0 else None
-    
+
     def get_criteria_for_year(self, year: str) -> Dict[str, Set[str]]:
         """Get all criteria for a specific year"""
         if year in self.year_criteria:
             return self.year_criteria[year]
         return {}
-        
+
     def get_score_for_criterion(self, person: str, year: str, criterion: str) -> float:
         """Get the score for a specific criterion (behavior)
-        
+
         Args:
             person: The person name
             year: The evaluation year
             criterion: The criterion name (comportamento)
-            
+
         Returns:
             The score or None if not found
         """
         behavior_scores = self.get_behavior_scores(person, year)
         if not behavior_scores:
             return None
-            
+
         # Look for criterion in all direcionadores
         for dir_name, behaviors in behavior_scores.items():
             for comp_name, details in behaviors.items():
@@ -434,14 +475,14 @@ class EvaluationAnalyzer:
                     for avaliador, scores in details.get("scores", {}).items():
                         if avaliador == "%todos":  # Use the overall evaluation
                             return scores.get("score_colaborador")
-        
+
         return None
 
     def compare_people_for_year(self, year: str) -> pd.DataFrame:
         """Compare all people for a specific year"""
         people = self.get_all_people_for_year(year)
         results = []
-        
+
         # Skip processing if no people found
         if not people:
             print(f"Warning: No people found for year {year}")
@@ -465,12 +506,12 @@ class EvaluationAnalyzer:
                 category_diffs = {label: 0 for label in self.frequency_labels}
 
                 behavior_scores = self.get_behavior_scores(person, year)
-                
+
                 # Skip if no behavior scores found
                 if not behavior_scores:
                     print(f"Warning: No behavior scores for {person} in {year}")
                     continue
-                    
+
                 for dir_name, behaviors in behavior_scores.items():
                     for comp_name, details in behaviors.items():
                         for avaliador, scores in details["scores"].items():
@@ -480,7 +521,9 @@ class EvaluationAnalyzer:
                                 count += 1
 
                                 # Accumulate category differences
-                                for label, diff in scores["comparison_by_category"].items():
+                                for label, diff in scores[
+                                    "comparison_by_category"
+                                ].items():
                                     category_diffs[label] += diff
 
                 avg_score = total_score / count if count > 0 else 0
@@ -511,7 +554,7 @@ class EvaluationAnalyzer:
         if not results:
             print(f"Warning: No valid results for year {year}")
             return pd.DataFrame()
-        
+
         return pd.DataFrame(results)
 
     def find_common_behaviors(self, years: List[str]) -> Dict[str, Set[str]]:
@@ -522,10 +565,10 @@ class EvaluationAnalyzer:
         # Initialize with behaviors from the first year
         first_year = years[0]
         common_behaviors = {}
-        
+
         if first_year not in self.year_criteria:
             return {}
-            
+
         for dir_name, behaviors in self.year_criteria[first_year].items():
             common_behaviors[dir_name] = set(behaviors)
 
@@ -533,20 +576,20 @@ class EvaluationAnalyzer:
         for year in years[1:]:
             if year not in self.year_criteria:
                 continue
-                
+
             # Only keep direcionadores that exist in both
             direcionadores_to_remove = []
             for dir_name in common_behaviors:
                 if dir_name not in self.year_criteria[year]:
                     direcionadores_to_remove.append(dir_name)
-            
+
             for dir_name in direcionadores_to_remove:
                 del common_behaviors[dir_name]
-            
+
             # For remaining direcionadores, intersect behaviors
             for dir_name in list(common_behaviors.keys()):
                 common_behaviors[dir_name] &= self.year_criteria[year][dir_name]
-                
+
                 # If no common behaviors left, remove the direcionador
                 if not common_behaviors[dir_name]:
                     del common_behaviors[dir_name]
@@ -685,15 +728,15 @@ class EvaluationAnalyzer:
         try:
             # Get comparison data
             df = self.compare_people_for_year(year)
-            
+
             if df.empty:
                 print(f"No data available for year {year}")
                 return None
-                
+
             # Save plot if requested
             if output_path:
                 self.plot_comparative_report(df, year, output_path)
-                
+
             return df
         except Exception as e:
             print(f"Error generating comparative report for {year}: {str(e)}")
@@ -702,25 +745,39 @@ class EvaluationAnalyzer:
     def generate_historical_report(self, person: str, output_file: str = None):
         """Generate a historical report for a specific person"""
         data = self.person_year_over_year(person)
-        
+
         if not data["years"]:
             print(f"No data available for {person}")
             return None
-            
+
         years = data["years"]
         concepts = data["concepts"]
         year_scores = data["year_scores"]
         year_group_scores = data["year_group_scores"]
         year_categories = data["year_categories"]
-        
+
         # Create figure with multiple subplots
         fig = plt.figure(figsize=(15, 10))
-        
+
         # 1. Plot scores over time
         ax1 = plt.subplot2grid((2, 2), (0, 0))
-        ax1.plot(years, [year_scores[y] for y in years], 'o-', color='#3498db', linewidth=2, label=person)
-        ax1.plot(years, [year_group_scores[y] for y in years], 'o--', color='#7f8c8d', linewidth=2, label='Group Average')
-        
+        ax1.plot(
+            years,
+            [year_scores[y] for y in years],
+            "o-",
+            color="#3498db",
+            linewidth=2,
+            label=person,
+        )
+        ax1.plot(
+            years,
+            [year_group_scores[y] for y in years],
+            "o--",
+            color="#7f8c8d",
+            linewidth=2,
+            label="Group Average",
+        )
+
         # Add concept annotations
         for i, year in enumerate(years):
             if year in concepts:
@@ -730,182 +787,252 @@ class EvaluationAnalyzer:
                     concept,
                     (year, year_scores[year]),
                     xytext=(0, 10),
-                    textcoords='offset points',
-                    ha='center',
-                    va='bottom',
-                    bbox=dict(boxstyle='round,pad=0.3', fc=color, alpha=0.7, color='white'),
-                    fontsize=8
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom",
+                    bbox=dict(
+                        boxstyle="round,pad=0.3", fc=color, alpha=0.7, color="white"
+                    ),
+                    fontsize=8,
                 )
-        
-        ax1.set_title(f'Performance Over Time - {person}')
-        ax1.set_xlabel('Year')
-        ax1.set_ylabel('Average Score')
+
+        ax1.set_title(f"Performance Over Time - {person}")
+        ax1.set_xlabel("Year")
+        ax1.set_ylabel("Average Score")
         ax1.legend()
-        ax1.grid(True, linestyle='--', alpha=0.7)
-        
+        ax1.grid(True, linestyle="--", alpha=0.7)
+
         # 2. Plot difference from group
         ax2 = plt.subplot2grid((2, 2), (0, 1))
         diff_data = [year_scores[y] - year_group_scores[y] for y in years]
         bars = ax2.bar(years, diff_data)
-        
+
         # Color bars based on positive/negative values
         for i, bar in enumerate(bars):
             if diff_data[i] > 0:
-                bar.set_color('#2ecc71')  # Green for positive
+                bar.set_color("#2ecc71")  # Green for positive
             else:
-                bar.set_color('#e74c3c')  # Red for negative
-        
-        ax2.set_title('Difference from Group Average')
-        ax2.set_xlabel('Year')
-        ax2.set_ylabel('Difference')
-        ax2.axhline(y=0, color='#7f8c8d', linestyle='-', alpha=0.5)
-        ax2.grid(True, linestyle='--', alpha=0.7, axis='y')
-        
+                bar.set_color("#e74c3c")  # Red for negative
+
+        ax2.set_title("Difference from Group Average")
+        ax2.set_xlabel("Year")
+        ax2.set_ylabel("Difference")
+        ax2.axhline(y=0, color="#7f8c8d", linestyle="-", alpha=0.5)
+        ax2.grid(True, linestyle="--", alpha=0.7, axis="y")
+
         # 3. Plot category differences (heatmap-like)
         ax3 = plt.subplot2grid((2, 2), (1, 0), colspan=2)
-        
+
         # Extract categories and prepare data matrix
         categories = list(self.frequency_labels)
         data_matrix = []
-        
+
         for year in years:
             row = []
             for category in categories:
                 row.append(year_categories[year].get(category, 0))
             data_matrix.append(row)
-        
+
         # Create heatmap
-        im = ax3.imshow(data_matrix, cmap='RdYlGn', aspect='auto', vmin=-30, vmax=30)
-        
+        im = ax3.imshow(data_matrix, cmap="RdYlGn", aspect="auto", vmin=-30, vmax=30)
+
         # Add text annotations
         for i in range(len(years)):
             for j in range(len(categories)):
                 value = data_matrix[i][j]
-                text_color = 'black' if abs(value) < 20 else 'white'
-                ax3.text(j, i, f"{value:.1f}%", 
-                         ha="center", va="center", color=text_color,
-                         fontsize=8)
-        
+                text_color = "black" if abs(value) < 20 else "white"
+                ax3.text(
+                    j,
+                    i,
+                    f"{value:.1f}%",
+                    ha="center",
+                    va="center",
+                    color=text_color,
+                    fontsize=8,
+                )
+
         # Set ticks and labels
         ax3.set_xticks(range(len(categories)))
-        ax3.set_xticklabels(categories, rotation=45, ha='right')
+        ax3.set_xticklabels(categories, rotation=45, ha="right")
         ax3.set_yticks(range(len(years)))
         ax3.set_yticklabels(years)
-        
-        ax3.set_title('Category Differences from Group (%)')
-        ax3.set_xlabel('Category')
-        ax3.set_ylabel('Year')
-        
+
+        ax3.set_title("Category Differences from Group (%)")
+        ax3.set_xlabel("Category")
+        ax3.set_ylabel("Year")
+
         # Add colorbar
-        cbar = plt.colorbar(im, ax=ax3, orientation='horizontal', pad=0.2)
-        cbar.set_label('Difference from Group (%)')
-        
+        cbar = plt.colorbar(im, ax=ax3, orientation="horizontal", pad=0.2)
+        cbar.set_label("Difference from Group (%)")
+
         plt.tight_layout()
-        
+
         # Save or show figure
         if output_file:
-            plt.savefig(output_file, dpi=300, bbox_inches='tight')
+            plt.savefig(output_file, dpi=300, bbox_inches="tight")
             print(f"Report saved to {output_file}")
-        
+
         # Return the analysis data
         return data
 
     def plot_comparative_report(self, df, year, output_path=None):
         """Generate plots for the comparative report"""
         # Sort by average score (descending)
-        df_sorted = df.sort_values('Average Score', ascending=False)
-        
+        df_sorted = df.sort_values("Average Score", ascending=False)
+
         # Get number of people
         n_people = len(df_sorted)
-        
+
         # Create figure with multiple subplots
         fig = plt.figure(figsize=(15, 10))
-        
+
         # 1. Bar chart of average scores
         ax1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
-        
+
         # Create bars colored by concept
-        bars = ax1.bar(range(n_people), df_sorted['Average Score'])
-        
+        bars = ax1.bar(range(n_people), df_sorted["Average Score"])
+
         # Color bars by concept
-        concepts = df_sorted['Overall Concept']
+        concepts = df_sorted["Overall Concept"]
         for i, concept in enumerate(concepts):
             color = CONCEPT_CHART_COLORS.get(concept, "#7f8c8d")
             bars[i].set_color(color)
-        
+
         # Add labels and gridlines
-        ax1.set_title(f'Average Scores by Person ({year})')
-        ax1.set_ylabel('Average Score')
+        ax1.set_title(f"Average Scores by Person ({year})")
+        ax1.set_ylabel("Average Score")
         ax1.set_xticks(range(n_people))
-        ax1.set_xticklabels(df_sorted['Person'], rotation=45, ha='right')
-        ax1.grid(True, linestyle='--', alpha=0.7, axis='y')
-        
+        ax1.set_xticklabels(df_sorted["Person"], rotation=45, ha="right")
+        ax1.grid(True, linestyle="--", alpha=0.7, axis="y")
+
         # Add group average line
-        group_avg = df_sorted['Group Average'].mean()
-        ax1.axhline(y=group_avg, color='#e74c3c', linestyle='--', linewidth=2, 
-                   label=f'Group Average: {group_avg:.2f}')
+        group_avg = df_sorted["Group Average"].mean()
+        ax1.axhline(
+            y=group_avg,
+            color="#e74c3c",
+            linestyle="--",
+            linewidth=2,
+            label=f"Group Average: {group_avg:.2f}",
+        )
         ax1.legend()
-        
+
         # 2. Concept distribution pie chart
         ax2 = plt.subplot2grid((2, 2), (1, 0))
-        
+
         # Count concepts
         concept_counts = concepts.value_counts()
-        
+
         # Define colors
-        colors = [CONCEPT_CHART_COLORS.get(concept, "#7f8c8d") for concept in concept_counts.index]
-        
+        colors = [
+            CONCEPT_CHART_COLORS.get(concept, "#7f8c8d")
+            for concept in concept_counts.index
+        ]
+
         # Create pie chart
-        ax2.pie(concept_counts, labels=concept_counts.index, autopct='%1.1f%%',
-               colors=colors, startangle=90)
-        ax2.set_title('Concept Distribution')
-        
+        ax2.pie(
+            concept_counts,
+            labels=concept_counts.index,
+            autopct="%1.1f%%",
+            colors=colors,
+            startangle=90,
+        )
+        ax2.set_title("Concept Distribution")
+
         # 3. Category differences boxplot
         ax3 = plt.subplot2grid((2, 2), (1, 1))
-        
+
         # Extract category difference columns
-        diff_columns = [col for col in df.columns if col.startswith('Diff ')]
-        
+        diff_columns = [col for col in df.columns if col.startswith("Diff ")]
+
         # Prepare data for boxplot
         box_data = []
         labels = []
-        
+
         for col in diff_columns:
             box_data.append(df[col])
             # Extract just the category name from the column
-            labels.append(col.replace('Diff ', ''))
-        
+            labels.append(col.replace("Diff ", ""))
+
         # Create boxplot
         ax3.boxplot(box_data, labels=labels, patch_artist=True)
-        ax3.set_title('Category Differences Distribution')
-        ax3.set_ylabel('Difference from Group (%)')
-        ax3.axhline(y=0, color='#7f8c8d', linestyle='-', alpha=0.5)
-        plt.setp(ax3.get_xticklabels(), rotation=45, ha='right')
-        
+        ax3.set_title("Category Differences Distribution")
+        ax3.set_ylabel("Difference from Group (%)")
+        ax3.axhline(y=0, color="#7f8c8d", linestyle="-", alpha=0.5)
+        plt.setp(ax3.get_xticklabels(), rotation=45, ha="right")
+
         plt.tight_layout()
-        
+
         # Save or show figure
         if output_path:
-            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            plt.savefig(output_path, dpi=300, bbox_inches="tight")
             print(f"Report saved to {output_path}")
 
     def get_available_years(self) -> Set[str]:
         """Get all available years in the dataset (alias for get_all_years)"""
         return set(self.get_all_years())
-    
+
     def get_available_people(self) -> Set[str]:
         """Get all people in the dataset (alias for get_all_people)"""
         return set(self.get_all_people())
-        
+
     def get_years_for_person(self, person: str) -> Set[str]:
         """Get all years for a specific person"""
         if person in self.evaluations_by_person:
             return set(self.evaluations_by_person[person].keys())
         return set()
-        
+
     def get_people_for_year(self, year: str) -> Set[str]:
         """Get all people for a specific year"""
         return set(self.get_all_people_for_year(year))
+
+
+class PerformanceAnalyzer:
+    """Performance analyzer implementation that extends EvaluationAnalyzer functionality"""
+
+    def __init__(self, base_path: str = None):
+        """Initialize the performance analyzer with optional base path"""
+        self.evaluator = EvaluationAnalyzer(base_path or "data/evaluations")
+
+    def analyze_team_performance(self, team_id: str = None, year: str = None):
+        """Analyze performance for a team"""
+        people = self.evaluator.get_all_people()
+        if team_id:
+            # Filter by team if provided
+            # This would require team information in the future
+            pass
+
+        years = [year] if year else self.evaluator.get_all_years()
+
+        results = {}
+        for person in people:
+            person_years = self.evaluator.get_person_years(person)
+            available_years = [y for y in years if y in person_years]
+
+            if available_years:
+                results[person] = {
+                    "scores": {
+                        y: self.evaluator.get_average_score(person, y)
+                        for y in available_years
+                    },
+                    "concepts": self.evaluator.get_conceito_by_year(person),
+                }
+
+        return results
+
+    def get_person_performance(self, person: str, year: str = None):
+        """Get detailed performance for a specific person"""
+        if not year:
+            person_years = self.evaluator.get_person_years(person)
+            if not person_years:
+                return {}
+            year = person_years[-1]  # Use most recent
+
+        return {
+            "average_score": self.evaluator.get_average_score(person, year),
+            "behavior_scores": self.evaluator.get_behavior_scores(person, year),
+            "concept": self.evaluator.get_conceito_by_year(person).get(year, "N/A"),
+            "year": year,
+        }
 
 
 if __name__ == "__main__":
@@ -974,4 +1101,4 @@ if __name__ == "__main__":
                     print(f"  {category}: {diff:.2f}%")
 
     if not args.year and not args.person and not args.list_criteria:
-        parser.print_help() 
+        parser.print_help()
