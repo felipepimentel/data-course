@@ -9,6 +9,7 @@ Este diretório contém as regras e diretrizes que devem ser seguidas em todas a
 | [security.md](security.md) | Regras de segurança e proteção de dados sensíveis | ALTA |
 | [project_context.md](project_context.md) | Contexto geral do projeto e estrutura | ALTA |
 | [chat_context.md](chat_context.md) | Como manter contexto entre sessões de chat | ALTA |
+| [structure.cursorrule](structure.cursorrule) | Estrutura de pastas e convenções de nomenclatura | ALTA |
 
 ## Importância
 

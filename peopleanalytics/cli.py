@@ -21,7 +21,7 @@ class CLI:
     It parses command-line arguments and dispatches to the appropriate
     command handler.
     """
-
+    
     def __init__(self):
         """Initialize the CLI with a console for rich output."""
         self.console = Console()
@@ -105,6 +105,6 @@ def main():
     cli = CLI()
     sys.exit(cli.run())
 
-
+    
 if __name__ == "__main__":
     main()

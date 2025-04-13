@@ -1,0 +1,25 @@
+description: |
+  Estrutura de pastas e convenções de nomenclatura para o projeto People Analytics.
+  Define padrões de organização de código, componentes e arquivos para manter consistência.
+
+patterns:
+  - "electron-app/src/**/*.tsx"
+  - "electron-app/src/**/*.ts"
+
+rules:
+  - Componentes em electron-app/src/components devem usar PascalCase (ex: Layout.tsx)
+  - Páginas em electron-app/src/pages devem usar PascalCase e terminar com "Page" (ex: NineBoxMatrixPage.tsx)
+  - Hooks personalizados em electron-app/src/hooks devem usar camelCase e começar com "use" (ex: useEmployeeData.ts)
+  - A store Zustand deve ser organizada em electron-app/src/store/ com arquivos separados para cada domínio
+  - Utilitários devem ser colocados em electron-app/src/lib/ com nomes claros e concisos
+  - React Router deve usar paths consistentes:
+    - "/nine-box" para a matriz Nine-Box (não usar "/matrix")
+    - "/team-development" para o desenvolvimento de equipe
+    - "/evaluations" para avaliações 360°
+  - Componentes devem ser exportados usando named exports (não default exports)
+  - TypeScript: interfaces e types devem ser definidos nos arquivos onde são usados ou em arquivos dedicados
+
+references:
+  - @electron-app/src/App.tsx
+  - @electron-app/src/components/Layout.tsx
+  - @electron-app/src/pages/NineBoxMatrixPage.tsx 
