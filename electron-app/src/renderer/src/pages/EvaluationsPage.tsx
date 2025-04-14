@@ -1,5 +1,5 @@
-import { Check, ChevronDown, ChevronUp, ClipboardCheck, Clock, Download, Edit, Filter, Plus, Search, Star, Trash, User, ArrowLeft, Calendar, BookOpen, Award, Activity, Coffee, Mail, Phone, MapPin } from 'lucide-react'
-import React, { useState, useEffect } from 'react'
+import { Activity, ArrowLeft, Award, BookOpen, Calendar, Check, ChevronDown, ChevronUp, ClipboardCheck, Clock, Coffee, Download, Edit, Filter, Mail, MapPin, Phone, Plus, Search, Star, Trash, User } from 'lucide-react'
+import React, { useState } from 'react'
 
 type EvaluationStatus = 'pending' | 'in_progress' | 'completed'
 type SortDirection = 'asc' | 'desc'
@@ -55,11 +55,9 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
     const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null)
     const [selectedYear, setSelectedYear] = useState<string>('2023')
-
-    // Definir o viewMode baseado na prop initialViewMode
-    useEffect(() => {
-        setViewMode(initialViewMode);
-    }, [initialViewMode]);
+    const [showDetails, setShowDetails] = useState(false)
+    const [selectedEvaluation, setSelectedEvaluation] = useState<any>(null)
+    const [evaluationDetails, setEvaluationDetails] = useState<EvaluationDetail | null>(null)
 
     // Mock data
     const pendingEvaluations = [
@@ -124,6 +122,38 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
         ]
     }
 
+    // Mock data para perfis de usuário
+    const userProfiles: Record<number, UserProfile> = {
+        6: {
+            id: 6,
+            name: "Luciana Ferreira",
+            role: "Gerente de RH",
+            department: "RH",
+            email: "luciana.ferreira@empresa.com",
+            phone: "(11) 98765-4321",
+            manager: "Carlos Mendes",
+            hireDate: "15/03/2020",
+            location: "São Paulo, SP",
+            bio: "Profissional experiente em Recursos Humanos com mais de 8 anos de experiência em gestão de pessoas, desenvolvimento organizacional e implementação de políticas de RH.",
+            skills: ["Gestão de Pessoas", "Desenvolvimento Organizacional", "Recrutamento e Seleção", "Treinamento", "Avaliação de Desempenho", "Cultura Organizacional"],
+            evaluationHistory: mockEvaluationDetails[6] || []
+        },
+        7: {
+            id: 7,
+            name: "Carlos Mendes",
+            role: "CTO",
+            department: "Engenharia",
+            email: "carlos.mendes@empresa.com",
+            phone: "(11) 98765-4322",
+            manager: "Roberto Santos",
+            hireDate: "10/01/2019",
+            location: "São Paulo, SP",
+            bio: "Líder técnico com vasta experiência em desenvolvimento de software e gestão de equipes de tecnologia. Especialista em arquitetura de sistemas e inovação tecnológica.",
+            skills: ["Liderança Técnica", "Arquitetura de Software", "Gestão de Projetos", "Cloud Computing", "Metodologias Ágeis", "Inovação"],
+            evaluationHistory: mockEvaluationDetails[7] || []
+        }
+    }
+
     // Função para buscar detalhes da avaliação
     const fetchEvaluationDetails = (evaluationId: number) => {
         // Em um cenário real, isso seria uma chamada API
@@ -137,6 +167,15 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
         const details = fetchEvaluationDetails(evaluation.id);
         setEvaluationDetails(details.find(d => d.year === selectedYear) || details[0] || null);
         setShowDetails(true);
+    }
+
+    // Função para abrir o perfil do usuário
+    const openUserProfile = (userId: number) => {
+        const user = userProfiles[userId];
+        if (user) {
+            setSelectedUser(user);
+            setViewMode('user-profile');
+        }
     }
 
     // Função para alterar o ano visualizado
@@ -296,9 +335,8 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
     return (
         <div className="px-4 sm:px-6 lg:px-8 py-8">
             {viewMode === 'list' ? (
-                // Lista de avaliações (UI existente)
                 <>
-                    <div className="mb-8">
+            <div className="mb-8">
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Avaliações</h1>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Gerencie avaliações de desempenho da sua equipe</p>
                     </div>
@@ -372,7 +410,7 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                                 Exportar
                             </button>
                         </div>
-                    </div>
+            </div>
 
                     {/* Tabs */}
                     <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
@@ -394,7 +432,7 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                                 onClick={() => setActiveTab('concluidas')}
                             >
                                 Concluídas <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">{filteredCompletedEvaluations.length}</span>
-                            </button>
+                        </button>
                         </nav>
                     </div>
 
@@ -440,7 +478,7 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                     {activeTab === 'pendentes' && filteredPendingEvaluations.length > 0 && (
                         <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                             <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                     <thead>
                                         <tr>
                                             <TableHeader label="Colaborador" sortKey="name" />
@@ -449,8 +487,8 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                                             <TableHeader label="Data Limite" sortKey="dueDate" />
                                             <TableHeader label="Status" sortKey="status" />
                                             <TableHeader label="Ações" />
-                                        </tr>
-                                    </thead>
+                                </tr>
+                            </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         {filteredPendingEvaluations.map((evaluation) => (
                                             <tr key={evaluation.id}>
@@ -460,10 +498,15 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                                                             {evaluation.name.split(' ').map(n => n[0]).join('')}
                                                         </div>
                                                         <div className="ml-4">
-                                                            <div className="text-sm font-medium text-gray-900 dark:text-white">{evaluation.name}</div>
+                                                            <button
+                                                                onClick={() => openUserProfile(evaluation.id)}
+                                                                className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
+                                                            >
+                                                                {evaluation.name}
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                </td>
+                                    </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{evaluation.department}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{evaluation.role}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{evaluation.dueDate}</td>
@@ -475,7 +518,7 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                                                     <button className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
                                                         <Trash className="h-4 w-4" />
                                                     </button>
-                                                </td>
+                                    </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -502,23 +545,28 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         {filteredCompletedEvaluations.map((evaluation) => (
                                             <tr key={evaluation.id}>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
                                                         <div className="h-8 w-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-xs">
                                                             {evaluation.name.split(' ').map(n => n[0]).join('')}
                                                         </div>
                                                         <div className="ml-4">
-                                                            <div className="text-sm font-medium text-gray-900 dark:text-white">{evaluation.name}</div>
+                                                            <button
+                                                                onClick={() => openUserProfile(evaluation.id)}
+                                                                className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
+                                                            >
+                                                                {evaluation.name}
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                </td>
+                                    </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{evaluation.department}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{evaluation.role}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{evaluation.evaluationDate}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap">{getScoreBadge(evaluation.score)}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <button
-                                                        onClick={() => openEvaluationDetails(evaluation)}
+                                                        onClick={() => openUserProfile(evaluation.id)}
                                                         className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
                                                     >
                                                         Ver Detalhes
@@ -529,11 +577,11 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                                                     <button className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
                                                         <Download className="h-4 w-4" />
                                                     </button>
-                                                </td>
-                                            </tr>
+                                    </td>
+                                </tr>
                                         ))}
-                                    </tbody>
-                                </table>
+                            </tbody>
+                        </table>
                             </div>
                         </div>
                     )}
@@ -645,6 +693,205 @@ export function EvaluationsPage({ initialViewMode = 'list' }: EvaluationsPagePro
                             </div>
                         </div>
                     )}
+                </>
+            ) : (
+                <div className="px-4 sm:px-6 lg:px-8 py-8">
+                    {/* Header com botão de voltar */}
+                    <div className="flex items-center mb-8">
+                        <button
+                            onClick={backToList}
+                            className="mr-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                        >
+                            <ArrowLeft className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+                        </button>
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Perfil do Colaborador</h1>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Visualize detalhes e histórico de avaliações</p>
+                        </div>
+                    </div>
+
+                    {/* Grid de informações */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Coluna da esquerda - Informações do perfil */}
+                        <div className="lg:col-span-1">
+                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                <div className="p-6">
+                                    <div className="flex items-center">
+                                        <div className="h-20 w-20 rounded-full bg-gradient-to-r from-blue-500 to-teal-500 flex items-center justify-center text-white text-2xl font-bold">
+                                            {selectedUser?.name.split(' ').map(n => n[0]).join('')}
+                                        </div>
+                                        <div className="ml-4">
+                                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedUser?.name}</h2>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">{selectedUser?.role}</p>
+                                            <p className="text-sm font-medium text-blue-600 dark:text-blue-400">{selectedUser?.department}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 space-y-4">
+                                        <div className="flex items-center text-gray-700 dark:text-gray-300">
+                                            <Mail className="h-5 w-5 mr-3 text-gray-400" />
+                                            <span>{selectedUser?.email}</span>
+                                        </div>
+                                        <div className="flex items-center text-gray-700 dark:text-gray-300">
+                                            <Phone className="h-5 w-5 mr-3 text-gray-400" />
+                                            <span>{selectedUser?.phone}</span>
+                                        </div>
+                                        <div className="flex items-center text-gray-700 dark:text-gray-300">
+                                            <User className="h-5 w-5 mr-3 text-gray-400" />
+                                            <span>Gestor: {selectedUser?.manager}</span>
+                                        </div>
+                                        <div className="flex items-center text-gray-700 dark:text-gray-300">
+                                            <Calendar className="h-5 w-5 mr-3 text-gray-400" />
+                                            <span>Contratação: {selectedUser?.hireDate}</span>
+                                        </div>
+                                        <div className="flex items-center text-gray-700 dark:text-gray-300">
+                                            <MapPin className="h-5 w-5 mr-3 text-gray-400" />
+                                            <span>{selectedUser?.location}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Competências</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedUser?.skills.map((skill, index) => (
+                                                <span
+                                                    key={index}
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                                                >
+                                                    {skill}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Biografia</h3>
+                                        <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedUser?.bio}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Coluna da direita - Histórico de avaliações */}
+                        <div className="lg:col-span-2">
+                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                                <div className="p-6">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="text-lg font-bold text-gray-900 dark:text-white">Histórico de Avaliações</h2>
+                                        <div className="flex space-x-2">
+                                            <button className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                <BookOpen className="h-4 w-4 mr-2" />
+                                                Ver Todas
+                                            </button>
+                                            <button className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Nova Avaliação
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Cards de métricas */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                                                    <Award className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Média Geral</p>
+                                                    <p className="text-2xl font-bold text-gray-900 dark:text-white">8.7</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                                                    <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Evolução</p>
+                                                    <p className="text-2xl font-bold text-gray-900 dark:text-white">+12%</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                            <div className="flex items-center">
+                                                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                                                    <Coffee className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avaliações</p>
+                                                    <p className="text-2xl font-bold text-gray-900 dark:text-white">6</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Timeline de avaliações */}
+                                    <div className="relative">
+                                        {selectedUser?.evaluationHistory.map((evaluation, index) => (
+                                            <div key={index} className="mb-8 relative">
+                                                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
+                                                <div className="relative flex items-start ml-6">
+                                                    <span className="absolute -left-[1.625rem] flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 ring-8 ring-white dark:ring-gray-800">
+                                                        <ClipboardCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                    </span>
+                                                    <div className="min-w-0 flex-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <h3 className="text-base font-medium text-gray-900 dark:text-white">
+                                                                Avaliação {evaluation.quarter} {evaluation.year}
+                                                            </h3>
+                                                            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                                {calculateWeightedScore(evaluation)}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="mt-4 space-y-3">
+                                                            {evaluation.indicators.map((indicator, idx) => (
+                                                                <div key={idx} className="flex items-center justify-between">
+                                                                    <div className="flex-1">
+                                                                        <p className="text-sm font-medium text-gray-900 dark:text-white">{indicator.name}</p>
+                                                                        <p className="text-sm text-gray-600 dark:text-gray-400">{indicator.comments}</p>
+                                                                    </div>
+                                                                    <div className="ml-4 flex items-center">
+                                                                        <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">
+                                                                            {(indicator.weight * 100).toFixed(0)}%
+                                                                        </span>
+                                                                        <span className="font-medium text-gray-900 dark:text-white">
+                                                                            {indicator.score.toFixed(1)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                                <strong className="text-gray-900 dark:text-white">Comentários:</strong> {evaluation.overallComments}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="mt-4 flex justify-end space-x-3">
+                                                            <button className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                                <Edit className="h-4 w-4 mr-2" />
+                                                                Editar
+                                                            </button>
+                                                            <button className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
+                                                                <Download className="h-4 w-4 mr-2" />
+                                                                Exportar PDF
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            )
-}
+            )}
+        </div>
+    )
+} 

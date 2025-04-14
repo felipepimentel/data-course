@@ -28,6 +28,7 @@ from .report_commands import (
     ReportCommand,
     SummaryCommand,
 )
+from .sync_commands import SyncCommand
 from .talent_development_commands import NineBoxCommand
 
 # Dictionary mapping command names to their implementations
@@ -49,6 +50,8 @@ COMMANDS: Dict[str, Type[BaseCommand]] = {
     "create-sample": CreateSampleCommand,
     # Talent development commands
     "nine-box": NineBoxCommand,
+    # Sync command
+    "sync": SyncCommand,
 }
 
 __all__ = [
@@ -71,4 +74,6 @@ __all__ = [
     "CreateSampleCommand",
     # Talent development commands
     "NineBoxCommand",
+    # Sync command
+    "SyncCommand",
 ]

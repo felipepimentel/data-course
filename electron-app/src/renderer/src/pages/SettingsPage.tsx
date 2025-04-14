@@ -44,11 +44,11 @@ export function SettingsPage() {
                     <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                         {/* Appearance Tab */}
                         {activeTab === 'appearance' && (
-                            <div className="p-6">
+                <div className="p-6">
                                 <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-5">Configurações de Aparência</h2>
 
-                                <div className="space-y-6">
-                                    <div>
+                    <div className="space-y-6">
+                        <div>
                                         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Tema</h3>
                                         <div className="mt-2 space-y-3">
                                             <div className="flex items-center">
@@ -83,12 +83,12 @@ export function SettingsPage() {
                                                 />
                                                 <label htmlFor="system" className="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     Sistema (usar preferência do sistema)
-                                                </label>
+                            </label>
                                             </div>
                                         </div>
-                                    </div>
+                        </div>
 
-                                    <div>
+                        <div>
                                         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Densidade</h3>
                                         <div className="mt-2 space-y-3">
                                             <div className="flex items-center">
@@ -123,23 +123,23 @@ export function SettingsPage() {
                                                 />
                                                 <label htmlFor="comfortable" className="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     Confortável
-                                                </label>
+                            </label>
                                             </div>
                                         </div>
-                                    </div>
+                        </div>
 
-                                    <div>
+                        <div>
                                         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Animações</h3>
-                                        <div className="flex items-center">
-                                            <input
+                                <div className="flex items-center">
+                                    <input
                                                 id="animations"
-                                                type="checkbox"
+                                        type="checkbox"
                                                 defaultChecked
-                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                            />
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
                                             <label htmlFor="animations" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                                                 Habilitar animações de interface
-                                            </label>
+                                    </label>
                                         </div>
                                     </div>
                                 </div>
@@ -205,10 +205,10 @@ export function SettingsPage() {
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">Receba um resumo diário das atividades</span>
                                             </div>
                                             <div>
-                                                <input
-                                                    type="checkbox"
-                                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                                />
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
                                             </div>
                                         </div>
                                     </div>
@@ -238,7 +238,7 @@ export function SettingsPage() {
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                     Chave API
-                                                </label>
+                                    </label>
                                                 <input
                                                     type="password"
                                                     defaultValue="••••••••••••••••"
@@ -292,9 +292,9 @@ export function SettingsPage() {
                                                 <button className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-700 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     Limpar
                                                 </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                            </div>
+                        </div>
+                    </div>
 
                                     <div>
                                         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Logs</h3>
@@ -319,7 +319,7 @@ export function SettingsPage() {
                                 <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400">
                                     <Save className="h-4 w-4 mr-2" />
                                     Salvar alterações
-                                </button>
+                        </button>
                             </div>
                         </div>
                     </div>

@@ -12,6 +12,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
+from peopleanalytics.cli_commands import COMMANDS
 from peopleanalytics.cli_commands.talent_development_commands import (
     TalentDevelopmentCommands,
 )
@@ -61,19 +62,34 @@ def main():
 
     subparsers = parser.add_subparsers(dest="command", help="Comando a ser executado")
 
-    # Adicionar comandos de desenvolvimento de talentos
-    talent_dev_commands = TalentDevelopmentCommands(console, data_pipeline)
-    talent_dev_commands.add_parser(subparsers)
+    # Adicionar todos os comandos registrados no dicionário COMMANDS
+    registered_commands = {}
+    for command_name, command_class in COMMANDS.items():
+        # Evitamos duplicação de parsers
+        if command_name not in registered_commands:
+            command_parser = subparsers.add_parser(
+                command_name, help=command_class.__doc__
+            )
+            command_instance = command_class()
+            command_instance.add_arguments(command_parser)
+            registered_commands[command_name] = command_instance
 
-    # Adicionar outros módulos de comandos aqui conforme necessário
+    # Adicionar comandos de desenvolvimento de talentos
+    # (Apenas para comandos que não foram registrados em COMMANDS)
+    talent_dev_commands = TalentDevelopmentCommands(console, data_pipeline)
+    talent_dev_commands.add_parser(subparsers, exclude=registered_commands.keys())
 
     # Comando de ajuda para todos os módulos
-    help_parser = subparsers.add_parser(
-        "help", help="Mostrar ajuda sobre comandos disponíveis"
-    )
+    if "help" not in registered_commands:
+        help_parser = subparsers.add_parser(
+            "help", help="Mostrar ajuda sobre comandos disponíveis"
+        )
 
     # Comando de versão
-    version_parser = subparsers.add_parser("version", help="Mostrar versão do sistema")
+    if "version" not in registered_commands:
+        version_parser = subparsers.add_parser(
+            "version", help="Mostrar versão do sistema"
+        )
 
     # Parsear argumentos
     if len(sys.argv) <= 1:
@@ -89,6 +105,10 @@ def main():
         from peopleanalytics import __version__
 
         console.print(f"[bold]People Analytics Platform[/bold] versão {__version__}")
+    elif args.command in registered_commands:
+        # Executar comandos diretos
+        exit_code = registered_commands[args.command].execute(args)
+        sys.exit(exit_code)
     else:
         # Tentar comandos dos módulos registrados
         handled = talent_dev_commands.handle_command(args)

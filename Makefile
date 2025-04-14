@@ -1,4 +1,4 @@
-.PHONY: install dashboard sample clean install-uv venv
+.PHONY: install dashboard sample clean install-uv venv sync
 
 # Check if UV is available
 HAS_UV := $(shell command -v uv 2> /dev/null)
@@ -48,3 +48,8 @@ clean:
 
 # Run all steps in sequence
 all: install sample dashboard 
+
+# Run sync process (ingest and transform data)
+sync:
+	@echo "Running data synchronization (ingest and transform)..."
+	python -m peopleanalytics sync 

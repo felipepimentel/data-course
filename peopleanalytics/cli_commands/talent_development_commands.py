@@ -33,94 +33,108 @@ class TalentDevelopmentCommands:
         self.console = console
         self.data_pipeline = data_pipeline
 
-    def add_parser(self, subparsers):
+    def add_parser(self, subparsers, exclude=None):
         """
         Adiciona parsers para comandos relacionados a desenvolvimento de talentos.
 
         Args:
             subparsers: Objeto de subparsers do parser principal
+            exclude: Lista de comandos a serem excluídos (opcional)
         """
+        exclude = exclude or set()
+
         # Comando da matriz 9-box
-        matrix_parser = subparsers.add_parser(
-            "nine-box", help="Matriz 9-Box para análise de desempenho e potencial"
-        )
-        matrix_subparsers = matrix_parser.add_subparsers(dest="nine_box_command")
+        if "nine-box" not in exclude:
+            matrix_parser = subparsers.add_parser(
+                "nine-box", help="Matriz 9-Box para análise de desempenho e potencial"
+            )
+            matrix_subparsers = matrix_parser.add_subparsers(dest="nine_box_command")
 
-        # Subcomando para visualizar
-        visualize_parser = matrix_subparsers.add_parser(
-            "visualize", help="Visualizar matriz 9-box para uma pessoa"
-        )
-        visualize_parser.add_argument("person_id", type=str, help="ID da pessoa")
-        visualize_parser.add_argument(
-            "--quarters",
-            type=int,
-            default=8,
-            help="Número de trimestres para análise (padrão: 8)",
-        )
-        visualize_parser.add_argument(
-            "--output", type=str, help="Caminho para salvar a visualização"
-        )
-        visualize_parser.add_argument(
-            "--show-future", action="store_true", help="Mostrar projeção futura"
-        )
+            # Subcomando para visualizar
+            visualize_parser = matrix_subparsers.add_parser(
+                "visualize", help="Visualizar matriz 9-box para uma pessoa"
+            )
+            visualize_parser.add_argument("person_id", type=str, help="ID da pessoa")
+            visualize_parser.add_argument(
+                "--quarters",
+                type=int,
+                default=8,
+                help="Número de trimestres para análise (padrão: 8)",
+            )
+            visualize_parser.add_argument(
+                "--output", type=str, help="Caminho para salvar a visualização"
+            )
+            visualize_parser.add_argument(
+                "--show-future", action="store_true", help="Mostrar projeção futura"
+            )
 
-        # Subcomando para relatório
-        report_parser = matrix_subparsers.add_parser(
-            "report", help="Gerar relatório de matriz 9-box para uma pessoa"
-        )
-        report_parser.add_argument("person_id", type=str, help="ID da pessoa")
-        report_parser.add_argument(
-            "--quarters",
-            type=int,
-            default=8,
-            help="Número de trimestres para análise (padrão: 8)",
-        )
-        report_parser.add_argument(
-            "--output", type=str, help="Diretório para salvar o relatório"
-        )
+            # Subcomando para relatório
+            report_parser = matrix_subparsers.add_parser(
+                "report", help="Gerar relatório de matriz 9-box para uma pessoa"
+            )
+            report_parser.add_argument("person_id", type=str, help="ID da pessoa")
+            report_parser.add_argument(
+                "--quarters",
+                type=int,
+                default=8,
+                help="Número de trimestres para análise (padrão: 8)",
+            )
+            report_parser.add_argument(
+                "--output", type=str, help="Diretório para salvar o relatório"
+            )
 
-        # Subcomando para adicionar posição
-        add_parser = matrix_subparsers.add_parser(
-            "add-position", help="Adicionar nova posição na matriz 9-box"
-        )
-        add_parser.add_argument("person_id", type=str, help="ID da pessoa")
-        add_parser.add_argument(
-            "--performance",
-            type=float,
-            required=True,
-            help="Valor de desempenho (0-10)",
-        )
-        add_parser.add_argument(
-            "--potential", type=float, required=True, help="Valor de potencial (0-10)"
-        )
-        add_parser.add_argument(
-            "--date",
-            type=str,
-            help="Data da avaliação (formato: YYYY-MM-DD, padrão: hoje)",
-        )
-        add_parser.add_argument(
-            "--source", type=str, help='Fonte da avaliação (ex: "Avaliação Anual 2024")'
-        )
+            # Subcomando para adicionar posição
+            add_parser = matrix_subparsers.add_parser(
+                "add-position", help="Adicionar nova posição na matriz 9-box"
+            )
+            add_parser.add_argument("person_id", type=str, help="ID da pessoa")
+            add_parser.add_argument(
+                "--performance",
+                type=float,
+                required=True,
+                help="Valor de desempenho (0-10)",
+            )
+            add_parser.add_argument(
+                "--potential",
+                type=float,
+                required=True,
+                help="Valor de potencial (0-10)",
+            )
+            add_parser.add_argument(
+                "--date",
+                type=str,
+                help="Data da avaliação (formato: YYYY-MM-DD, padrão: hoje)",
+            )
+            add_parser.add_argument(
+                "--source",
+                type=str,
+                help='Fonte da avaliação (ex: "Avaliação Anual 2024")',
+            )
 
         # Comando de ciclo de feedback
-        feedback_parser = subparsers.add_parser(
-            "feedback-cycle", help="Ciclo de feedback integrado ao desenvolvimento"
-        )
-        feedback_subparsers = feedback_parser.add_subparsers(dest="feedback_command")
+        if "feedback-cycle" not in exclude:
+            feedback_parser = subparsers.add_parser(
+                "feedback-cycle", help="Ciclo de feedback integrado ao desenvolvimento"
+            )
+            feedback_subparsers = feedback_parser.add_subparsers(
+                dest="feedback_command"
+            )
 
         # Comando de análise de rede de influência
-        network_parser = subparsers.add_parser(
-            "influence-network", help="Análise de redes de influência e impacto"
-        )
-        network_subparsers = network_parser.add_subparsers(dest="network_command")
+        if "influence-network" not in exclude:
+            network_parser = subparsers.add_parser(
+                "influence-network", help="Análise de redes de influência e impacto"
+            )
+            network_subparsers = network_parser.add_subparsers(dest="network_command")
 
         # Comando para simulação de carreira
-        simulation_parser = subparsers.add_parser(
-            "career-sim", help="Simulação de cenários de carreira"
-        )
-        simulation_subparsers = simulation_parser.add_subparsers(
-            dest="simulation_command"
-        )
+        if "career-sim" not in exclude:
+            simulation_parser = subparsers.add_parser(
+                "career-sim", help="Simulação de cenários de carreira"
+            )
+            simulation_subparsers = simulation_parser.add_subparsers(
+                dest="simulation_command"
+            )
 
     def handle_command(self, args):
         """
