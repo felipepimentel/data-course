@@ -37,6 +37,15 @@ class DataSync:
         self.force = force
         self.logger = logging.getLogger(__name__)
 
+        # Opções adicionais
+        self.skip_viz = False
+        self.ignore_errors = False
+        self.selected_formats = "all"
+        self.pessoa_filter = None
+        self.ano_filter = None
+        self.export_excel = False
+        self.verbose = False
+
         # Criar diretórios necessários
         self._ensure_directories()
 
@@ -69,23 +78,33 @@ class DataSync:
             json_results = self._process_json_files()
             results.extend(json_results)
 
-            # 2. Processar dados de carreira
+            # 2. Processar estrutura <pessoa>/<ano>/resultado.json
+            pessoa_ano_results = self._process_pessoa_ano_structure()
+            results.extend(pessoa_ano_results)
+
+            # 3. Processar dados de carreira
             career_results = self._process_career_data()
             results.extend(career_results)
 
-            # 3. Processar templates personalizados
+            # 4. Processar templates personalizados
             template_results = self._process_templates()
             results.extend(template_results)
 
-            # 4. Gerar visualizações
-            visualization_results = self._generate_visualizations()
-            results.extend(visualization_results)
+            # 5. Processar formatos adicionais de dados como CSV, Excel, etc.
+            additional_data_results = self._process_additional_data_formats()
+            results.extend(additional_data_results)
 
-            # 5. Gerar relatórios
-            report_results = self._generate_reports()
-            results.extend(report_results)
+            # Se não deve pular visualizações
+            if not self.skip_viz:
+                # 6. Gerar visualizações
+                visualization_results = self._generate_visualizations()
+                results.extend(visualization_results)
 
-            # 6. Consolidar dados
+                # 7. Gerar relatórios
+                report_results = self._generate_reports()
+                results.extend(report_results)
+
+            # 8. Consolidar dados
             consolidation_results = self._consolidate_data()
             results.extend(consolidation_results)
 
@@ -96,7 +115,16 @@ class DataSync:
             error_msg = f"Erro no processo de sincronização: {str(e)}"
             self.logger.exception(error_msg)
             results.append(error_msg)
-            return results
+
+            # Se deve ignorar erros, continua e retorna resultados parciais
+            if self.ignore_errors:
+                results.append(
+                    "Continuando apesar de erros devido à flag ignore_errors"
+                )
+                return results
+            else:
+                # Se não deve ignorar erros, propaga a exceção
+                raise
 
     def _process_json_files(self) -> List[str]:
         """Processa todos os arquivos JSON na pasta de entrada."""
@@ -139,6 +167,237 @@ class DataSync:
                 error_msg = f"Erro ao processar {json_file.name}: {str(e)}"
                 self.logger.error(error_msg)
                 results.append(error_msg)
+
+        return results
+
+    def _process_pessoa_ano_structure(self) -> List[str]:
+        """Processa a estrutura <pessoa>/<ano>/resultado.json e perfil.json."""
+        results = []
+
+        # Importar o DataProcessor
+        from peopleanalytics.data_processor import DataProcessor
+
+        # Criar instância do DataProcessor
+        processor = DataProcessor(self.data_path, self.output_path)
+
+        # Processar o diretório recursivamente para arquivo padrão resultado.json
+        self.logger.info("Processando estrutura <pessoa>/<ano>/resultado.json")
+        import_results = processor.import_directory(self.data_path, recursive=True)
+
+        # Verificar arquivos alternativos em formatos diferentes
+        self.logger.info(
+            "Procurando formatos de arquivo alternativos na estrutura <pessoa>/<ano>/"
+        )
+
+        # Buscar padrões de estrutura alternativa, como YAML, CSV e Excel
+        valid_directories = []
+
+        # 1. Encontrar diretórios que seguem o padrão <pessoa>/<ano>/
+        for pessoa_dir in self.data_path.glob("*"):
+            if pessoa_dir.is_dir():
+                # Verificar filtro de pessoa
+                if self.pessoa_filter and pessoa_dir.name != self.pessoa_filter:
+                    if self.verbose:
+                        self.logger.info(
+                            f"Pulando diretório {pessoa_dir} devido ao filtro de pessoa"
+                        )
+                    continue
+
+                for ano_dir in pessoa_dir.glob("*"):
+                    if ano_dir.is_dir() and ano_dir.name.isdigit():
+                        # Verificar filtro de ano
+                        if self.ano_filter and ano_dir.name != self.ano_filter:
+                            if self.verbose:
+                                self.logger.info(
+                                    f"Pulando diretório {ano_dir} devido ao filtro de ano"
+                                )
+                            continue
+
+                        # Este é um diretório no formato <pessoa>/<ano>/
+                        valid_directories.append(ano_dir)
+
+        # 2. Para cada diretório válido, verificar arquivos de dados alternativos
+        alt_formats_count = 0
+        for directory in valid_directories:
+            person = directory.parent.name
+            year = directory.name
+
+            # Lista de arquivos alternativos para procurar
+            alt_files = [
+                "resultado.yaml",
+                "resultado.yml",
+                "resultado.csv",
+                "resultado.xlsx",
+                "resultado.xls",
+                "avaliacao.json",
+                "avaliacao.yaml",
+                "avaliacao.yml",
+                "evaluation.json",
+                "evaluation.yaml",
+                "evaluation.yml",
+            ]
+
+            for alt_file in alt_files:
+                file_path = directory / alt_file
+                if file_path.exists() and file_path.stat().st_size > 0:
+                    self.logger.info(f"Encontrado arquivo alternativo: {file_path}")
+                    alt_formats_count += 1
+
+                    # Determinar o formato baseado na extensão
+                    format_type = "json"
+                    if file_path.suffix in [".yaml", ".yml"]:
+                        format_type = "yaml"
+                    elif file_path.suffix == ".csv":
+                        format_type = "csv"
+                    elif file_path.suffix in [".xlsx", ".xls"]:
+                        format_type = "excel"
+
+                    # Verificar se este formato deve ser processado
+                    if (
+                        self.selected_formats != "all"
+                        and format_type != self.selected_formats
+                    ):
+                        self.logger.info(
+                            f"Pulando arquivo {file_path} por não corresponder ao formato selecionado ({self.selected_formats})"
+                        )
+                        continue
+
+                    try:
+                        # Importar arquivo usando o formato correto
+                        processor.import_file(
+                            file_path, format=format_type, data_type="evaluations"
+                        )
+                        results.append(f"Arquivo alternativo processado: {file_path}")
+                    except Exception as e:
+                        self.logger.error(f"Erro ao processar {file_path}: {str(e)}")
+                        results.append(
+                            f"Erro ao processar arquivo alternativo {file_path}: {str(e)}"
+                        )
+                        if not self.ignore_errors:
+                            raise
+
+        if alt_formats_count > 0:
+            results.append(
+                f"Processados {alt_formats_count} arquivos em formatos alternativos"
+            )
+
+        # Verificar resultados do padrão principal
+        if import_results["imported"] > 0:
+            results.append(
+                f"Importados {import_results['imported']} arquivos de resultado.json"
+            )
+
+            # Gerar relatórios com base nos dados importados
+            try:
+                # Gerar relatório individual para cada pessoa
+                individual_reports = processor.generate_individual_report()
+                if individual_reports:
+                    results.append(
+                        f"Gerados {len(individual_reports)} relatórios individuais"
+                    )
+
+                # Pular visualizações se definido
+                if not self.skip_viz:
+                    # Gerar sumário
+                    summary_path = processor.generate_summary(format="html")
+                    if summary_path:
+                        results.append(f"Sumário dos dados gerado em {summary_path}")
+
+                    # Gerar versão em markdown também
+                    summary_md_path = processor.generate_summary(format="markdown")
+                    if summary_md_path:
+                        results.append(
+                            f"Sumário dos dados em markdown gerado em {summary_md_path}"
+                        )
+
+                    # Gerar gráficos
+                    radar_charts = processor.generate_radar_chart()
+                    if radar_charts:
+                        results.append(f"Gerados {len(radar_charts)} gráficos de radar")
+
+                    # Gerar comparação de equipes
+                    team_report = processor.generate_team_aggregation()
+                    if team_report:
+                        results.append(f"Comparação de equipes gerada em {team_report}")
+
+                    # Gerar mapa de calor
+                    heat_map = processor.generate_heat_map()
+                    if heat_map:
+                        results.append("Mapa de calor gerado")
+
+                    # Gerar diagramas
+                    mermaid_chart = processor.generate_mermaid_chart()
+                    if mermaid_chart:
+                        results.append(f"Diagrama Mermaid gerado em {mermaid_chart}")
+                else:
+                    results.append(
+                        "Geração de visualizações pulada devido à flag --skip-viz"
+                    )
+
+                # Gerar planos de ação (não é considerado visualização)
+                try:
+                    action_plans = processor.generate_action_plan()
+                    if action_plans:
+                        results.append(f"Gerados {len(action_plans)} planos de ação")
+                except Exception as e:
+                    error_msg = f"Erro ao gerar planos de ação: {str(e)}"
+                    self.logger.error(error_msg)
+                    results.append(error_msg)
+                    if not self.ignore_errors:
+                        raise
+
+                # Gerar relatório em linguagem natural (não é considerado visualização)
+                try:
+                    nl_summaries = processor.generate_natural_language_summary()
+                    if nl_summaries:
+                        results.append(
+                            f"Gerados {len(nl_summaries)} sumários em linguagem natural"
+                        )
+                except Exception as e:
+                    error_msg = f"Erro ao gerar sumários em linguagem natural: {str(e)}"
+                    self.logger.error(error_msg)
+                    results.append(error_msg)
+                    if not self.ignore_errors:
+                        raise
+
+                # Gerar relatório de benchmark (não é considerado visualização)
+                try:
+                    benchmark_reports = processor.generate_benchmark_report()
+                    if benchmark_reports:
+                        results.append(
+                            f"Gerados {len(benchmark_reports)} relatórios de benchmark"
+                        )
+                except Exception as e:
+                    error_msg = f"Erro ao gerar relatórios de benchmark: {str(e)}"
+                    self.logger.error(error_msg)
+                    results.append(error_msg)
+                    if not self.ignore_errors:
+                        raise
+
+                # Gerar gráficos individuais para todas as pessoas
+                processor.generate_individual_reports()
+                results.append("Gerados relatórios individuais consolidados")
+
+            except Exception as e:
+                error_msg = f"Erro ao gerar relatórios: {str(e)}"
+                self.logger.error(error_msg)
+                results.append(error_msg)
+        else:
+            if import_results["skipped"] > 0:
+                results.append(
+                    f"Ignorados {import_results['skipped']} arquivos por problemas de estrutura"
+                )
+            if import_results["failed"] > 0:
+                results.append(
+                    f"Falha ao processar {import_results['failed']} arquivos"
+                )
+                for error in import_results["errors"]:
+                    self.logger.error(f"Erro: {error['file']} - {error['error']}")
+
+            if alt_formats_count == 0:
+                results.append(
+                    "Nenhum arquivo válido encontrado na estrutura <pessoa>/<ano>/"
+                )
 
         return results
 
@@ -369,9 +628,243 @@ class DataSync:
 
     def _consolidate_data(self) -> List[str]:
         """Consolida todos os dados processados em um formato unificado."""
-        # Esta função deve ser adaptada para consolidar os dados conforme necessário
-        # Por enquanto, retorna apenas uma mensagem
-        return ["Consolidação de dados não implementada nesta versão"]
+        results = []
+
+        try:
+            # Criar diretório de consolidação
+            consolidation_dir = self.output_path / "consolidated"
+            consolidation_dir.mkdir(exist_ok=True, parents=True)
+
+            # Consolidar todos os dados disponíveis
+            self.logger.info("Consolidando dados de todas as fontes")
+
+            # Gerar dashboard HTML consolidado
+            dashboard_path = (
+                consolidation_dir
+                / f"dashboard_{datetime.now().strftime('%Y%m%d')}.html"
+            )
+
+            html_content = [
+                "<!DOCTYPE html>",
+                "<html>",
+                "<head>",
+                "    <meta charset='UTF-8'>",
+                "    <meta name='viewport' content='width=device-width, initial-scale=1.0'>",
+                "    <title>People Analytics Dashboard</title>",
+                "    <style>",
+                "        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }",
+                "        .container { width: 90%; margin: 0 auto; }",
+                "        header { background-color: #2c3e50; color: white; padding: 1rem; }",
+                "        h1 { margin: 0; }",
+                "        .report-section { margin-top: 2rem; }",
+                "        .report-list { margin-top: 1rem; }",
+                "        footer { margin-top: 2rem; padding: 1rem; background-color: #f5f5f5; text-align: center; }",
+                "    </style>",
+                "</head>",
+                "<body>",
+                "    <header>",
+                "        <div class='container'>",
+                f"            <h1>People Analytics Dashboard - {datetime.now().strftime('%Y-%m-%d')}</h1>",
+                "        </div>",
+                "    </header>",
+                "    <div class='container'>",
+            ]
+
+            # Listar relatórios por seção
+            sections = {
+                "individual_reports": "Relatórios Individuais",
+                "team_reports": "Relatórios de Equipes",
+                "radar_charts": "Gráficos de Radar",
+                "heat_maps": "Mapas de Calor",
+                "action_plans": "Planos de Ação",
+                "mermaid": "Diagramas",
+                "summary": "Sumários",
+            }
+
+            for dir_name, section_title in sections.items():
+                section_dir = self.output_path / dir_name
+                if section_dir.exists():
+                    files = list(section_dir.glob("*.*"))
+                    if files:
+                        html_content.append("        <div class='report-section'>")
+                        html_content.append(f"            <h2>{section_title}</h2>")
+                        html_content.append("            <div class='report-list'>")
+
+                        for file in files:
+                            html_content.append(
+                                f"                <p><a href='../{dir_name}/{file.name}' target='_blank'>{file.name}</a></p>"
+                            )
+
+                        html_content.append("            </div>")
+                        html_content.append("        </div>")
+
+            # Adicionar lista de pessoas
+            special_dirs = {
+                "individual_reports",
+                "logs",
+                "action_plans",
+                "summaries",
+                "heat_maps",
+                "benchmark_reports",
+                "team_reports",
+                "radar_charts",
+                "stakeholder_analysis",
+                "ai_prompts",
+                "mermaid",
+                "summary",
+                "reports",
+                "benchmarks",
+                "docs",
+                "teams",
+                "time_series",
+                "career_progression",
+                "templates",
+                "data",
+                "consolidated",
+            }
+
+            person_dirs = [
+                d
+                for d in self.output_path.glob("*")
+                if d.is_dir() and d.name not in special_dirs
+            ]
+
+            if person_dirs:
+                html_content.append("        <div class='report-section'>")
+                html_content.append("            <h2>Pessoas</h2>")
+                html_content.append("            <div class='report-list'>")
+
+                for person_dir in person_dirs:
+                    files = list(person_dir.glob("*.*"))
+                    if files:
+                        html_content.append(
+                            f"                <h3>{person_dir.name}</h3>"
+                        )
+                        for file in files:
+                            html_content.append(
+                                f"                <p><a href='../{person_dir.name}/{file.name}' target='_blank'>{file.name}</a></p>"
+                            )
+
+                html_content.append("            </div>")
+                html_content.append("        </div>")
+
+            # Finalizar HTML
+            html_content.extend(
+                [
+                    "    </div>",
+                    "    <footer>",
+                    "        <div class='container'>",
+                    f"            <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
+                    "        </div>",
+                    "    </footer>",
+                    "</body>",
+                    "</html>",
+                ]
+            )
+
+            # Salvar HTML
+            with open(dashboard_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(html_content))
+
+            results.append(f"Dashboard consolidado gerado em {dashboard_path}")
+
+            return results
+
+        except Exception as e:
+            error_msg = f"Erro na consolidação de dados: {str(e)}"
+            self.logger.error(error_msg)
+            return [error_msg]
+
+    def _process_additional_data_formats(self) -> List[str]:
+        """Processa formatos adicionais de dados como CSV, Excel, etc."""
+        from peopleanalytics.data_processor import DataProcessor
+
+        results = []
+        processor = DataProcessor(self.data_path, self.output_path)
+
+        # Determinar quais formatos processar
+        process_csv = self.selected_formats in ["csv", "all"]
+        process_excel = self.selected_formats in ["excel", "all"]
+        process_yaml = self.selected_formats in ["yaml", "all"]
+
+        # Processar arquivos CSV
+        if process_csv:
+            csv_files = list(self.data_path.glob("*.csv"))
+            csv_files.extend(list(self.data_path.glob("**/*.csv")))
+
+            if csv_files:
+                results.append(f"Encontrados {len(csv_files)} arquivos CSV")
+
+                for csv_file in csv_files:
+                    try:
+                        self.logger.info(f"Processando arquivo CSV: {csv_file}")
+                        # Tentar processar como dados de avaliação
+                        processor.import_file(
+                            csv_file, data_type="evaluations", format="csv"
+                        )
+                        results.append(f"Arquivo CSV processado: {csv_file.name}")
+                    except Exception as e:
+                        error_msg = (
+                            f"Erro ao processar arquivo CSV {csv_file.name}: {str(e)}"
+                        )
+                        self.logger.error(error_msg)
+                        results.append(error_msg)
+                        if not self.ignore_errors:
+                            raise
+
+        # Processar arquivos Excel
+        if process_excel:
+            excel_files = list(self.data_path.glob("*.xlsx"))
+            excel_files.extend(list(self.data_path.glob("**/*.xlsx")))
+            excel_files.extend(list(self.data_path.glob("*.xls")))
+            excel_files.extend(list(self.data_path.glob("**/*.xls")))
+
+            if excel_files:
+                results.append(f"Encontrados {len(excel_files)} arquivos Excel")
+
+                for excel_file in excel_files:
+                    try:
+                        self.logger.info(f"Processando arquivo Excel: {excel_file}")
+                        # Tentar processar como dados de avaliação
+                        processor.import_file(
+                            excel_file, data_type="evaluations", format="excel"
+                        )
+                        results.append(f"Arquivo Excel processado: {excel_file.name}")
+                    except Exception as e:
+                        error_msg = f"Erro ao processar arquivo Excel {excel_file.name}: {str(e)}"
+                        self.logger.error(error_msg)
+                        results.append(error_msg)
+                        if not self.ignore_errors:
+                            raise
+
+        # Processar arquivos YAML
+        if process_yaml:
+            yaml_files = list(self.data_path.glob("*.yaml"))
+            yaml_files.extend(list(self.data_path.glob("**/*.yaml")))
+            yaml_files.extend(list(self.data_path.glob("*.yml")))
+            yaml_files.extend(list(self.data_path.glob("**/*.yml")))
+
+            if yaml_files:
+                results.append(f"Encontrados {len(yaml_files)} arquivos YAML")
+
+                for yaml_file in yaml_files:
+                    try:
+                        self.logger.info(f"Processando arquivo YAML: {yaml_file}")
+                        # Tentar processar como dados de avaliação
+                        processor.import_file(
+                            yaml_file, data_type="evaluations", format="yaml"
+                        )
+                        results.append(f"Arquivo YAML processado: {yaml_file.name}")
+                    except Exception as e:
+                        error_msg = (
+                            f"Erro ao processar arquivo YAML {yaml_file.name}: {str(e)}"
+                        )
+                        self.logger.error(error_msg)
+                        results.append(error_msg)
+                        if not self.ignore_errors:
+                            raise
+
+        return results
 
 
 class SyncCommand(BaseCommand):
@@ -385,21 +878,76 @@ class SyncCommand(BaseCommand):
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Add command-specific arguments."""
         parser.add_argument(
-            "--data-path", "-d", type=str, help="Path to data directory"
+            "--data-path",
+            "-d",
+            type=str,
+            help="Caminho para o diretório de dados. Processa recursivamente a estrutura <pessoa>/<ano>/resultado.json",
         )
         parser.add_argument(
-            "--output-path", "-o", type=str, help="Path to output directory"
+            "--output-path",
+            "-o",
+            type=str,
+            help="Caminho para o diretório de saída onde serão salvos os relatórios e visualizações",
         )
         parser.add_argument(
             "--force",
             "-f",
             action="store_true",
-            help="Force reprocessing of already processed files",
+            help="Forçar reprocessamento de arquivos já processados",
+        )
+        parser.add_argument(
+            "--formatos",
+            choices=["json", "yaml", "csv", "excel", "all"],
+            default="all",
+            help="Formatos de arquivo a serem processados (padrão: todos)",
+        )
+        parser.add_argument(
+            "--pessoa",
+            type=str,
+            help="Filtrar processamento para uma pessoa específica",
+        )
+        parser.add_argument(
+            "--ano", type=str, help="Filtrar processamento para um ano específico"
+        )
+        parser.add_argument(
+            "--gerar-dashboard",
+            action="store_true",
+            default=True,
+            help="Gerar dashboard consolidado (padrão: True)",
+        )
+        parser.add_argument(
+            "--skip-viz",
+            action="store_true",
+            help="Pular geração de visualizações (gráficos, diagramas) para processamento mais rápido",
+        )
+        parser.add_argument(
+            "--ignore-errors",
+            action="store_true",
+            help="Continuar processamento mesmo quando encontrar erros",
+        )
+        parser.add_argument(
+            "--compress-output",
+            action="store_true",
+            help="Comprimir resultados em um arquivo ZIP após processamento",
+        )
+        parser.add_argument(
+            "--export-excel",
+            action="store_true",
+            help="Exportar dados consolidados para Excel",
+        )
+        parser.add_argument(
+            "--verbose",
+            "-v",
+            action="store_true",
+            help="Mostrar informações detalhadas durante o processamento",
         )
 
     def execute(self, args: argparse.Namespace) -> int:
         """Execute the sync command."""
         self.console.print("[bold]Synchronizing data and generating reports...[/bold]")
+        self.console.print(
+            "[bold]Processando estrutura <pessoa>/<ano>/resultado.json e perfil.json[/bold]"
+        )
 
         try:
             # Convert paths to Path objects
@@ -417,8 +965,11 @@ class SyncCommand(BaseCommand):
             log_dir.mkdir(exist_ok=True, parents=True)
             log_file = log_dir / f"sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
+            # Configurar nível de log baseado na flag ignore_errors
+            log_level = logging.WARNING if args.ignore_errors else logging.INFO
+
             logging.basicConfig(
-                level=logging.INFO,
+                level=log_level,
                 format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                 handlers=[
                     logging.StreamHandler(sys.stdout),
@@ -427,33 +978,102 @@ class SyncCommand(BaseCommand):
             )
 
             # Display input parameters
-            self.console.print(f"[cyan]Data directory:[/cyan] {data_path}")
-            self.console.print(f"[cyan]Output directory:[/cyan] {output_path}")
+            self.console.print(f"[cyan]Diretório de dados:[/cyan] {data_path}")
+            self.console.print(f"[cyan]Diretório de saída:[/cyan] {output_path}")
             self.console.print(
-                f"[cyan]Force reprocessing:[/cyan] {'Yes' if args.force else 'No'}"
+                f"[cyan]Forçar reprocessamento:[/cyan] {'Sim' if args.force else 'Não'}"
+            )
+            self.console.print(f"[cyan]Formatos a processar:[/cyan] {args.formatos}")
+
+            if args.pessoa:
+                self.console.print(f"[cyan]Filtro de pessoa:[/cyan] {args.pessoa}")
+            if args.ano:
+                self.console.print(f"[cyan]Filtro de ano:[/cyan] {args.ano}")
+
+            self.console.print(
+                f"[cyan]Ignorar erros:[/cyan] {'Sim' if args.ignore_errors else 'Não'}"
+            )
+            self.console.print(
+                f"[cyan]Pular visualizações:[/cyan] {'Sim' if args.skip_viz else 'Não'}"
+            )
+            self.console.print(
+                f"[cyan]Compactar resultados:[/cyan] {'Sim' if args.compress_output else 'Não'}"
+            )
+            self.console.print(
+                f"[cyan]Exportar para Excel:[/cyan] {'Sim' if args.export_excel else 'Não'}"
+            )
+            self.console.print(
+                f"[cyan]Modo verboso:[/cyan] {'Sim' if args.verbose else 'Não'}"
+            )
+            self.console.print(
+                "[cyan]Estrutura esperada:[/cyan] <pessoa>/<ano>/resultado.json"
             )
             self.console.print()
 
             # Initialize sync object
             self.sync = DataSync(data_path, output_path, args.force)
 
+            # Configurar opções adicionais
+            self.sync.skip_viz = args.skip_viz
+            self.sync.ignore_errors = args.ignore_errors
+            self.sync.selected_formats = args.formatos
+            self.sync.pessoa_filter = args.pessoa
+            self.sync.ano_filter = args.ano
+            self.sync.export_excel = args.export_excel
+            self.sync.verbose = args.verbose
+
             # Perform sync operations
             with Progress() as progress:
-                task = progress.add_task("Synchronizing data...", total=None)
+                task = progress.add_task("Processando dados...", total=None)
 
-                results = self.sync.run()
+                try:
+                    results = self.sync.run()
+                except Exception as e:
+                    if args.ignore_errors:
+                        self.console.print(
+                            f"[yellow]Erro durante o processamento, mas continuando:[/yellow] {str(e)}"
+                        )
+                        results = [
+                            "Erro durante o processamento, mas continuando devido à flag --ignore-errors"
+                        ]
+                    else:
+                        raise
 
                 progress.update(task, completed=1)
 
             # Display results
-            self.console.print("\n[bold]Sync Results:[/bold]")
+            self.console.print("\n[bold]Resultados da Sincronização:[/bold]")
             for result in results:
                 self.console.print(f"- {result}")
+
+            # Compress results if requested
+            if args.compress_output:
+                try:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    zip_path = Path.cwd() / f"output_sync_{timestamp}.zip"
+
+                    import os
+                    import zipfile
+
+                    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                        for root, dirs, files in os.walk(output_path):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                arcname = os.path.relpath(file_path, output_path)
+                                zipf.write(file_path, arcname)
+
+                    self.console.print(
+                        f"\n[green]Resultados compactados em:[/green] {zip_path}"
+                    )
+                except Exception as e:
+                    self.console.print(
+                        f"[red]Erro ao compactar resultados:[/red] {str(e)}"
+                    )
 
             return 0
 
         except Exception as e:
-            self.console.print(f"[red]Error synchronizing data:[/red] {str(e)}")
+            self.console.print(f"[red]Erro na sincronização:[/red] {str(e)}")
             logging.exception("Error in sync command")
             return 1
 
