@@ -1,0 +1,16 @@
+Sync test output generated at 2025-04-16 17:17:08.911697
+Data directory: data
+Output directory: custom_output
+Pessoa filter: Ana Silva
+Ano filter: None
+Selected formats: all
+Force: True
+Skip viz: False
+Ignore errors: False
+Zip: True
+Skip dashboard: False
+Export Excel: True
+Rich markdown: True
+Parallel: True
+Workers: 0
+Batch size: 0

@@ -8,6 +8,7 @@ organized by domain areas.
 from typing import Dict, Type
 
 from .base_command import BaseCommand
+from .career_commands import CareerSimCommand
 
 # Import commands by domain
 from .data_commands import (
@@ -17,6 +18,8 @@ from .data_commands import (
     ListCommand,
     ValidateCommand,
 )
+from .feedback_commands import FeedbackCycleCommand
+from .network_commands import InfluenceNetworkCommand
 from .people_commands import (
     AddAttendanceCommand,
     AddPaymentCommand,
@@ -52,6 +55,12 @@ COMMANDS: Dict[str, Type[BaseCommand]] = {
     "nine-box": NineBoxCommand,
     # Sync command
     "sync": SyncCommand,
+    # Feedback command
+    "feedback-cycle": FeedbackCycleCommand,
+    # Career simulation command
+    "career-sim": CareerSimCommand,
+    # Network analysis command
+    "influence-network": InfluenceNetworkCommand,
 }
 
 __all__ = [
@@ -76,4 +85,10 @@ __all__ = [
     "NineBoxCommand",
     # Sync command
     "SyncCommand",
+    # Feedback command
+    "FeedbackCycleCommand",
+    # Career simulation command
+    "CareerSimCommand",
+    # Network analysis command
+    "InfluenceNetworkCommand",
 ]

@@ -317,3 +317,4 @@ output/team_analysis/
 node_modules/
 electron-app/node_modules/
 
+output-zip/consolidated/dashboard.html
