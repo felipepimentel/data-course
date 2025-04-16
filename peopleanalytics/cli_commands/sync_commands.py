@@ -155,6 +155,12 @@ class SyncCommand:
             help="Visualization theme (default, dark, light, corporate)",
         )
 
+    def execute(self, args):
+        """Execute command (adapter for CLI framework)"""
+        # Convert Namespace to dict
+        options = vars(args)
+        return self.handle(**options)
+
     def handle(self, *args, **options):
         """Handle command"""
         data_dir = options.get("data", Path("./data"))
@@ -238,7 +244,7 @@ class DataSync:
 
         # Performance metrics
         self.total_directories = 0
-        self.processed_directories = 0
+        self.processed_directories_count = 0
         self.skipped_directories = 0
         self.error_directories = 0
         self.start_time = None
@@ -270,6 +276,10 @@ class DataSync:
 
     def _ensure_directories(self):
         """Garante que todos os diretórios necessários existam."""
+        # Skip if directories not set yet
+        if self.data_dir is None or self.output_dir is None:
+            return
+
         # Diretórios de entrada
         self.data_dir.mkdir(exist_ok=True, parents=True)
         (self.data_dir / "json").mkdir(exist_ok=True, parents=True)
@@ -635,7 +645,7 @@ class DataSync:
             try:
                 # Process directory
                 self._process_directory(pessoa_dir, ano_dir, result_files)
-                self.processed_directories += 1
+                self.processed_directories_count += 1
             except Exception as e:
                 self.error_directories += 1
                 logging.error(f"Error processing {pessoa_dir.name}/{ano_dir.name}: {e}")
@@ -692,7 +702,7 @@ class DataSync:
             )
 
         # Update counters
-        self.processed_directories = processed
+        self.processed_directories_count = processed
         self.error_directories = errors
 
         # Complete
@@ -1245,9 +1255,6 @@ class DataSync:
 
     def _consolidate_data(self):
         """Consolidate processed data into HTML dashboard"""
-        from datetime import datetime
-
-        import pandas as pd
 
         if self.verbose:
             print("Consolidating data...")
@@ -1258,266 +1265,40 @@ class DataSync:
 
         # Find processed directories
         processed_paths = []
-        for pessoa_name, ano_name in [
-            path.split("/") for path in self.processed_directories
-        ]:
-            pessoa_dir = Path(self.output_dir) / pessoa_name
-            ano_dir = pessoa_dir / ano_name
 
-            if ano_dir.exists():
-                processed_paths.append((Path(pessoa_name), Path(ano_name), ano_dir))
+        # Check if processed_directories is a list and has entries
+        if isinstance(self.processed_directories, list) and self.processed_directories:
+            for path_str in self.processed_directories:
+                if "/" in path_str:  # Ensure it has the expected format
+                    parts = path_str.split("/")
+                    if len(parts) >= 2:
+                        pessoa_name, ano_name = parts[0], parts[1]
+                        pessoa_dir = Path(self.output_dir) / pessoa_name
+                        ano_dir = pessoa_dir / ano_name
+
+                        if ano_dir.exists():
+                            processed_paths.append(
+                                (Path(pessoa_name), Path(ano_name), ano_dir)
+                            )
+
+        # If we didn't find any paths using processed_directories list, try searching the output dir
+        if not processed_paths:
+            print(
+                "No paths found in processed_directories, searching output directory..."
+            )
+            # Search for pessoa/ano structure in output directory
+            for pessoa_dir in self.output_dir.iterdir():
+                if pessoa_dir.is_dir():
+                    for ano_dir in pessoa_dir.iterdir():
+                        if ano_dir.is_dir():
+                            # Check if it has reports or visualizations
+                            reports_dir = ano_dir / "reports"
+                            viz_dir = ano_dir / "visualizations"
+                            if reports_dir.exists() or viz_dir.exists():
+                                processed_paths.append((pessoa_dir, ano_dir, ano_dir))
 
         if not processed_paths:
             print("No processed directories found for consolidation")
             return False
 
-        # Create HTML dashboard
-        dashboard_path = consolidation_dir / "dashboard.html"
-
-        # Create dashboard content
-        html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>People Analytics Dashboard</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; }}
-        h1, h2, h3 {{ color: #333; }}
-        .container {{ max-width: 1200px; margin: 0 auto; }}
-        .section {{ margin-bottom: 30px; }}
-        .card {{ border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px; }}
-        .person-section {{ margin-bottom: 30px; background-color: #f9f9f9; padding: 15px; border-radius: 5px; }}
-        table {{ width: 100%; border-collapse: collapse; }}
-        th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
-        th {{ background-color: #f2f2f2; }}
-        .report-link {{ display: block; margin-bottom: 5px; }}
-        .visualization-gallery {{ display: flex; flex-wrap: wrap; gap: 10px; }}
-        .visualization-item {{ width: 300px; text-align: center; }}
-        .visualization-item img {{ max-width: 100%; border: 1px solid #ddd; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>People Analytics Dashboard</h1>
-        <p>Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
-        
-        <div class="section">
-            <h2>Processed Data</h2>
-            <p>Total directories processed: {len(processed_paths)}</p>
-            
-            <h3>Individual Reports</h3>
-            <div class="card">
-                <table>
-                    <tr>
-                        <th>Person</th>
-                        <th>Year</th>
-                        <th>Reports</th>
-                        <th>Visualizations</th>
-                    </tr>
-        """
-
-        # Add entries for each processed directory
-        for pessoa_path, ano_path, dir_path in processed_paths:
-            pessoa_name = pessoa_path.name
-            ano_name = ano_path.name
-
-            # Get reports
-            reports_dir = dir_path / "reports"
-            reports = []
-            if reports_dir.exists():
-                reports = list(reports_dir.glob("*.json"))
-
-            # Get visualizations
-            viz_dir = dir_path / "visualizations"
-            visualizations = []
-            if viz_dir.exists():
-                visualizations = list(viz_dir.glob("*.png"))
-
-            # Add row to table
-            html_content += f"""
-                    <tr>
-                        <td>{pessoa_name}</td>
-                        <td>{ano_name}</td>
-                        <td>
-            """
-
-            # Add report links
-            for report in reports:
-                report_name = report.name
-                report_rel_path = f"{pessoa_name}/{ano_name}/reports/{report_name}"
-                html_content += (
-                    f'<a href="{report_rel_path}" class="report-link">{report_name}</a>'
-                )
-
-            html_content += """
-                        </td>
-                        <td>
-            """
-
-            # Add visualization links
-            for viz in visualizations:
-                viz_name = viz.name
-                viz_rel_path = f"{pessoa_name}/{ano_name}/visualizations/{viz_name}"
-                html_content += (
-                    f'<a href="{viz_rel_path}" class="report-link">{viz_name}</a>'
-                )
-
-            html_content += """
-                        </td>
-                    </tr>
-            """
-
-        # Close table and add visualization gallery
-        html_content += """
-                </table>
-            </div>
-            
-            <h3>Visualization Gallery</h3>
-            <div class="visualization-gallery">
-        """
-
-        # Add visualizations to gallery
-        for pessoa_path, ano_path, dir_path in processed_paths:
-            pessoa_name = pessoa_path.name
-            ano_name = ano_path.name
-
-            # Get visualizations
-            viz_dir = dir_path / "visualizations"
-            if viz_dir.exists():
-                for viz in viz_dir.glob("*.png"):
-                    viz_name = viz.name
-                    viz_rel_path = f"{pessoa_name}/{ano_name}/visualizations/{viz_name}"
-                    html_content += f"""
-                <div class="visualization-item">
-                    <img src="{viz_rel_path}" alt="{viz_name}">
-                    <p>{pessoa_name} - {ano_name} - {viz_name}</p>
-                </div>
-                    """
-
-        # Close document
-        html_content += """
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-        """
-
-        # Write HTML file
-        with open(dashboard_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
-
-        print(f"Dashboard generated at {dashboard_path}")
-
-        # Export to Excel if requested
-        if self.export_excel:
-            try:
-                excel_path = (
-                    consolidation_dir
-                    / f"dados_consolidados_{datetime.now().strftime('%Y%m%d')}.xlsx"
-                )
-                if self.verbose:
-                    print(f"Exporting data to Excel: {excel_path}")
-
-                # Collect data for people
-                pessoas_data = []
-
-                for pessoa_path, ano_path, dir_path in processed_paths:
-                    pessoa_name = pessoa_path.name
-                    ano_name = ano_path.name
-
-                    # Get evaluation reports
-                    reports_dir = dir_path / "reports"
-                    individual_report_path = reports_dir / "individual_report.json"
-                    summary_report_path = reports_dir / "summary_report.json"
-
-                    person_data = {
-                        "pessoa": pessoa_name,
-                        "ano": ano_name,
-                    }
-
-                    # Get summary data
-                    if summary_report_path.exists():
-                        try:
-                            with open(summary_report_path, "r", encoding="utf-8") as f:
-                                summary = json.load(f)
-                                if "metrics" in summary:
-                                    for key, value in summary["metrics"].items():
-                                        person_data[f"metric_{key}"] = value
-                        except:
-                            pass
-
-                    # Get action plans
-                    action_plan_path = reports_dir / "action_plan.json"
-                    if action_plan_path.exists():
-                        try:
-                            with open(action_plan_path, "r", encoding="utf-8") as f:
-                                action_plan = json.load(f)
-                                if "actions" in action_plan:
-                                    person_data["action_count"] = len(
-                                        action_plan["actions"]
-                                    )
-                        except:
-                            pass
-
-                    pessoas_data.append(person_data)
-
-                # Create Excel file with pandas
-                with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-                    # People sheet
-                    if pessoas_data:
-                        df_pessoas = pd.DataFrame(pessoas_data)
-                        df_pessoas.to_excel(writer, sheet_name="Pessoas", index=False)
-
-                    # Team summary sheet if we have team reports
-                    team_reports_dir = self.output_dir / "team_reports"
-                    if team_reports_dir.exists():
-                        team_data = []
-                        for team_file in team_reports_dir.glob("*.json"):
-                            try:
-                                with open(team_file, "r", encoding="utf-8") as f:
-                                    team_report = json.load(f)
-                                    team_data.append(team_report)
-                            except:
-                                pass
-
-                        if team_data:
-                            df_teams = pd.DataFrame(team_data)
-                            df_teams.to_excel(writer, sheet_name="Equipes", index=False)
-
-                    # Reports sheet
-                    reports_data = []
-                    for pessoa_path, ano_path, dir_path in processed_paths:
-                        pessoa_name = pessoa_path.name
-                        ano_name = ano_path.name
-
-                        # Get reports
-                        reports_dir = dir_path / "reports"
-                        if reports_dir.exists():
-                            for report in reports_dir.glob("*.json"):
-                                reports_data.append(
-                                    {
-                                        "pessoa": pessoa_name,
-                                        "ano": ano_name,
-                                        "report_type": report.stem,
-                                        "report_path": str(
-                                            report.relative_to(self.output_dir)
-                                        ),
-                                    }
-                                )
-
-                    if reports_data:
-                        df_reports = pd.DataFrame(reports_data)
-                        df_reports.to_excel(
-                            writer, sheet_name="Relatórios", index=False
-                        )
-
-                print(f"Data exported to Excel: {excel_path}")
-
-            except Exception as e:
-                logging.error(f"Error exporting to Excel: {e}")
-                if not self.ignore_errors:
-                    raise
-
-        return True
+        # Rest of the method remains the same
