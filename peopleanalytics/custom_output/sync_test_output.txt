@@ -1,0 +1,16 @@
+Sync test output generated at 2025-04-16 19:50:10.080833
+Data directory: custom_data
+Output directory: custom_output
+Pessoa filter: john
+Ano filter: 2023
+Selected formats: csv,json
+Force: True
+Skip viz: False
+Ignore errors: False
+Zip: False
+Skip dashboard: True
+Export Excel: True
+Rich markdown: True
+Parallel: True
+Workers: 4
+Batch size: 100
