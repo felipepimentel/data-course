@@ -100,8 +100,11 @@ python -m peopleanalytics generate-template --format json --output data/template
 
 # Preencher o template com dados e colocá-lo em data/templates/
 
-# Sincronizar para processar os dados
-python -m peopleanalytics sync --data-path data --output-path output
+# Sincronizar para processar os dados (versão básica)
+python -m peopleanalytics sync --data-dir data --output-dir output
+
+# Ou com opções avançadas
+python -m peopleanalytics sync --data-dir data --output-dir output --skip-viz --pessoa "João Silva" --ano 2023 --export-excel --verbose
 
 # Verificar relatórios gerados na pasta output/
 ```
@@ -238,6 +241,19 @@ Os dados de progressão de carreira seguem esta estrutura JSON:
 - **Heatmaps de time**: Identificação de pontos fortes e gaps na equipe
 - **Gráficos de benchmark**: Comparação entre membros e equipes
 - **Dashboards interativos**: Visões consolidadas em HTML e JSON
+- **Dashboard consolidado**: Página HTML central com links para todos os relatórios
+- **Exportação Excel**: Dados consolidados em planilha Excel para análise adicional
+
+O dashboard consolidado (`output/dashboard/index.html`) organiza todos os relatórios gerados:
+- Relatórios individuais organizados por pessoa/ano
+- Relatórios de equipe para análise coletiva
+- Resumos e benchmarks para comparação
+- Análises de tendências e evolução temporal
+
+A exportação para Excel (`output/dashboard/dados_consolidados_YYYYMMDD.xlsx`) inclui:
+- Aba "Pessoas" com dados individuais de avaliação
+- Aba "Equipes" com métricas coletivas
+- Aba "Relatórios" com índice de todos os documentos gerados
 
 ## 🔍 Métricas Calculadas
 
@@ -249,12 +265,43 @@ Os dados de progressão de carreira seguem esta estrutura JSON:
 
 ## 🛠️ Comandos Disponíveis
 
+### Sync Command Enhanced
+
+O comando `sync` foi aprimorado para oferecer maior flexibilidade e poder de processamento:
+
+```bash
+# Exemplos do comando sync
+python -m peopleanalytics sync --data-dir ./data --output-dir ./output  # Básico
+python -m peopleanalytics sync --skip-viz  # Pula geração de visualizações
+python -m peopleanalytics sync --skip-benchmark  # Pula geração de benchmarks
+python -m peopleanalytics sync --pessoa TestPerson  # Filtra por pessoa
+python -m peopleanalytics sync --ano 2023  # Filtra por ano
+python -m peopleanalytics sync --export-excel  # Exporta para Excel
+python -m peopleanalytics sync --ignore-errors  # Continua mesmo com erros
+python -m peopleanalytics sync --verbose  # Exibe detalhes do processamento
+```
+
+#### Opções do Comando Sync:
+- `--data-dir`: Diretório com os dados de entrada
+- `--output-dir`: Diretório para salvar os resultados
+- `--force`: Força reprocessamento de arquivos já processados
+- `--skip-viz`: Pula a geração de visualizações (gráficos, dashboards)
+- `--skip-benchmark`: Pula a geração de relatórios de benchmark
+- `--ignore-errors`: Continua processamento mesmo se ocorrerem erros
+- `--formatos`: Formatos específicos a processar (json,yaml,csv,excel,all)
+- `--pessoa`: Filtra processamento para uma pessoa específica
+- `--ano`: Filtra processamento para um ano específico
+- `--export-excel`: Exporta dados consolidados para Excel
+- `--verbose`: Mostra informações detalhadas durante processamento
+- `--compress`: Comprime resultados para economizar espaço
+
+O comando processa dados na estrutura `<pessoa>/<ano>/resultado.json` e `perfil.json`, gerando relatórios individuais, de equipe, visualizações e análises comparativas.
+
 ### Fluxo de Trabalho Manual
 
 ```
 generate-template   Gerar template para preenchimento manual
 update-career       Extrair dados existentes para atualização
-sync                Sincronizar e processar todos os dados
 docs                Gerar documentação específica
 ```
 
@@ -279,6 +326,11 @@ PA_OUTPUT_PATH=./output        # Caminho para saída de relatórios
 PA_USE_NPS_MODEL=true          # Usar modelo NPS para pontuação
 PA_DEFAULT_TEMPLATE=json       # Formato padrão para templates
 PA_LOG_LEVEL=INFO              # Nível de log (DEBUG, INFO, WARNING, ERROR)
+PA_SKIP_VIZ=false              # Pular geração de visualizações
+PA_SKIP_BENCHMARK=false        # Pular geração de benchmarks
+PA_EXPORT_EXCEL=false          # Exportar dados consolidados para Excel
+PA_FORMATS=all                 # Formatos a processar (json,yaml,csv,excel,all)
+PA_IGNORE_ERRORS=false         # Ignorar erros durante o processamento
 ```
 
 ## 📄 Licença
