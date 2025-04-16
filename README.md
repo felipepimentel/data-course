@@ -5,31 +5,9 @@ Uma plataforma abrangente para análise e gestão de desenvolvimento de pessoas,
 ![Python](https://img.shields.io/badge/python-3.7%2B-brightgreen.svg)
 ![Licença](https://img.shields.io/badge/licença-Apache%202.0-blue.svg)
 
-## 🚀 Início Rápido
+## �� Início Rápido
 
-### Usando o Makefile
-
-```bash
-# Instalar o UV (opcional, recomendado para instalação mais rápida)
-make install-uv
-
-# Instalar dependências
-make install
-
-# Gerar dados de exemplo
-make sample
-
-# Iniciar o dashboard
-make dashboard
-
-# Executar sincronização de dados
-make sync
-
-# Ou executar todos os passos em sequência
-make all
-```
-
-### Instalação Manual
+### Instalação
 
 ```bash
 # Criar ambiente virtual
@@ -39,12 +17,16 @@ source venv/bin/activate  # No Windows: venv\Scripts\activate
 # Instalar dependências
 pip install -r requirements.txt  
 pip install -e .
+```
 
-# Gerar dados de exemplo
-python -m scripts.dashboard.populate_sample_data
+### Comandos Básicos
 
-# Iniciar o dashboard
-python -m scripts.run_dashboard
+```bash
+# Executar sincronização de dados
+python -m peopleanalytics sync
+
+# Exibir ajuda da CLI
+python -m peopleanalytics help
 ```
 
 ## 📊 Funcionalidades Principais
@@ -60,16 +42,18 @@ python -m scripts.run_dashboard
 
 ## ⚙️ Uso do CLI
 
+A CLI (Command Line Interface) funciona como ponto único de entrada para todas as funcionalidades do sistema.
+
 ### Comando Sync
 
 O comando `sync` é a principal ferramenta para processamento de dados, gerando relatórios, visualizações e análises.
 
 ```bash
 # Formato básico
-python sync_app.py --data-dir DATA_DIR --output-dir OUTPUT_DIR [opções]
+python -m peopleanalytics sync --data-dir DATA_DIR --output-dir OUTPUT_DIR [opções]
 
 # Exemplo com diretórios padrão
-python sync_app.py
+python -m peopleanalytics sync
 ```
 
 #### Opções disponíveis:
@@ -108,13 +92,13 @@ python sync_app.py
 
 ```bash
 # Filtrar por pessoa e ano
-python sync_app.py --data-dir data --output-dir output --pessoa "João Silva" --ano 2023
+python -m peopleanalytics sync --data-dir data --output-dir output --pessoa "João Silva" --ano 2023
 
 # Desabilitar recursos específicos
-python sync_app.py --no-viz --no-excel --no-markdown
+python -m peopleanalytics sync --no-viz --no-excel --no-markdown
 
 # Processamento sequencial com tratamento de erros
-python sync_app.py --no-parallel --ignore-errors --force
+python -m peopleanalytics sync --no-parallel --ignore-errors --force
 ```
 
 ## 📁 Estrutura do Projeto
@@ -130,15 +114,14 @@ people-analytics/
 ├── output/                 # Relatórios e visualizações geradas
 ├── peopleanalytics/        # Código-fonte do pacote
 │   ├── cli_commands/       # Comandos CLI
+│   ├── cli_unified.py      # CLI unificada (ponto de entrada)
 │   ├── domain/             # Modelos de domínio
 │   └── utils/              # Utilitários
 ├── scripts/                # Scripts utilitários
 ├── tests/                  # Testes automatizados
 ├── notebooks/              # Jupyter notebooks para análises
 ├── requirements.txt        # Dependências Python
-├── setup.py                # Configuração do pacote
-├── Makefile                # Automações do projeto
-└── sync_app.py             # Script standalone para sincronização
+└── setup.py                # Configuração do pacote
 ```
 
 ## 📄 Estrutura de Dados
@@ -162,6 +145,24 @@ Os dados de progressão de carreira seguem estrutura JSON:
   }
 }
 ```
+
+## 🔄 Arquitetura da CLI
+
+O sistema utiliza uma arquitetura de linha de comando unificada que oferece as seguintes vantagens:
+
+- **Ponto único de entrada**: Todos os comandos são acessados através do módulo principal `python -m peopleanalytics`
+- **Extensibilidade**: Novos comandos podem ser facilmente adicionados à CLI unificada
+- **Manutenção simplificada**: Alterações na interface de linha de comando são centralizadas
+- **Consistência**: Padrão uniforme para todos os comandos e subcomandos
+- **Isolamento de erros**: Problemas em um comando não afetam o funcionamento de outros
+
+A implementação usa o módulo `argparse` do Python para criar uma interface amigável com documentação embutida, acessível através do comando de ajuda:
+
+```bash
+python -m peopleanalytics help
+```
+
+Novos comandos podem ser adicionados seguindo o padrão estabelecido no módulo `cli_unified.py`.
 
 ## 💡 Modelo de Pontuação NPS
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-Standalone sync application that follows the CLI patterns from the README.
-This bypasses the indentation error in sync_commands.py.
+Unified Command Line Interface for People Analytics.
+This module provides a unified CLI that serves as the single entry point.
 """
 
 import argparse
@@ -37,7 +37,7 @@ def setup_logger(name):
 
 class DataSync:
     """
-    Simplified DataSync class that follows the standard CLI patterns.
+    Data synchronization and processing functionality.
     """
 
     def __init__(self):
@@ -79,15 +79,13 @@ class DataSync:
         # Create output directory if it doesn't exist
         self.output_dir.mkdir(exist_ok=True)
 
+        # Create data directory if it doesn't exist
+        if not self.data_dir.exists():
+            print(f"Creating data directory: {self.data_dir}")
+            self.data_dir.mkdir(exist_ok=True)
+
         # Simulate the steps of the sync process
         print("1. Checking data directory structure...")
-
-        # Check if data directory exists
-        if not self.data_dir.exists():
-            print(
-                f"Warning: Data directory {self.data_dir} does not exist. Creating it."
-            )
-            self.data_dir.mkdir(exist_ok=True)
 
         # Process filters
         print(
@@ -148,15 +146,126 @@ class DataSync:
 
 class SyncCommand:
     """
-    Command sync para processar dados - simplified implementation.
+    Command to synchronize and process data.
     """
 
-    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+    def execute(self, args):
+        """Execute the sync command"""
+        logger = setup_logger("sync")
+
+        # Initialize DataSync
+        sync = DataSync()
+
+        # Set options
+        sync.data_dir = Path(args.data_dir)
+        sync.output_dir = Path(args.output_dir)
+        sync.force = args.force
+        sync.skip_viz = args.skip_viz
+        sync.ignore_errors = args.ignore_errors
+        sync.zip = not args.no_zip
+        sync.skip_dashboard = args.skip_dashboard
+        sync.selected_formats = args.formatos
+        sync.pessoa_filter = args.pessoa
+        sync.ano_filter = args.ano
+        sync.export_excel = not args.no_excel
+        sync.rich_markdown = not args.no_markdown
+        sync.verbose = args.verbose or not args.quiet
+        sync.parallel = not args.no_parallel
+        sync.workers = args.workers
+        sync.batch_size = args.batch_size
+        # Progress is always on unless quiet is specified
+        sync.progress = not args.quiet
+
+        # Execute
+        logger.info("Starting sync command execution")
+        return sync.execute()
+
+
+class CLI:
+    """
+    Unified CLI for People Analytics.
+    """
+
+    def __init__(self):
+        """Initialize the CLI."""
+        self.logger = setup_logger("cli")
+
+    def run(self) -> int:
         """
-        Add command-specific arguments to the parser.
+        Run the CLI application.
+
+        Returns:
+            int: Return code (0 for success, non-zero for error)
+        """
+        # Parse command-line arguments
+        parser = self.create_parser()
+        args = parser.parse_args()
+
+        # Configure logging based on verbose flag
+        log_level = (
+            logging.DEBUG if hasattr(args, "verbose") and args.verbose else logging.INFO
+        )
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+
+        # If no command was provided, show help
+        if not hasattr(args, "command") or not args.command:
+            parser.print_help()
+            return 1
+
+        # Handle commands
+        if args.command == "sync":
+            return self.handle_sync_command(args)
+        elif args.command == "help":
+            parser.print_help()
+            return 0
+        else:
+            print(f"Unknown command: {args.command}")
+            parser.print_help()
+            return 1
+
+    def create_parser(self) -> argparse.ArgumentParser:
+        """
+        Create the command-line argument parser.
+
+        Returns:
+            argparse.ArgumentParser: The configured parser
+        """
+        # Create main parser
+        parser = argparse.ArgumentParser(
+            description="People Analytics CLI", prog="peopleanalytics"
+        )
+
+        # Add global arguments
+        parser.add_argument(
+            "--verbose", "-v", action="store_true", help="Enable verbose output"
+        )
+
+        # Create subparsers for commands
+        subparsers = parser.add_subparsers(
+            dest="command",
+            title="Commands",
+            description="Available commands",
+            help="Command to execute",
+        )
+
+        # Add 'sync' command
+        sync_parser = subparsers.add_parser("sync", help="Synchronize and process data")
+        self.add_sync_arguments(sync_parser)
+
+        # Add 'help' command
+        help_parser = subparsers.add_parser("help", help="Show help")
+
+        return parser
+
+    def add_sync_arguments(self, parser: argparse.ArgumentParser) -> None:
+        """
+        Add sync command arguments to the parser.
 
         Args:
-            parser: The argparse parser or subparser to add arguments to
+            parser: The argparse parser to add arguments to
         """
         # Input/output options
         parser.add_argument(
@@ -260,62 +369,30 @@ class SyncCommand:
             help="Show detailed information during processing",
         )
 
-    def execute(self, args):
-        """Execute the sync command"""
-        logger = setup_logger("sync")
+    def handle_sync_command(self, args):
+        """
+        Handle the sync command.
 
-        # Initialize DataSync
-        self.sync = DataSync()
+        Args:
+            args: The parsed command-line arguments
 
-        # Set options
-        self.sync.data_dir = Path(args.data_dir)
-        self.sync.output_dir = Path(args.output_dir)
-        self.sync.force = args.force
-        self.sync.skip_viz = args.skip_viz
-        self.sync.ignore_errors = args.ignore_errors
-        self.sync.zip = not args.no_zip
-        self.sync.skip_dashboard = args.skip_dashboard
-        self.sync.selected_formats = args.formatos
-        self.sync.pessoa_filter = args.pessoa
-        self.sync.ano_filter = args.ano
-        self.sync.export_excel = not args.no_excel
-        self.sync.rich_markdown = not args.no_markdown
-        self.sync.verbose = args.verbose or not args.quiet
-        self.sync.parallel = not args.no_parallel
-        self.sync.workers = args.workers
-        self.sync.batch_size = args.batch_size
-        # Progress is always on unless quiet is specified
-        self.sync.progress = not args.quiet
-
-        # Execute
-        logger.info("Starting sync command execution")
-        return self.sync.execute()
+        Returns:
+            int: Return code (0 for success, non-zero for error)
+        """
+        try:
+            self.logger.info("Executing sync command")
+            command = SyncCommand()
+            return command.execute(args)
+        except Exception as e:
+            self.logger.error(f"Error executing sync command: {str(e)}")
+            return 1
 
 
 def main():
-    """Main entry point for the sync application."""
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-
-    # Create main parser
-    parser = argparse.ArgumentParser(description="People Analytics Sync Command")
-
-    # Add command arguments
-    command = SyncCommand()
-    command.add_arguments(parser)
-
-    # Parse arguments
-    args = parser.parse_args()
-
-    # Execute command
-    exit_code = command.execute(args)
-
-    # Exit with the appropriate code
-    return exit_code
+    """Run the CLI application."""
+    cli = CLI()
+    sys.exit(cli.run())
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

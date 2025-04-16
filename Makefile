@@ -52,4 +52,4 @@ all: install sample dashboard
 # Run sync process (ingest and transform data)
 sync:
 	@echo "Running data synchronization (ingest and transform)..."
-	python -m peopleanalytics sync 
+	PYTHONPATH=. python -c "from peopleanalytics.cli_unified import main; main()" sync 
