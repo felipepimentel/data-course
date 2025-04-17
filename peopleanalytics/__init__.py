@@ -5,7 +5,7 @@ Este pacote fornece ferramentas para análise de desempenho, feedback estruturad
 progressão de carreira e análise de equipes em um sistema unificado.
 """
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 # Configuração básica de logging
 import logging
@@ -36,11 +36,41 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-# Exportar componentes principais
-from peopleanalytics.analyzer import PerformanceAnalyzer
-from peopleanalytics.data_pipeline import DataPipeline
+# Core components
+# CLI components
+from peopleanalytics.cli import CLI, SyncCommand, main
 from peopleanalytics.data_processor import DataProcessor
+
+# Domain models
+from peopleanalytics.domain.evaluation import (
+    Evaluation,
+    EvaluationFrequency,
+    EvaluationScore,
+    EvaluationSet,
+    EvaluationType,
+)
+from peopleanalytics.domain.score import (
+    CompositeScore,
+    Score,
+    ScoreCategory,
+    ScoreHistory,
+    ScoreScale,
+)
+from peopleanalytics.domain.skill_base import (
+    Skill,
+    SkillLevel,
+    SkillMatrix,
+    SkillProficiency,
+    SkillType,
+    compare_skill_matrices,
+    derive_skill_gap,
+)
+from peopleanalytics.evaluation_analyzer import EvaluationAnalyzer
+from peopleanalytics.manager_feedback import ManagerFeedback
 from peopleanalytics.reports_generator import generate_report
+from peopleanalytics.sync import Sync
+
+# Talent development modules
 from peopleanalytics.talent_development import (
     CareerSimulator,
     DynamicMatrix9Box,
@@ -50,14 +80,37 @@ from peopleanalytics.talent_development import (
     PerformancePredictor,
 )
 
-# Importar submódulos principais
-from peopleanalytics.visualization import DataVisualizer, create_visualization
-
 # Disponibilizar classes e funções principais
 __all__ = [
-    "DataPipeline",
-    "create_visualization",
+    # Core components
+    "DataProcessor",
+    "EvaluationAnalyzer",
     "generate_report",
+    "Sync",
+    "ManagerFeedback",
+    # CLI components
+    "CLI",
+    "SyncCommand",
+    "main",
+    # Domain models
+    "Evaluation",
+    "EvaluationFrequency",
+    "EvaluationScore",
+    "EvaluationSet",
+    "EvaluationType",
+    "Score",
+    "ScoreCategory",
+    "CompositeScore",
+    "ScoreHistory",
+    "ScoreScale",
+    "Skill",
+    "SkillLevel",
+    "SkillMatrix",
+    "SkillProficiency",
+    "SkillType",
+    "compare_skill_matrices",
+    "derive_skill_gap",
+    # Talent development modules
     "DynamicMatrix9Box",
     "IntegratedFeedbackCycle",
     "InfluenceNetwork",

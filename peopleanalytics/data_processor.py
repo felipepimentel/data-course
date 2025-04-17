@@ -13,6 +13,8 @@ from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 
+from .data_pipeline import DataPipeline
+
 
 class DataProcessor:
     """Process and validate people evaluation data."""
@@ -38,6 +40,9 @@ class DataProcessor:
 
         # Setup logging
         self._setup_logging()
+
+        # Initialize the data pipeline for core operations
+        self.pipeline = DataPipeline(str(self.data_path))
 
     def _setup_logging(self):
         """Set up logging for the data processor."""
@@ -85,7 +90,7 @@ class DataProcessor:
             self.logger.info(f"No files found in {directory}")
             return {"success": True, "imported": 0, "message": "No files found"}
 
-        # Process each file
+        # Process each file using data pipeline's ingest_file
         results = {
             "success": True,
             "total": len(files),
@@ -111,24 +116,25 @@ class DataProcessor:
                 person = parts[-3]
                 year = parts[-2]
 
-                # Check if perfil.json exists and is not empty
-                perfil_path = file_path.parent / "perfil.json"
-                if not perfil_path.exists() or perfil_path.stat().st_size == 0:
-                    self.logger.warning(
-                        f"Skipping {file_path} - perfil.json missing or empty"
-                    )
-                    results["skipped"] += 1
-                    continue
+                # Ingest the file
+                ingest_result = self.pipeline.ingest_file(
+                    str(file_path), year=year, person=person, overwrite=False
+                )
 
-                # Load and validate the file
-                with open(file_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                # Validate schema
-                if not self._validate_schema(data):
-                    raise ValueError(f"Invalid data structure in {file_path}")
-
-                results["imported"] += 1
+                if ingest_result.get("success", False):
+                    results["imported"] += 1
+                else:
+                    error_type = ingest_result.get("error_type", "unknown")
+                    if error_type == "exists":
+                        results["skipped"] += 1
+                    else:
+                        results["failed"] += 1
+                        results["errors"].append(
+                            {
+                                "file": str(file_path),
+                                "error": ingest_result.get("error", "Unknown error"),
+                            }
+                        )
 
             except Exception as e:
                 results["failed"] += 1

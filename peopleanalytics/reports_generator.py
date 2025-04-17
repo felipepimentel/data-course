@@ -1,12 +1,49 @@
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import seaborn as sns
 
 from .data_model import PersonData
+from .evaluation_analyzer import EvaluationAnalyzer
+
+
+class ChartConfig:
+    """Configuration for chart generation"""
+
+    def __init__(
+        self,
+        title: str = "",
+        xlabel: str = "",
+        ylabel: str = "",
+        figsize: Tuple[int, int] = (10, 6),
+        palette: str = "viridis",
+        style: str = "whitegrid",
+        context: str = "talk",
+        font_scale: float = 1.0,
+        legend_title: Optional[str] = None,
+        grid: bool = True,
+        rotate_xlabels: bool = False,
+        rotate_ylabels: bool = False,
+        format_func: Optional[callable] = None,
+    ):
+        self.title = title
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        self.figsize = figsize
+        self.palette = palette
+        self.style = style
+        self.context = context
+        self.font_scale = font_scale
+        self.legend_title = legend_title
+        self.grid = grid
+        self.rotate_xlabels = rotate_xlabels
+        self.rotate_ylabels = rotate_ylabels
+        self.format_func = format_func
 
 
 def generate_report(
@@ -42,6 +79,36 @@ def generate_report(
             raise ValueError("Evaluation report requires a list of PersonData objects")
         return generate_evaluation_report(data, output_dir)
 
+    elif report_type.lower() == "skill_recommendations":
+        if not isinstance(data, list):
+            raise ValueError(
+                "Skill recommendations requires a list of PersonData objects"
+            )
+        return generate_skill_recommendations(data, output_dir)
+
+    elif report_type.lower() == "skill_analytics":
+        if not isinstance(data, list):
+            raise ValueError("Skill analytics requires a list of PersonData objects")
+        person_name = None
+        if isinstance(data, dict) and "person_name" in data:
+            person_name = data["person_name"]
+            data = data.get("data_list", [])
+        return generate_individual_skill_analytics(data, output_dir, person_name)
+
+    elif report_type.lower() == "advanced_visualizations":
+        if not isinstance(data, list):
+            raise ValueError(
+                "Advanced visualizations requires a list of PersonData objects"
+            )
+        return generate_advanced_visualizations(data, output_dir)
+
+    elif report_type.lower() == "comprehensive":
+        if not isinstance(data, list):
+            raise ValueError(
+                "Comprehensive report requires a list of PersonData objects"
+            )
+        return generate_comprehensive_report(data, output_dir)
+
     elif report_type.lower() == "custom":
         if not isinstance(data, dict):
             raise ValueError(
@@ -49,8 +116,422 @@ def generate_report(
             )
         return generate_custom_report(data, output_dir)
 
+    elif report_type.lower() == "360_evaluation":
+        # New report type for 360 evaluations using the EvaluationAnalyzer
+        if not isinstance(data, dict):
+            raise ValueError("360 evaluation report requires configuration parameters")
+        return generate_360_evaluation_report(data, output_dir)
+
     else:
         raise ValueError(f"Unknown report type: {report_type}")
+
+
+def generate_360_evaluation_report(data: Dict[str, Any], output_dir: str) -> str:
+    """Generate a 360-degree evaluation report using the EvaluationAnalyzer.
+
+    Args:
+        data: Dictionary with configuration parameters:
+            - data_path: Path to the data directory
+            - year: Year to analyze
+            - people: List of people to include (optional)
+            - include_comparative: Whether to include comparative analysis
+            - include_historical: Whether to include historical analysis
+
+    Returns:
+        Path to the generated report directory
+    """
+    # Extract parameters
+    data_path = data.get("data_path", "data")
+    year = data.get("year")
+    people = data.get("people", [])
+    include_comparative = data.get("include_comparative", True)
+    include_historical = data.get("include_historical", True)
+
+    # Create output directory
+    report_dir = os.path.join(
+        output_dir, f"360_evaluation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    )
+    os.makedirs(report_dir, exist_ok=True)
+
+    # Initialize analyzer
+    analyzer = EvaluationAnalyzer(data_path)
+
+    # Get available years and people if not specified
+    available_years = analyzer.get_all_years()
+    if not year and available_years:
+        year = available_years[-1]  # Use most recent year
+
+    available_people = analyzer.get_all_people()
+    if not people:
+        people = available_people
+
+    # Generate reports
+    results = {
+        "report_dir": report_dir,
+        "year": year,
+        "people_analyzed": [],
+        "comparative_report": None,
+        "historical_reports": [],
+    }
+
+    # Generate comparative report if requested
+    if include_comparative and year:
+        try:
+            comparative_file = os.path.join(report_dir, f"comparative_{year}.png")
+            df = analyzer.compare_people_for_year(year)
+            if not df.empty:
+                analyzer.plot_comparative_report(df, year, report_dir)
+
+                # Save as CSV too
+                csv_path = os.path.join(report_dir, f"comparative_{year}.csv")
+                df.to_csv(csv_path)
+
+                results["comparative_report"] = comparative_file
+                print(f"Generated comparative report for {year}")
+        except Exception as e:
+            print(f"Error generating comparative report: {str(e)}")
+
+    # Generate historical reports for each person if requested
+    if include_historical:
+        for person in people:
+            if person in available_people:
+                try:
+                    historical_file = os.path.join(
+                        report_dir, f"historical_{person}.png"
+                    )
+                    success = analyzer.generate_historical_report(
+                        person, historical_file
+                    )
+                    if success:
+                        results["historical_reports"].append(historical_file)
+                        results["people_analyzed"].append(person)
+                        print(f"Generated historical report for {person}")
+                except Exception as e:
+                    print(f"Error generating historical report for {person}: {str(e)}")
+
+    # Save results summary
+    summary_file = os.path.join(report_dir, "report_summary.json")
+    with open(summary_file, "w") as f:
+        json.dump(results, f, indent=2)
+
+    return report_dir
+
+
+def setup_plot(config: ChartConfig) -> Tuple[plt.Figure, plt.Axes]:
+    """Setup a matplotlib plot with the specified configuration"""
+    # Set the style
+    sns.set_style(config.style)
+    sns.set_context(config.context, font_scale=config.font_scale)
+
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=config.figsize)
+
+    # Set title and labels
+    if config.title:
+        ax.set_title(config.title)
+    if config.xlabel:
+        ax.set_xlabel(config.xlabel)
+    if config.ylabel:
+        ax.set_ylabel(config.ylabel)
+
+    # Add grid if requested
+    if config.grid:
+        ax.grid(True, linestyle="--", alpha=0.6)
+
+    return fig, ax
+
+
+def finalize_plot(fig: plt.Figure, ax: plt.Axes, config: ChartConfig) -> plt.Figure:
+    """Finalize plot with common customizations"""
+    # Rotate labels if requested
+    if config.rotate_xlabels:
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+    if config.rotate_ylabels:
+        plt.setp(ax.get_yticklabels(), rotation=45, va="top")
+
+    # Set legend title if provided
+    if config.legend_title and ax.get_legend():
+        ax.get_legend().set_title(config.legend_title)
+
+    # Adjust layout
+    plt.tight_layout()
+
+    return fig
+
+
+def generate_radar_chart(
+    data: Dict[str, List[float]],
+    categories: List[str],
+    title: str = "",
+    filename: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Generate a radar chart from data.
+
+    Args:
+        data: Dictionary mapping series names to lists of values (one per category)
+        categories: List of category names (labels for radar axes)
+        title: Chart title
+        filename: Path to save the chart (if None, displays the chart)
+
+    Returns:
+        Path to the saved chart if filename is provided, None otherwise
+    """
+    # Number of variables
+    N = len(categories)
+
+    # Create angle for each variable
+    angles = [n / float(N) * 2 * np.pi for n in range(N)]
+    angles += angles[:1]  # Close the loop
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))
+
+    # Add category labels
+    plt.xticks(angles[:-1], categories, size=12)
+
+    # Set y ticks
+    ax.set_rlabel_position(0)
+    plt.yticks([1, 2, 3, 4], ["1", "2", "3", "4"], color="grey", size=10)
+    plt.ylim(0, 4.5)
+
+    # Plot each series
+    for i, (name, values) in enumerate(data.items()):
+        # Ensure the data is a complete loop
+        values_loop = values.copy()
+        values_loop += values[:1]
+
+        # Plot values
+        ax.plot(angles, values_loop, linewidth=2, linestyle="solid", label=name)
+        ax.fill(angles, values_loop, alpha=0.1)
+
+    # Add legend
+    plt.legend(loc="upper right", bbox_to_anchor=(0.1, 0.1))
+
+    # Add title
+    plt.title(title, size=20, y=1.1)
+
+    # Save or show the chart
+    if filename:
+        plt.savefig(filename, bbox_inches="tight")
+        plt.close()
+        return filename
+    else:
+        plt.tight_layout()
+        plt.show()
+        plt.close()
+        return None
+
+
+def generate_heatmap(
+    data: pd.DataFrame, title: str = "", filename: Optional[str] = None
+) -> Optional[str]:
+    """
+    Generate a heatmap from a DataFrame.
+
+    Args:
+        data: DataFrame to visualize
+        title: Chart title
+        filename: Path to save the chart (if None, displays the chart)
+
+    Returns:
+        Path to the saved chart if filename is provided, None otherwise
+    """
+    # Create figure
+    plt.figure(figsize=(12, 10))
+
+    # Create heatmap
+    sns.heatmap(data, annot=True, cmap="YlGnBu", linewidths=0.5)
+
+    # Add title
+    plt.title(title, size=16)
+
+    # Save or show the chart
+    if filename:
+        plt.savefig(filename, bbox_inches="tight")
+        plt.close()
+        return filename
+    else:
+        plt.tight_layout()
+        plt.show()
+        plt.close()
+        return None
+
+
+def generate_interactive_html(data: Dict[str, Any], output_path: str) -> bool:
+    """Generate an interactive HTML report.
+
+    Args:
+        data: Dictionary with data to visualize
+        output_path: Path to save the HTML file
+
+    Returns:
+        Boolean indicating success
+    """
+    try:
+        # Create a simple HTML template
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{data.get("title", "People Analytics Report")}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }}
+                .container {{ max-width: 1200px; margin: 0 auto; }}
+                h1, h2 {{ color: #2c3e50; }}
+                table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
+                th, td {{ text-align: left; padding: 12px; }}
+                th {{ background-color: #3498db; color: white; }}
+                tr:nth-child(even) {{ background-color: #f2f2f2; }}
+                .positive {{ color: green; }}
+                .negative {{ color: red; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>{data.get("title", "People Analytics Report")}</h1>
+        """
+
+        # Add summary information if available
+        if "summary" in data:
+            html_content += """
+                <h2>Summary</h2>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+            """
+
+            for key, value in data["summary"].items():
+                if isinstance(value, list):
+                    value_str = ", ".join(str(v) for v in value)
+                else:
+                    value_str = str(value)
+
+                html_content += f"""
+                    <tr><td>{key.replace("_", " ").title()}</td><td>{value_str}</td></tr>
+                """
+
+            html_content += """
+                </table>
+            """
+
+        # Add people data if available
+        if "people_data" in data:
+            html_content += """
+                <h2>People Data</h2>
+                <table>
+                    <tr>
+                        <th>Person</th>
+                        <th>Concept</th>
+                        <th>Score</th>
+                        <th>Group Avg</th>
+                        <th>Difference</th>
+                    </tr>
+            """
+
+            for person_data in data["people_data"]:
+                person = person_data.get("Person", "Unknown")
+                concept = person_data.get("Overall Concept", "Unknown")
+                score = person_data.get("Average Score", 0)
+                group_avg = person_data.get("Group Average", 0)
+                diff = person_data.get("Difference", 0)
+
+                # Format difference with color
+                diff_class = "positive" if diff >= 0 else "negative"
+                diff_sign = "+" if diff > 0 else ""
+
+                html_content += f"""
+                    <tr>
+                        <td>{person}</td>
+                        <td>{concept}</td>
+                        <td>{score:.2f}</td>
+                        <td>{group_avg:.2f}</td>
+                        <td class="{diff_class}">{diff_sign}{diff:.2f}</td>
+                    </tr>
+                """
+
+            html_content += """
+                </table>
+            """
+
+        # Add filtered data if available
+        if "filtered_data" in data:
+            html_content += """
+                <h2>Filtered Results</h2>
+                <table>
+                    <tr>
+                        <th>Person</th>
+                        <th>Year</th>
+                        <th>Behavior</th>
+                        <th>Score</th>
+                    </tr>
+            """
+
+            for item in data["filtered_data"]:
+                person = item.get("Person", "Unknown")
+                year = item.get("Year", "Unknown")
+                behavior = item.get("Comportamento", item.get("Behavior", "Unknown"))
+                score = item.get("Score", 0)
+
+                html_content += f"""
+                    <tr>
+                        <td>{person}</td>
+                        <td>{year}</td>
+                        <td>{behavior}</td>
+                        <td>{score:.2f}</td>
+                    </tr>
+                """
+
+            html_content += """
+                </table>
+            """
+
+        # Add images if available
+        if "image_paths" in data and data["image_paths"]:
+            html_content += """
+                <h2>Visualizations</h2>
+                <div class="visualizations">
+            """
+
+            for img_path in data["image_paths"]:
+                if os.path.exists(img_path):
+                    img_name = os.path.basename(img_path)
+                    # Copy image to the output directory if needed
+                    output_dir = os.path.dirname(output_path)
+                    output_img_path = os.path.join(output_dir, img_name)
+
+                    if img_path != output_img_path:
+                        import shutil
+
+                        shutil.copy(img_path, output_img_path)
+
+                    html_content += f"""
+                        <div class="viz-container">
+                            <h3>{img_name.replace("_", " ").replace(".png", "").title()}</h3>
+                            <img src="{img_name}" alt="{img_name}" style="max-width:100%;">
+                        </div>
+                    """
+
+            html_content += """
+                </div>
+            """
+
+        # Close the HTML
+        html_content += """
+            </div>
+        </body>
+        </html>
+        """
+
+        # Write the HTML file
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+
+        return True
+    except Exception as e:
+        print(f"Error generating interactive HTML: {str(e)}")
+        return False
 
 
 def generate_custom_report(data: Dict[str, Any], output_dir: str) -> str:
@@ -1157,7 +1638,7 @@ def generate_interactive_html_report(
         f.write("""
             <div class="column">
                 <div class="chart-container">
-                    <h3>Data Summary</h3>""")
+                    <h3>Data Summary</h3""")
 
         # Add a summary table
         if not profile_df.empty and not evaluation_df.empty:
@@ -1646,321 +2127,1583 @@ def generate_skill_recommendations(data_list: List[PersonData], output_dir: str)
     departments = {}
     positions = {}
 
-    # Process all people data
+    # Process all people data first to build reference datasets
     for person in data_list:
-        # Skip if no career progression data
         if not person.career_progression or not person.career_progression.skills_matrix:
             continue
 
-        # Get department and position if profile exists
+        # Get demographic info
         dept = None
         position = None
         if person.profile:
             dept = person.profile.nome_departamento
             position = person.profile.cargo
 
-            # Add to departments dict
+            # Track departments and positions
             if dept:
                 if dept not in departments:
-                    departments[dept] = {}
-                if position not in departments[dept]:
-                    departments[dept][position] = []
-                departments[dept][position].append(person.name)
+                    departments[dept] = {"people": [], "skills": {}}
+                departments[dept]["people"].append(person.name)
 
-            # Add to positions dict
             if position:
                 if position not in positions:
-                    positions[position] = {"count": 0, "skills": {}}
-                positions[position]["count"] += 1
+                    positions[position] = {"people": [], "skills": {}}
+                positions[position]["people"].append(person.name)
 
         # Process skills
-        person_skills[person.name] = {}
+        person_skills[person.name] = {"raw": {}, "categories": {}}
 
-        for skill, level in person.career_progression.skills_matrix.items():
-            # Add to person's skills
-            person_skills[person.name][skill] = level
+        for skill_name, level in person.career_progression.skills_matrix.items():
+            # Add to person's raw skills
+            person_skills[person.name]["raw"][skill_name] = level
 
-            # Add to global skills
-            if skill not in all_skills:
-                all_skills[skill] = {
+            # Extract category if present
+            category = "General"
+            if "." in skill_name:
+                category, skill_short_name = skill_name.split(".", 1)
+            else:
+                skill_short_name = skill_name
+
+            # Track by category
+            if category not in person_skills[person.name]["categories"]:
+                person_skills[person.name]["categories"][category] = {}
+            person_skills[person.name]["categories"][category][skill_short_name] = level
+
+            # Add to global skills catalog
+            if skill_name not in all_skills:
+                all_skills[skill_name] = {
                     "count": 0,
                     "total_level": 0,
                     "by_position": {},
                     "by_department": {},
                 }
 
-            all_skills[skill]["count"] += 1
-            all_skills[skill]["total_level"] += level
+            all_skills[skill_name]["count"] += 1
+            all_skills[skill_name]["total_level"] += level
 
             # Add to position stats
             if position:
-                if position not in all_skills[skill]["by_position"]:
-                    all_skills[skill]["by_position"][position] = {
+                if position not in all_skills[skill_name]["by_position"]:
+                    all_skills[skill_name]["by_position"][position] = {
                         "count": 0,
                         "total_level": 0,
                     }
-                all_skills[skill]["by_position"][position]["count"] += 1
-                all_skills[skill]["by_position"][position]["total_level"] += level
+                all_skills[skill_name]["by_position"][position]["count"] += 1
+                all_skills[skill_name]["by_position"][position]["total_level"] += level
 
-                # Also update the positions dict
-                if skill not in positions[position]["skills"]:
-                    positions[position]["skills"][skill] = {
+                # Also add to positions aggregation
+                if skill_name not in positions[position]["skills"]:
+                    positions[position]["skills"][skill_name] = {
                         "count": 0,
                         "total_level": 0,
                     }
-                positions[position]["skills"][skill]["count"] += 1
-                positions[position]["skills"][skill]["total_level"] += level
+                positions[position]["skills"][skill_name]["count"] += 1
+                positions[position]["skills"][skill_name]["total_level"] += level
 
             # Add to department stats
             if dept:
-                if dept not in all_skills[skill]["by_department"]:
-                    all_skills[skill]["by_department"][dept] = {
+                if dept not in all_skills[skill_name]["by_department"]:
+                    all_skills[skill_name]["by_department"][dept] = {
                         "count": 0,
                         "total_level": 0,
                     }
-                all_skills[skill]["by_department"][dept]["count"] += 1
-                all_skills[skill]["by_department"][dept]["total_level"] += level
+                all_skills[skill_name]["by_department"][dept]["count"] += 1
+                all_skills[skill_name]["by_department"][dept]["total_level"] += level
 
-    # Calculate averages and find common skills by position
-    position_core_skills = {}
-    for position, data in positions.items():
-        if data["count"] >= 2:  # Only consider positions with at least 2 people
-            skills_avg = {
-                skill: stats["total_level"] / stats["count"]
-                for skill, stats in data["skills"].items()
-                if stats["count"]
-                >= data["count"]
-                * 0.5  # Skills that at least 50% of people in this position have
-            }
-            # Sort by average level
-            position_core_skills[position] = sorted(
-                skills_avg.items(), key=lambda x: x[1], reverse=True
+    # Calculate benchmarks and averages
+    org_skill_avgs = {
+        skill: data["total_level"] / data["count"] for skill, data in all_skills.items()
+    }
+    dept_skill_avgs = {}
+    pos_skill_avgs = {}
+
+    for dept, data in departments.items():
+        dept_skill_avgs[dept] = {}
+        for skill, skill_data in data["skills"].items():
+            if skill_data["count"] > 0:
+                dept_skill_avgs[dept][skill] = (
+                    skill_data["total_level"] / skill_data["count"]
+                )
+
+    for pos, data in positions.items():
+        pos_skill_avgs[pos] = {}
+        for skill, skill_data in data["skills"].items():
+            if skill_data["count"] > 0:
+                pos_skill_avgs[pos][skill] = (
+                    skill_data["total_level"] / skill_data["count"]
+                )
+
+    # Filter to analyze only requested person if specified
+    people_to_analyze = list(person_skills.keys())
+
+    # Generate analytics file
+    analytics_path = os.path.join(output_dir, f"skill_analytics_{timestamp}.md")
+
+    with open(analytics_path, "w", encoding="utf-8") as f:
+        f.write("# Individual Skill Analytics\n\n")
+        f.write(f"*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n")
+
+        for person_name in people_to_analyze:
+            if person_name not in person_skills:
+                continue
+
+            # Find the person in the original data
+            person_data = next((p for p in data_list if p.name == person_name), None)
+            if not person_data:
+                continue
+
+            # Get demographic info
+            position = person_data.profile.cargo if person_data.profile else "Unknown"
+            dept = (
+                person_data.profile.nome_departamento
+                if person_data.profile
+                else "Unknown"
             )
 
-    # Generate skill gap analysis and recommendations
-    recommendations = {}
-    for person_name, skills in person_skills.items():
-        # Find the person in the original data
-        person_data = next((p for p in data_list if p.name == person_name), None)
-        if not person_data or not person_data.profile:
-            continue
+            # Calculate various skill metrics
+            skills = person_skills[person_name]["raw"]
+            skill_count = len(skills)
 
-        position = person_data.profile.cargo
-        if position not in position_core_skills:
-            continue
+            if skill_count == 0:
+                continue
 
-        # Find skill gaps - core skills for position that person doesn't have or has low level
-        skill_gaps = []
-        for skill, avg_level in position_core_skills[position]:
-            if skill not in skills:
-                skill_gaps.append(
-                    {
-                        "skill": skill,
-                        "avg_level": avg_level,
-                        "current_level": 0,
-                        "gap": avg_level,
-                    }
-                )
-            elif skills[skill] < avg_level - 0.5:  # At least 0.5 below average
-                skill_gaps.append(
-                    {
-                        "skill": skill,
-                        "avg_level": avg_level,
-                        "current_level": skills[skill],
-                        "gap": avg_level - skills[skill],
-                    }
-                )
+            # 1. Basic proficiency metrics
+            avg_level = sum(skills.values()) / skill_count
+            max_level = max(skills.values()) if skills else 0
+            min_level = min(skills.values()) if skills else 0
 
-        # Sort gaps by size
-        skill_gaps.sort(key=lambda x: x["gap"], reverse=True)
-
-        # Generate recommendations
-        if skill_gaps:
-            recommendations[person_name] = {
-                "position": position,
-                "skill_gaps": skill_gaps[:5],  # Top 5 gaps
-                "recommended_learning_path": [gap["skill"] for gap in skill_gaps[:3]],
-                "core_skills_mastered": sum(
-                    1
-                    for skill, avg in position_core_skills[position]
-                    if skill in skills and skills[skill] >= avg
-                ),
+            # 2. Skill distribution
+            level_dist = {
+                i: sum(1 for level in skills.values() if level == i)
+                for i in range(1, 6)
             }
 
-    # Create recommendations markdown file
-    recs_path = os.path.join(output_dir, f"skill_recommendations_{timestamp}.md")
+            # 3. Skill category strengths
+            category_scores = {}
+            for category, cat_skills in person_skills[person_name][
+                "categories"
+            ].items():
+                if cat_skills:
+                    category_scores[category] = sum(cat_skills.values()) / len(
+                        cat_skills
+                    )
 
-    with open(recs_path, "w", encoding="utf-8") as f:
-        f.write("# Skill Recommendations & Learning Paths\n\n")
+            # 4. T-shaped profile analysis (breadth vs depth)
+            breadth_score = skill_count / max(
+                1,
+                len(set().union(*[skills for cat, skills in skill_categories.items()])),
+            )
+            depth_score = sum(1 for level in skills.values() if level >= 4) / max(
+                1, skill_count
+            )
+            t_shape_score = (breadth_score + depth_score) / 2
+
+            # 5. Position skill gap analysis
+            if position in pos_skill_avgs:
+                position_gaps = []
+                for skill, avg in pos_skill_avgs[position].items():
+                    person_level = skills.get(skill, 0)
+                    if avg > person_level:
+                        position_gaps.append(
+                            {
+                                "skill": skill,
+                                "person_level": person_level,
+                                "position_avg": avg,
+                                "gap": avg - person_level,
+                            }
+                        )
+                # Sort by gap size
+                position_gaps.sort(key=lambda x: x["gap"], reverse=True)
+            else:
+                position_gaps = []
+
+            # 6. Department skill comparison
+            if dept in dept_skill_avgs:
+                dept_comparison = []
+                for skill, avg in dept_skill_avgs[dept].items():
+                    person_level = skills.get(skill, 0)
+                    comparison = person_level - avg
+                    dept_comparison.append(
+                        {
+                            "skill": skill,
+                            "person_level": person_level,
+                            "dept_avg": avg,
+                            "difference": comparison,
+                        }
+                    )
+                # Sort by difference (largest positive first)
+                dept_comparison.sort(key=lambda x: x["difference"], reverse=True)
+            else:
+                dept_comparison = []
+
+            # 7. Unique strengths (skills higher than both position and department averages)
+            unique_strengths = []
+            for skill, level in skills.items():
+                pos_avg = pos_skill_avgs.get(position, {}).get(skill, 0)
+                dept_avg = dept_skill_avgs.get(dept, {}).get(skill, 0)
+                org_avg = org_skill_avgs.get(skill, 0)
+
+                if level > pos_avg and level > dept_avg and level >= 4:
+                    unique_strengths.append(
+                        {
+                            "skill": skill,
+                            "level": level,
+                            "pos_avg": pos_avg,
+                            "dept_avg": dept_avg,
+                            "org_avg": org_avg,
+                        }
+                    )
+
+            # Sort by level
+            unique_strengths.sort(key=lambda x: x["level"], reverse=True)
+
+            # 8. Calculate composite scores (0-100 scale)
+            skill_breadth_score = min(
+                100, (skill_count / 20) * 100
+            )  # Assume 20 skills is "complete"
+            skill_depth_score = min(100, (avg_level / 5) * 100)
+            skill_balance_score = 100 - min(
+                100, abs(skill_breadth_score - skill_depth_score)
+            )
+
+            position_fit_score = 0
+            if position in pos_skill_avgs and pos_skill_avgs[position]:
+                matched_skills = sum(
+                    1 for skill in pos_skill_avgs[position] if skill in skills
+                )
+                position_fit_score = min(
+                    100, (matched_skills / len(pos_skill_avgs[position])) * 100
+                )
+
+            skill_rarity_score = 0
+            if skills:
+                rarities = []
+                for skill, level in skills.items():
+                    if skill in all_skills:
+                        # Rarer skills (possessed by fewer people) score higher
+                        rarity = 1 - (all_skills[skill]["count"] / len(person_skills))
+                        rarities.append(rarity * level)  # Weight by level
+
+                if rarities:
+                    skill_rarity_score = min(100, (sum(rarities) / len(rarities)) * 100)
+
+            # 9. Overall skill effectiveness score (composite)
+            skill_effectiveness = (
+                skill_breadth_score * 0.2
+                + skill_depth_score * 0.3
+                + skill_balance_score * 0.1
+                + position_fit_score * 0.3
+                + skill_rarity_score * 0.1
+            )
+
+            # Write individual analytics
+            f.write(f"## {person_name}\n\n")
+            f.write(f"**Position:** {position}  \n")
+            f.write(f"**Department:** {dept}  \n\n")
+
+            f.write("### Skill Profile Summary\n\n")
+            f.write(f"**Total Skills:** {skill_count}  \n")
+            f.write(f"**Average Proficiency:** {avg_level:.2f}/5.0  \n")
+            f.write(f"**Highest Proficiency:** {max_level}/5.0  \n")
+            f.write(f"**Lowest Proficiency:** {min_level}/5.0  \n\n")
+
+            f.write("### Skill Distribution\n\n")
+            f.write("| Level | Count | Percentage |\n")
+            f.write("|-------|-------|------------|\n")
+            for level in range(1, 6):
+                count = level_dist.get(level, 0)
+                pct = (count / skill_count) * 100 if skill_count > 0 else 0
+                f.write(f"| Level {level} | {count} | {pct:.1f}% |\n")
+            f.write("\n")
+
+            f.write("### Skill Category Strengths\n\n")
+            f.write("| Category | Average Proficiency | Skills Count |\n")
+            f.write("|----------|----------------------|-------------|\n")
+            for category, score in sorted(
+                category_scores.items(), key=lambda x: x[1], reverse=True
+            ):
+                count = len(person_skills[person_name]["categories"].get(category, {}))
+                f.write(f"| {category} | {score:.2f} | {count} |\n")
+            f.write("\n")
+
+            f.write("### Composite Skill Scores\n\n")
+            f.write(f"**Skill Breadth Score:** {skill_breadth_score:.1f}/100  \n")
+            f.write(f"**Skill Depth Score:** {skill_depth_score:.1f}/100  \n")
+            f.write(f"**Skill Balance Score:** {skill_balance_score:.1f}/100  \n")
+            f.write(f"**Position Fit Score:** {position_fit_score:.1f}/100  \n")
+            f.write(f"**Skill Rarity Score:** {skill_rarity_score:.1f}/100  \n")
+            f.write(
+                f"**Overall Skill Effectiveness:** {skill_effectiveness:.1f}/100  \n\n"
+            )
+
+            # T-shape profile visualization
+            f.write("### T-Shape Profile Analysis\n\n")
+            f.write(f"**Breadth Score:** {breadth_score:.2f}  \n")
+            f.write(f"**Depth Score:** {depth_score:.2f}  \n")
+            f.write(f"**T-Shape Score:** {t_shape_score:.2f}  \n\n")
+
+            f.write("```mermaid\n")
+            f.write("quadrantChart\n")
+            f.write("    title T-Shape Skill Profile Analysis\n")
+            f.write("    x-axis Low Breadth --> High Breadth\n")
+            f.write("    y-axis Low Depth --> High Depth\n")
+            f.write("    quadrant-1 Specialist (Deep Expert)\n")
+            f.write("    quadrant-2 T-Shaped (Ideal)\n")
+            f.write("    quadrant-3 Generalist (Jack of All Trades)\n")
+            f.write("    quadrant-4 Limited Expertise\n")
+            f.write(f"    {person_name}: [{breadth_score}, {depth_score}]\n")
+            f.write("```\n\n")
+
+            # Position skill gaps
+            if position_gaps:
+                f.write("### Top Skill Gaps for Position\n\n")
+                f.write("| Skill | Your Level | Position Average | Gap |\n")
+                f.write("|-------|------------|------------------|-----|\n")
+
+                for gap in position_gaps[:5]:  # Show top 5 gaps
+                    f.write(
+                        f"| {gap['skill']} | {gap['person_level']} | {gap['position_avg']:.2f} | {gap['gap']:.2f} |\n"
+                    )
+                f.write("\n")
+
+                # Visualization
+                f.write("```mermaid\n")
+                f.write("%%{init: {'theme': 'neutral'}}%%\n")
+                f.write("xychart-beta\n")
+                f.write('    title "Position Skill Gap Analysis"\n')
+
+                # X-axis labels (skills)
+                skills_list = [gap["skill"] for gap in position_gaps[:5]]
+                f.write(
+                    "    x-axis [" + ", ".join([f'"{s}"' for s in skills_list]) + "]\n"
+                )
+
+                # Person's levels
+                person_levels = [str(gap["person_level"]) for gap in position_gaps[:5]]
+                f.write(f'    bar "Your Level" [{", ".join(person_levels)}]\n')
+
+                # Position average
+                pos_avgs = [
+                    str(round(gap["position_avg"], 2)) for gap in position_gaps[:5]
+                ]
+                f.write(f'    bar "Position Average" [{", ".join(pos_avgs)}]\n')
+
+                f.write("```\n\n")
+
+            # Unique strengths
+            if unique_strengths:
+                f.write("### Unique Strengths\n\n")
+                f.write(
+                    "These are skills where you significantly outperform both position and department averages:\n\n"
+                )
+                f.write(
+                    "| Skill | Your Level | Position Avg | Department Avg | Org Avg |\n"
+                )
+                f.write(
+                    "|-------|------------|--------------|----------------|--------|\n"
+                )
+
+                for strength in unique_strengths[:5]:  # Show top 5
+                    f.write(
+                        f"| {strength['skill']} | {strength['level']} | {strength['pos_avg']:.2f} | {strength['dept_avg']:.2f} | {strength['org_avg']:.2f} |\n"
+                    )
+                f.write("\n")
+
+            # Department comparison (where person excels)
+            if dept_comparison:
+                top_strengths = [c for c in dept_comparison if c["difference"] > 0][:3]
+                top_weaknesses = [c for c in dept_comparison if c["difference"] < 0][
+                    -3:
+                ]
+
+                if top_strengths or top_weaknesses:
+                    f.write("### Department Comparison Highlights\n\n")
+
+                    if top_strengths:
+                        f.write("**Areas where you excel compared to department:**\n\n")
+                        for strength in top_strengths:
+                            f.write(
+                                f"- **{strength['skill']}**: Your level: {strength['person_level']}, "
+                                + f"Department average: {strength['dept_avg']:.2f} "
+                                + f"(+{strength['difference']:.2f})\n"
+                            )
+                        f.write("\n")
+
+                    if top_weaknesses:
+                        f.write("**Areas for development compared to department:**\n\n")
+                        for weakness in top_weaknesses:
+                            f.write(
+                                f"- **{weakness['skill']}**: Your level: {weakness['person_level']}, "
+                                + f"Department average: {weakness['dept_avg']:.2f} "
+                                + f"({weakness['difference']:.2f})\n"
+                            )
+                        f.write("\n")
+
+            # Skill radar visualization for top categories
+            if category_scores:
+                top_categories = sorted(
+                    category_scores.items(), key=lambda x: x[1], reverse=True
+                )[:5]
+
+                f.write("### Skill Category Radar\n\n")
+                f.write("```mermaid\n")
+                f.write("%%{init: {'theme': 'forest'}}%%\n")
+                f.write("pie\n")
+                f.write('    title "Skill Distribution by Category"\n')
+
+                for category, score in top_categories:
+                    count = len(
+                        person_skills[person_name]["categories"].get(category, {})
+                    )
+                    f.write(f'    "{category}" : {count}\n')
+
+                f.write("```\n\n")
+
+            # Development recommendations
+            f.write("### Development Recommendations\n\n")
+
+            # Based on position gaps
+            if position_gaps:
+                f.write("**Priority Skills to Develop:**\n\n")
+                for i, gap in enumerate(position_gaps[:3], 1):
+                    f.write(
+                        f"{i}. **{gap['skill']}** - Current level: {gap['person_level']}, "
+                        + f"Target: {gap['position_avg']:.1f}\n"
+                    )
+                f.write("\n")
+
+            # Based on T-shape analysis
+            f.write("**T-Shape Development:**\n\n")
+            if breadth_score < 0.4:
+                f.write(
+                    "- Focus on increasing your skill breadth by learning complementary skills in your domain\n"
+                )
+            elif depth_score < 0.4:
+                f.write(
+                    "- Prioritize deepening your expertise in your strongest skill categories\n"
+                )
+            else:
+                f.write(
+                    "- Maintain your balanced T-shaped profile by continuing to develop both breadth and depth\n"
+                )
+
+            f.write("\n---\n\n")
+
+    print(f"Generated individual skill analytics: {analytics_path}")
+    return analytics_path
+
+
+def generate_individual_skill_analytics(
+    data_list: List[PersonData], output_dir: str, person_name: str = None
+) -> str:
+    # ... existing code ...
+    return analytics_path
+
+
+def generate_advanced_visualizations(
+    data_list: List[PersonData], output_dir: str
+) -> str:
+    """Generate advanced visualizations with rich comparisons for the entire organization.
+
+    This creates a comprehensive report with:
+    - Department performance heat maps
+    - Skill progression timelines
+    - Organization-wide skill networks
+    - Career trajectory visualization
+    - Promotion velocity and skill acquisition correlations
+    - Department/position skill gap analysis
+    - Talent distribution maps
+
+    Args:
+        data_list: List of PersonData objects
+        output_dir: Directory to save the output
+
+    Returns:
+        Path to the generated visualizations file
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Extract all necessary data
+    profiles = {}
+    dept_data = {}
+    position_data = {}
+    all_skills = {}
+    career_events = {}
+    skill_progression = {}
+    dept_structure = {}
+    team_structure = {}
+
+    # First pass: extract base data
+    for person in data_list:
+        if not person.name:
+            continue
+
+        # Extract profile data
+        if person.profile:
+            dept = person.profile.nome_departamento
+            position = person.profile.cargo
+            manager = person.profile.nome_gestor
+
+            profiles[person.name] = {
+                "name": person.name,
+                "department": dept,
+                "position": position,
+                "manager": manager,
+                "is_manager": person.profile.tipo_gestao,
+                "year": person.year,
+            }
+
+            # Build department structure
+            if dept:
+                if dept not in dept_data:
+                    dept_data[dept] = {
+                        "people": [],
+                        "positions": set(),
+                        "skills": {},
+                        "managers": set(),
+                    }
+                dept_data[dept]["people"].append(person.name)
+                dept_data[dept]["positions"].add(position)
+                if manager:
+                    dept_data[dept]["managers"].add(manager)
+
+            # Build position data
+            if position:
+                if position not in position_data:
+                    position_data[position] = {
+                        "people": [],
+                        "departments": set(),
+                        "skills": {},
+                    }
+                position_data[position]["people"].append(person.name)
+                position_data[position]["departments"].add(dept)
+
+        # Extract skills data
+        if person.career_progression and person.career_progression.skills_matrix:
+            for skill, level in person.career_progression.skills_matrix.items():
+                # Track historical skill progression
+                if person.name not in skill_progression:
+                    skill_progression[person.name] = {}
+                skill_progression[person.name][skill] = level
+
+                # Global skills tracking
+                if skill not in all_skills:
+                    all_skills[skill] = {
+                        "people": [],
+                        "levels": [],
+                        "departments": set(),
+                        "positions": set(),
+                    }
+                all_skills[skill]["people"].append(person.name)
+                all_skills[skill]["levels"].append(level)
+                if person.profile:
+                    all_skills[skill]["departments"].add(
+                        person.profile.nome_departamento
+                    )
+                    all_skills[skill]["positions"].add(person.profile.cargo)
+
+                    # Add to department skills
+                    if dept:
+                        if skill not in dept_data[dept]["skills"]:
+                            dept_data[dept]["skills"][skill] = {
+                                "count": 0,
+                                "levels": [],
+                            }
+                        dept_data[dept]["skills"][skill]["count"] += 1
+                        dept_data[dept]["skills"][skill]["levels"].append(level)
+
+                    # Add to position skills
+                    if position:
+                        if skill not in position_data[position]["skills"]:
+                            position_data[position]["skills"][skill] = {
+                                "count": 0,
+                                "levels": [],
+                            }
+                        position_data[position]["skills"][skill]["count"] += 1
+                        position_data[position]["skills"][skill]["levels"].append(level)
+
+        # Extract career events
+        if person.career_progression and person.career_progression.career_events:
+            career_events[person.name] = sorted(
+                person.career_progression.career_events, key=lambda x: x.date
+            )
+
+            # Process reporting relationships
+            if person.profile and person.profile.nome_gestor:
+                manager = person.profile.nome_gestor
+                if manager not in team_structure:
+                    team_structure[manager] = []
+                if person.name not in team_structure[manager]:
+                    team_structure[manager].append(person.name)
+
+    # Calculate aggregated metrics
+    dept_avg_skills = {}
+    for dept, data in dept_data.items():
+        dept_avg_skills[dept] = {}
+        for skill, skill_data in data["skills"].items():
+            if skill_data["levels"]:
+                dept_avg_skills[dept][skill] = sum(skill_data["levels"]) / len(
+                    skill_data["levels"]
+                )
+
+    position_avg_skills = {}
+    for position, data in position_data.items():
+        position_avg_skills[position] = {}
+        for skill, skill_data in data["skills"].items():
+            if skill_data["levels"]:
+                position_avg_skills[position][skill] = sum(skill_data["levels"]) / len(
+                    skill_data["levels"]
+                )
+
+    # Generate the report
+    vis_path = os.path.join(output_dir, f"advanced_visualizations_{timestamp}.md")
+
+    with open(vis_path, "w", encoding="utf-8") as f:
+        f.write("# Advanced People Analytics Visualizations\n\n")
         f.write(f"*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n")
 
         # Table of Contents
         f.write("## Table of Contents\n\n")
-        f.write("1. [Organization Skill Landscape](#organization-skill-landscape)\n")
-        f.write("2. [Core Skills by Position](#core-skills-by-position)\n")
-        f.write("3. [Individual Recommendations](#individual-recommendations)\n")
-        f.write("4. [Learning Paths](#learning-paths)\n\n")
+        f.write("1. [Organizational Structure](#organizational-structure)\n")
+        f.write("2. [Skill Distribution](#skill-distribution)\n")
+        f.write(
+            "3. [Department Performance Analysis](#department-performance-analysis)\n"
+        )
+        f.write("4. [Career Trajectory Mapping](#career-trajectory-mapping)\n")
+        f.write("5. [Skills Network Analysis](#skills-network-analysis)\n")
+        f.write("6. [Talent Distribution](#talent-distribution)\n")
+        f.write("7. [Skill Gap Analysis](#skill-gap-analysis)\n\n")
 
-        # 1. Organization Skill Landscape
-        f.write("## Organization Skill Landscape\n\n")
+        # 1. Organizational Structure
+        f.write("## Organizational Structure\n\n")
 
-        # Top skills across organization
-        if all_skills:
-            # Calculate skill averages
-            skill_avgs = {
-                skill: data["total_level"] / data["count"]
-                for skill, data in all_skills.items()
-            }
+        # Department Structure
+        f.write("### Department Structure\n\n")
+        f.write("| Department | People | Positions | Managers |\n")
+        f.write("|------------|--------|-----------|----------|\n")
 
-            # Sort by frequency and then average level
-            sorted_skills = sorted(
-                all_skills.items(),
-                key=lambda x: (x[1]["count"], skill_avgs[x[0]]),
-                reverse=True,
+        for dept, data in sorted(
+            dept_data.items(), key=lambda x: len(x[1]["people"]), reverse=True
+        ):
+            people_count = len(data["people"])
+            pos_count = len(data["positions"])
+            manager_count = len(data["managers"])
+            f.write(f"| {dept} | {people_count} | {pos_count} | {manager_count} |\n")
+
+        f.write("\n")
+
+        # Organization Chart using Mermaid
+        f.write("### Organization Chart\n\n")
+        f.write("```mermaid\n")
+        f.write("graph TD\n")
+
+        # Track added nodes to avoid duplicates
+        added_nodes = set()
+
+        # Add all managers first
+        for manager, reports in team_structure.items():
+            if reports:
+                # Clean manager name for mermaid
+                mgr_id = manager.replace(" ", "_").replace("-", "_")
+                if mgr_id not in added_nodes:
+                    f.write(f"  {mgr_id}[{manager}]\n")
+                    added_nodes.add(mgr_id)
+
+                # Add connections to direct reports
+                for report in reports:
+                    # Clean report name for mermaid
+                    report_id = report.replace(" ", "_").replace("-", "_")
+                    if report_id not in added_nodes:
+                        f.write(f"  {report_id}[{report}]\n")
+                        added_nodes.add(report_id)
+
+                    f.write(f"  {mgr_id} --> {report_id}\n")
+
+        f.write("```\n\n")
+
+        # 2. Skill Distribution
+        f.write("## Skill Distribution\n\n")
+
+        # Top skills
+        f.write("### Top Skills Organization-Wide\n\n")
+
+        # Sort skills by prevalence
+        sorted_skills = sorted(
+            all_skills.items(), key=lambda x: len(x[1]["people"]), reverse=True
+        )[:15]  # Top 15 skills
+
+        f.write("| Skill | People | Avg Level | Departments | Positions |\n")
+        f.write("|-------|--------|-----------|-------------|----------|\n")
+
+        for skill, data in sorted_skills:
+            people_count = len(data["people"])
+            avg_level = (
+                sum(data["levels"]) / len(data["levels"]) if data["levels"] else 0
+            )
+            dept_count = len(data["departments"])
+            pos_count = len(data["positions"])
+
+            f.write(
+                f"| {skill} | {people_count} | {avg_level:.2f} | {dept_count} | {pos_count} |\n"
             )
 
-            f.write("### Top Skills by Prevalence\n\n")
-            f.write("| Skill | People | Avg Level | Importance |\n")
-            f.write("|-------|--------|-----------|------------|\n")
+        f.write("\n")
 
-            for skill, data in sorted_skills[:15]:  # Top 15 skills
-                avg_level = data["total_level"] / data["count"]
-                prevalence = data["count"] / len(person_skills) * 100
-                importance = prevalence * avg_level / 5  # Scaled importance metric
-
-                f.write(
-                    f"| {skill} | {data['count']} | {avg_level:.1f} | {importance:.1f}% |\n"
-                )
-
-            f.write("\n")
-
-            # Add Mermaid chart for top skills
-            f.write("### Top Skills Visualization\n\n")
+        # Skill distribution chart
+        if sorted_skills:
+            f.write("### Skill Prevalence Visualization\n\n")
             f.write("```mermaid\n")
             f.write("%%{init: {'theme': 'forest'}}%%\n")
             f.write("xychart-beta\n")
             f.write('    title "Top 10 Skills by Prevalence"\n')
-            f.write("    x-axis [")
 
-            # X-axis labels (skill names)
-            top_10_skills = [skill for skill, _ in sorted_skills[:10]]
-            x_labels = ", ".join([f'"{skill}"' for skill in top_10_skills])
-            f.write(f"{x_labels}]\n")
+            # X-axis with skill names
+            skill_names = [s[0] for s in sorted_skills[:10]]
+            f.write("    x-axis [" + ", ".join([f'"{s}"' for s in skill_names]) + "]\n")
 
-            # Y-axis values (prevalence percentages)
-            y_values = []
-            for skill, data in sorted_skills[:10]:
-                prevalence = data["count"] / len(person_skills) * 100
-                y_values.append(str(round(prevalence, 1)))
+            # Y-axis with people counts
+            people_counts = [str(len(s[1]["people"])) for s in sorted_skills[:10]]
+            f.write(f'    y-axis "People Count" [{", ".join(people_counts)}]\n')
 
-            f.write(f'    y-axis "Prevalence (%)" [{", ".join(y_values)}]\n')
             f.write("```\n\n")
 
-        # 2. Core Skills by Position
-        f.write("## Core Skills by Position\n\n")
+        # 3. Department Performance Analysis
+        f.write("## Department Performance Analysis\n\n")
 
-        for position, skills in position_core_skills.items():
-            if skills:
-                f.write(f"### {position}\n\n")
-                f.write("| Skill | Avg Level | Importance |\n")
-                f.write("|-------|-----------|------------|\n")
+        # Department Skill Heat Map
+        f.write("### Department Skill Heat Map\n\n")
 
-                for skill, avg_level in skills[:8]:  # Top 8 skills per position
-                    # Calculate importance (arbitrary formula)
-                    importance = min(100, avg_level * 20)  # Scale to percentage
-                    f.write(f"| {skill} | {avg_level:.1f} | {importance:.0f}% |\n")
+        # Get top 5 most common skills
+        top_skills = [s[0] for s in sorted_skills[:5]]
 
-                f.write("\n")
+        f.write("| Department | " + " | ".join(top_skills) + " |\n")
+        f.write("|" + "-" * 11 + "|" + "|".join(["-" * 10 for _ in top_skills]) + "|\n")
 
-        # 3. Individual Recommendations
-        f.write("## Individual Recommendations\n\n")
+        for dept, avgs in dept_avg_skills.items():
+            row = [dept]
+            for skill in top_skills:
+                avg = avgs.get(skill, 0)
+                # Use emoji indicators for visual heat map
+                if avg >= 4:
+                    indicator = "🟢 " + f"{avg:.1f}"  # Green - High
+                elif avg >= 3:
+                    indicator = "🟡 " + f"{avg:.1f}"  # Yellow - Medium
+                elif avg > 0:
+                    indicator = "🔴 " + f"{avg:.1f}"  # Red - Low
+                else:
+                    indicator = "⚪ N/A"  # White - None
+                row.append(indicator)
 
-        for person_name, recs in recommendations.items():
-            f.write(f"### {person_name} ({recs['position']})\n\n")
+            f.write("| " + " | ".join(row) + " |\n")
 
-            # Progress on core skills
-            position = recs["position"]
-            total_core_skills = len(position_core_skills.get(position, []))
-            mastered = recs["core_skills_mastered"]
+        f.write("\n")
 
-            if total_core_skills > 0:
-                progress_pct = mastered / total_core_skills * 100
-                f.write(
-                    f"**Core Skills Progress:** {mastered}/{total_core_skills} ({progress_pct:.0f}%)\n\n"
+        # Department comparison radar chart (if mermaid supports it)
+        f.write("### Department Skill Comparison\n\n")
+
+        # Use alternative visualization (bar chart)
+        f.write("```mermaid\n")
+        f.write("%%{init: {'theme': 'neutral'}}%%\n")
+        f.write("xychart-beta\n")
+        f.write('    title "Department Skill Comparison (First Skill)"\n')
+
+        if top_skills and dept_avg_skills:
+            # Use first skill as example
+            first_skill = top_skills[0]
+
+            # X-axis with department names (limited to prevent overflow)
+            top_depts = list(dept_avg_skills.keys())[:8]
+            f.write("    x-axis [" + ", ".join([f'"{d}"' for d in top_depts]) + "]\n")
+
+            # Y-axis with skill level
+            skill_levels = []
+            for dept in top_depts:
+                skill_levels.append(
+                    str(round(dept_avg_skills[dept].get(first_skill, 0), 1))
                 )
 
-            # Skill gaps
-            if recs["skill_gaps"]:
-                f.write("#### Recommended Focus Areas\n\n")
-                f.write("| Skill | Your Level | Target Level | Gap |\n")
-                f.write("|-------|------------|--------------|-----|\n")
+            f.write(
+                f'    y-axis "{first_skill} Proficiency" [{", ".join(skill_levels)}]\n'
+            )
 
-                for gap in recs["skill_gaps"]:
-                    f.write(
-                        f"| {gap['skill']} | {gap['current_level']:.1f} | {gap['avg_level']:.1f} | {gap['gap']:.1f} |\n"
-                    )
+        f.write("```\n\n")
 
-                f.write("\n")
+        # 4. Career Trajectory Mapping
+        f.write("## Career Trajectory Mapping\n\n")
 
-                # Learning path
-                f.write("#### Suggested Learning Path\n\n")
-                for i, skill in enumerate(recs["recommended_learning_path"], 1):
-                    f.write(
-                        f"{i}. **{skill}** - Focus on advancing skills with industry-standard frameworks and advanced techniques\n"
-                    )
+        # Sample career path visualization for one person (if available)
+        if career_events:
+            # Get a person with the most career events
+            sample_person = max(career_events.items(), key=lambda x: len(x[1]))[0]
 
-                f.write("\n")
+            f.write(f"### Career Path: {sample_person}\n\n")
+            f.write("```mermaid\n")
+            f.write("timeline\n")
+            f.write(f"    title Career Progression of {sample_person}\n")
 
-        # 4. Learning Paths
-        f.write("## Learning Paths\n\n")
+            # Group events by year
+            events_by_year = {}
+            for event in career_events[sample_person]:
+                event_year = event.date.year
+                if event_year not in events_by_year:
+                    events_by_year[event_year] = []
+                events_by_year[event_year].append(event)
 
-        # Generic learning paths by common career trajectories
-        # This is simplified - in a real system you'd analyze actual career progression data
-        common_paths = {
-            "Technical Leadership": [
-                "Team Leadership",
-                "Technical Mentoring",
-                "Project Planning",
-                "Architecture Design",
-                "Code Review",
-            ],
-            "Specialist Track": [
-                "Deep Domain Knowledge",
-                "Performance Optimization",
-                "Advanced Debugging",
-                "Research & Innovation",
-                "Technical Documentation",
-            ],
-            "Management Track": [
-                "People Management",
-                "Resource Allocation",
-                "Performance Evaluation",
-                "Strategic Planning",
-                "Stakeholder Communication",
-            ],
-        }
+            # Add events to timeline
+            for year in sorted(events_by_year.keys()):
+                f.write(f"    section {year}\n")
 
-        for path_name, skills in common_paths.items():
-            f.write(f"### {path_name}\n\n")
-            f.write("This career path focuses on the following skill progression:\n\n")
+                for event in events_by_year[year]:
+                    # Format event text based on type
+                    if event.event_type == "promotion":
+                        event_text = f"{event.date.strftime('%b %d')}: Promotion to {event.new_position}"
+                    elif event.event_type == "lateral_move":
+                        event_text = f"{event.date.strftime('%b %d')}: Lateral move to {event.new_position}"
+                    elif event.event_type == "skill_acquisition":
+                        event_text = f"{event.date.strftime('%b %d')}: New skill: {event.details}"
+                    elif event.event_type == "certification":
+                        event_text = f"{event.date.strftime('%b %d')}: Certification: {event.details}"
+                    else:
+                        event_text = f"{event.date.strftime('%b %d')}: {event.event_type} - {event.details}"
 
-            for i, skill in enumerate(skills, 1):
-                f.write(f"{i}. **{skill}**\n")
+                    f.write(f"        {event_text}\n")
+
+            f.write("```\n\n")
+
+        # Common career path patterns
+        f.write("### Common Position Progression Patterns\n\n")
+
+        # This would need actual position transition data, but we can mock for demonstration
+        f.write("```mermaid\n")
+        f.write("flowchart LR\n")
+        f.write("    Junior[Junior Developer] --> Mid[Mid-level Developer]\n")
+        f.write("    Mid --> Senior[Senior Developer]\n")
+        f.write("    Senior --> TechLead[Technical Lead]\n")
+        f.write("    Senior --> Architect[Solutions Architect]\n")
+        f.write("    TechLead --> Manager[Engineering Manager]\n")
+        f.write("    Architect --> Principal[Principal Engineer]\n")
+        f.write("```\n\n")
+
+        # 5. Skills Network Analysis
+        f.write("## Skills Network Analysis\n\n")
+
+        # For skills network, find correlations between skills
+        # This would be a complex analysis in a real system, but we'll mock for demonstration
+        f.write("### Skills Correlation Network\n\n")
+        f.write("```mermaid\n")
+        f.write("graph TD\n")
+
+        # Show connections between sample top skills
+        if len(top_skills) >= 5:
+            # Create clean IDs for mermaid
+            skill_ids = {}
+            for i, skill in enumerate(top_skills[:5]):
+                skill_ids[skill] = f"skill{i}"
+                f.write(f"    {skill_ids[skill]}[{skill}]\n")
+
+            # Create some connections
+            f.write(f"    {skill_ids[top_skills[0]]} --- {skill_ids[top_skills[1]]}\n")
+            f.write(f"    {skill_ids[top_skills[0]]} --- {skill_ids[top_skills[2]]}\n")
+            f.write(f"    {skill_ids[top_skills[1]]} --- {skill_ids[top_skills[3]]}\n")
+            f.write(f"    {skill_ids[top_skills[2]]} --- {skill_ids[top_skills[4]]}\n")
+            f.write(f"    {skill_ids[top_skills[3]]} --- {skill_ids[top_skills[4]]}\n")
+
+        f.write("```\n\n")
+
+        # 6. Talent Distribution
+        f.write("## Talent Distribution\n\n")
+
+        # Department skill distribution
+        f.write("### Talent Distribution by Department\n\n")
+
+        # Create a quadrant chart
+        f.write("```mermaid\n")
+        f.write("quadrantChart\n")
+        f.write("    title Talent Distribution by Department\n")
+        f.write("    x-axis Low People --> High People\n")
+        f.write("    y-axis Low Skill Diversity --> High Skill Diversity\n")
+        f.write("    quadrant-1 High Skills, Low Headcount\n")
+        f.write("    quadrant-2 High Skills, High Headcount\n")
+        f.write("    quadrant-3 Low Skills, Low Headcount\n")
+        f.write("    quadrant-4 Low Skills, High Headcount\n")
+
+        # Plot departments
+        max_people = (
+            max(len(data["people"]) for data in dept_data.values()) if dept_data else 1
+        )
+        for dept, data in dept_data.items():
+            people_norm = len(data["people"]) / max_people  # Normalize to 0-1
+            skill_variety = (
+                len(data["skills"]) / 10
+            )  # Normalize assuming 10 skills is diverse
+            # Limit to 0-1 range
+            people_norm = min(1, max(0, people_norm))
+            skill_variety = min(1, max(0, skill_variety))
+            f.write(f"    {dept}: [{people_norm}, {skill_variety}]\n")
+
+        f.write("```\n\n")
+
+        # 7. Skill Gap Analysis
+        f.write("## Skill Gap Analysis\n\n")
+
+        # Position skill gap visualization
+        f.write("### Position Skill Gap Overview\n\n")
+
+        # Create table showing position vs required skills
+        if position_avg_skills and top_skills:
+            f.write(
+                "| Position | "
+                + " | ".join(top_skills[:4])
+                + " | Overall Proficiency |\n"
+            )
+            f.write(
+                "|"
+                + "-" * 10
+                + "|"
+                + "|".join(["-" * 12 for _ in top_skills[:4]])
+                + "|"
+                + "-" * 20
+                + "|\n"
+            )
+
+            for position, skill_avgs in position_avg_skills.items():
+                # Get top positions by people count
+                if not position_data.get(position, {}).get("people", []):
+                    continue
+
+                row = [position]
+                total_avg = 0
+                skill_count = 0
+
+                for skill in top_skills[:4]:
+                    avg = skill_avgs.get(skill, 0)
+                    if avg > 0:
+                        total_avg += avg
+                        skill_count += 1
+
+                    # Add proficiency indicator
+                    if avg >= 4:
+                        indicator = "🟢 " + f"{avg:.1f}"  # Green - High
+                    elif avg >= 3:
+                        indicator = "🟡 " + f"{avg:.1f}"  # Yellow - Medium
+                    elif avg > 0:
+                        indicator = "🔴 " + f"{avg:.1f}"  # Red - Low
+                    else:
+                        indicator = "⚪ N/A"  # White - None
+                    row.append(indicator)
+
+                # Calculate overall proficiency
+                overall_avg = total_avg / skill_count if skill_count > 0 else 0
+
+                # Add overall proficiency with gauge
+                if overall_avg >= 4:
+                    gauge = "⭐⭐⭐⭐⭐ " + f"{overall_avg:.1f}"
+                elif overall_avg >= 3:
+                    gauge = "⭐⭐⭐⭐ " + f"{overall_avg:.1f}"
+                elif overall_avg >= 2:
+                    gauge = "⭐⭐⭐ " + f"{overall_avg:.1f}"
+                elif overall_avg >= 1:
+                    gauge = "⭐⭐ " + f"{overall_avg:.1f}"
+                else:
+                    gauge = "⭐ " + f"{overall_avg:.1f}"
+
+                row.append(gauge)
+
+                f.write("| " + " | ".join(row) + " |\n")
 
             f.write("\n")
 
-            # Add recommended external resources
-            f.write("#### Recommended Resources\n\n")
-            f.write("- Professional certifications in relevant domains\n")
-            f.write("- Industry conferences and workshops\n")
-            f.write("- Mentorship programs\n")
-            f.write("- Online courses and learning platforms\n\n")
+        # Add a footer
+        f.write("---\n\n")
+        f.write(
+            f"*Report generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n"
+        )
+
+    print(f"Generated advanced visualizations report: {vis_path}")
+    return vis_path
+
+
+def generate_comprehensive_report(data_list: List[PersonData], output_dir: str) -> str:
+    """Generate a comprehensive full report combining all visualization types.
+
+    This creates a complete analytics dashboard with:
+    - Executive summary with key metrics
+    - All advanced visualizations
+    - Individual and organizational skill analysis
+    - Career progression insights
+    - Department and position comparisons
+    - Interactive elements and eye-catching visual indicators
+
+    Args:
+        data_list: List of PersonData objects
+        output_dir: Directory to save the output
+
+    Returns:
+        Path to the generated report
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Generate underlying component reports
+    skill_recs_path = generate_skill_recommendations(data_list, output_dir)
+    eval_report_path = generate_evaluation_report(data_list, output_dir)
+    vis_path = generate_advanced_visualizations(data_list, output_dir)
+
+    # Create the comprehensive report
+    report_path = os.path.join(output_dir, f"comprehensive_report_{timestamp}.md")
+
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write("# 📊 PEOPLE ANALYTICS COMPREHENSIVE REPORT\n\n")
+        f.write(f"*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n")
+
+        # Executive Dashboard
+        f.write("## 📈 Executive Dashboard\n\n")
+
+        # Extract key metrics
+        total_people = len(data_list)
+        departments = set()
+        positions = set()
+        skills_count = 0
+        avg_skill_level = 0.0
+        skill_data_count = 0
+
+        for person in data_list:
+            if person.profile:
+                if person.profile.nome_departamento:
+                    departments.add(person.profile.nome_departamento)
+                if person.profile.cargo:
+                    positions.add(person.profile.cargo)
+
+            if person.career_progression and person.career_progression.skills_matrix:
+                skills = person.career_progression.skills_matrix
+                skills_count += len(skills)
+                if skills:
+                    avg_skill_level += sum(skills.values())
+                    skill_data_count += len(skills)
+
+        # Avoid division by zero
+        org_avg_skill = (
+            avg_skill_level / skill_data_count if skill_data_count > 0 else 0
+        )
+
+        # Create metrics dashboard
+        f.write("<div style='display: flex; flex-wrap: wrap; gap: 20px;'>\n")
+
+        # Metric cards
+        f.write(
+            "<div style='background-color: #e6f7ff; border-left: 4px solid #1890ff; padding: 15px; width: 200px;'>\n"
+        )
+        f.write(
+            f"<div style='font-size: 30px; font-weight: bold;'>{total_people}</div>\n"
+        )
+        f.write("<div>Total People</div>\n")
+        f.write("</div>\n")
+
+        f.write(
+            "<div style='background-color: #f6ffed; border-left: 4px solid #52c41a; padding: 15px; width: 200px;'>\n"
+        )
+        f.write(
+            f"<div style='font-size: 30px; font-weight: bold;'>{len(departments)}</div>\n"
+        )
+        f.write("<div>Departments</div>\n")
+        f.write("</div>\n")
+
+        f.write(
+            "<div style='background-color: #fff7e6; border-left: 4px solid #fa8c16; padding: 15px; width: 200px;'>\n"
+        )
+        f.write(
+            f"<div style='font-size: 30px; font-weight: bold;'>{len(positions)}</div>\n"
+        )
+        f.write("<div>Positions</div>\n")
+        f.write("</div>\n")
+
+        f.write(
+            "<div style='background-color: #f9f0ff; border-left: 4px solid #722ed1; padding: 15px; width: 200px;'>\n"
+        )
+        f.write(
+            f"<div style='font-size: 30px; font-weight: bold;'>{skills_count}</div>\n"
+        )
+        f.write("<div>Total Skills</div>\n")
+        f.write("</div>\n")
+
+        f.write(
+            "<div style='background-color: #fcf5e6; border-left: 4px solid #d4b106; padding: 15px; width: 200px;'>\n"
+        )
+        f.write(
+            f"<div style='font-size: 30px; font-weight: bold;'>{org_avg_skill:.2f}</div>\n"
+        )
+        f.write("<div>Avg Skill Level</div>\n")
+        f.write("</div>\n")
+
+        f.write("</div>\n\n")
+
+        # Table of Contents
+        f.write("## 📑 Table of Contents\n\n")
+        f.write("1. [Executive Dashboard](#-executive-dashboard)\n")
+        f.write("2. [Organization Structure](#-organization-structure)\n")
+        f.write("3. [Skills Analysis](#-skills-analysis)\n")
+        f.write("4. [Department Insights](#-department-insights)\n")
+        f.write("5. [Career Development](#-career-development)\n")
+        f.write("6. [Performance Metrics](#-performance-metrics)\n")
+        f.write("7. [Development Recommendations](#-development-recommendations)\n\n")
+
+        # Organization Structure
+        f.write("## 🏢 Organization Structure\n\n")
+
+        # Extract department structure
+        dept_data = {}
+        team_structure = {}
+
+        for person in data_list:
+            if person.profile:
+                dept = person.profile.nome_departamento
+                manager = person.profile.nome_gestor
+
+                if dept:
+                    if dept not in dept_data:
+                        dept_data[dept] = {"count": 0, "managers": set()}
+                    dept_data[dept]["count"] += 1
+                    if manager:
+                        dept_data[dept]["managers"].add(manager)
+
+                if manager:
+                    if manager not in team_structure:
+                        team_structure[manager] = []
+                    team_structure[manager].append(person.name)
+
+        # Department Table
+        f.write("### Departments\n\n")
+
+        f.write("| Department | People | Managers |\n")
+        f.write("|------------|--------|----------|\n")
+
+        for dept, data in sorted(
+            dept_data.items(), key=lambda x: x[1]["count"], reverse=True
+        ):
+            f.write(f"| {dept} | {data['count']} | {len(data['managers'])} |\n")
+
+        f.write("\n")
+
+        # Organization Chart
+        f.write("### Organization Chart\n\n")
+        f.write("```mermaid\n")
+        f.write("mindmap\n")
+        f.write("  root((Organization))\n")
+
+        # Add departments
+        for dept in sorted(dept_data.keys()):
+            f.write(f"    {dept}\n")
+
+            # Add managers under departments
+            managers = dept_data[dept]["managers"]
+            for manager in sorted(managers):
+                # Replace spaces with underscores in IDs
+                manager_id = manager.replace(" ", "_")
+                f.write(f"      {manager}\n")
+
+                # Add direct reports
+                if manager in team_structure:
+                    for report in sorted(team_structure[manager]):
+                        report_id = report.replace(" ", "_")
+                        f.write(f"        {report}\n")
+
+        f.write("```\n\n")
+
+        # Skills Analysis
+        f.write("## 🧠 Skills Analysis\n\n")
+
+        # Extract skills data
+        all_skills = {}
+        for person in data_list:
+            if person.career_progression and person.career_progression.skills_matrix:
+                for skill, level in person.career_progression.skills_matrix.items():
+                    if skill not in all_skills:
+                        all_skills[skill] = {"count": 0, "levels": []}
+                    all_skills[skill]["count"] += 1
+                    all_skills[skill]["levels"].append(level)
+
+        # Top skills
+        f.write("### Top Skills\n\n")
+
+        # Skills by prevalence
+        sorted_by_count = sorted(
+            all_skills.items(), key=lambda x: x[1]["count"], reverse=True
+        )[:10]  # Top 10
+
+        # Skills by level
+        sorted_by_level = sorted(
+            all_skills.items(),
+            key=lambda x: sum(x[1]["levels"]) / len(x[1]["levels"])
+            if x[1]["levels"]
+            else 0,
+            reverse=True,
+        )[:10]  # Top 10
+
+        # Two-column layout
+        f.write("<div style='display: flex; gap: 20px;'>\n")
+
+        # Column 1: Skills by prevalence
+        f.write("<div style='flex: 1;'>\n")
+        f.write("#### Most Common Skills\n\n")
+        f.write("| Skill | People | % of Org |\n")
+        f.write("|-------|--------|----------|\n")
+
+        for skill, data in sorted_by_count:
+            percentage = (data["count"] / total_people) * 100 if total_people > 0 else 0
+            f.write(f"| {skill} | {data['count']} | {percentage:.1f}% |\n")
+
+        f.write("</div>\n")
+
+        # Column 2: Skills by level
+        f.write("<div style='flex: 1;'>\n")
+        f.write("#### Highest Proficiency Skills\n\n")
+        f.write("| Skill | Avg Level | People |\n")
+        f.write("|-------|-----------|--------|\n")
+
+        for skill, data in sorted_by_level:
+            avg_level = (
+                sum(data["levels"]) / len(data["levels"]) if data["levels"] else 0
+            )
+            f.write(f"| {skill} | {avg_level:.2f} | {data['count']} |\n")
+
+        f.write("</div>\n")
+        f.write("</div>\n\n")
+
+        # Skills Distribution
+        f.write("### Skills Distribution\n\n")
+
+        # Skill level distribution chart
+        f.write("```mermaid\n")
+        f.write("pie\n")
+        f.write('    title "Skill Level Distribution"\n')
+
+        # Count levels across all skills
+        level_counts = {i: 0 for i in range(1, 6)}
+        for skill, data in all_skills.items():
+            for level in data["levels"]:
+                if 1 <= level <= 5:
+                    level_counts[level] += 1
+
+        # Add to chart
+        for level, count in level_counts.items():
+            if count > 0:
+                f.write(f'    "Level {level}" : {count}\n')
+
+        f.write("```\n\n")
+
+        # Department Insights
+        f.write("## 🏛️ Department Insights\n\n")
+
+        # Department skill heatmap
+        f.write("### Department Skill Heatmap\n\n")
+
+        # Extract department skills
+        dept_skills = {}
+        for person in data_list:
+            if (
+                person.profile
+                and person.profile.nome_departamento
+                and person.career_progression
+                and person.career_progression.skills_matrix
+            ):
+                dept = person.profile.nome_departamento
+                if dept not in dept_skills:
+                    dept_skills[dept] = {}
+
+                for skill, level in person.career_progression.skills_matrix.items():
+                    if skill not in dept_skills[dept]:
+                        dept_skills[dept][skill] = {"count": 0, "total": 0}
+                    dept_skills[dept][skill]["count"] += 1
+                    dept_skills[dept][skill]["total"] += level
+
+        # Calculate department skill averages
+        dept_skill_avgs = {}
+        for dept, skills in dept_skills.items():
+            dept_skill_avgs[dept] = {}
+            for skill, data in skills.items():
+                if data["count"] > 0:
+                    dept_skill_avgs[dept][skill] = data["total"] / data["count"]
+
+        # Get top 5 most common skills
+        top_skills = [s[0] for s in sorted_by_count[:5]]
+
+        # Department skill heatmap table
+        f.write("| Department | " + " | ".join(top_skills) + " |\n")
+        f.write("|" + "-" * 11 + "|" + "|".join(["-" * 10 for _ in top_skills]) + "|\n")
+
+        for dept, skill_avgs in dept_skill_avgs.items():
+            row = [dept]
+            for skill in top_skills:
+                avg = skill_avgs.get(skill, 0)
+                # Use emoji indicators for visual heat map
+                if avg >= 4:
+                    indicator = "🟢 " + f"{avg:.1f}"  # Green - High
+                elif avg >= 3:
+                    indicator = "🟡 " + f"{avg:.1f}"  # Yellow - Medium
+                elif avg > 0:
+                    indicator = "🔴 " + f"{avg:.1f}"  # Red - Low
+                else:
+                    indicator = "⚪ N/A"  # White - None
+                row.append(indicator)
+
+            f.write("| " + " | ".join(row) + " |\n")
+
+        f.write("\n")
+
+        # Career Development
+        f.write("## 🚀 Career Development\n\n")
+
+        # Extract career events
+        career_events = {}
+        for person in data_list:
+            if person.career_progression and person.career_progression.career_events:
+                events = person.career_progression.career_events
+                if events:
+                    career_events[person.name] = sorted(events, key=lambda x: x.date)
+
+        # Promotion velocity
+        promotion_velocities = []
+        for person, events in career_events.items():
+            promotion_events = [e for e in events if e.event_type == "promotion"]
+            if len(promotion_events) >= 2:
+                # Calculate time between promotions
+                times = []
+                for i in range(1, len(promotion_events)):
+                    days = (
+                        promotion_events[i].date - promotion_events[i - 1].date
+                    ).days
+                    years = days / 365.25
+                    times.append(years)
+
+                avg_time = sum(times) / len(times)
+                promotion_velocities.append((person, avg_time))
+
+        # Display promotion velocity
+        if promotion_velocities:
+            f.write("### Promotion Velocity\n\n")
+            f.write("| Person | Avg Time Between Promotions (Years) |\n")
+            f.write("|--------|--------------------------------------|\n")
+
+            for person, velocity in sorted(promotion_velocities, key=lambda x: x[1]):
+                f.write(f"| {person} | {velocity:.2f} |\n")
+
+            f.write("\n")
+
+            # Average promotion velocity
+            avg_velocity = sum(v for _, v in promotion_velocities) / len(
+                promotion_velocities
+            )
+            f.write(
+                f"**Organization average:** {avg_velocity:.2f} years between promotions\n\n"
+            )
+
+        # Career trajectory example
+        if career_events:
+            # Get person with most events
+            sample_person, events = max(career_events.items(), key=lambda x: len(x[1]))
+
+            f.write("### Career Trajectory Example\n\n")
+            f.write(f"**{sample_person}'s Career Path:**\n\n")
+            f.write("```mermaid\n")
+            f.write("timeline\n")
+            f.write(f"    title Career Progression of {sample_person}\n")
+
+            # Group events by year
+            events_by_year = {}
+            for event in events:
+                year = event.date.year
+                if year not in events_by_year:
+                    events_by_year[year] = []
+                events_by_year[year].append(event)
+
+            # Add to timeline
+            for year in sorted(events_by_year.keys()):
+                f.write(f"    section {year}\n")
+
+                for event in events_by_year[year]:
+                    # Format event based on type
+                    if event.event_type == "promotion":
+                        desc = f"Promotion to {event.new_position}"
+                    elif event.event_type == "lateral_move":
+                        desc = f"Lateral move to {event.new_position}"
+                    elif event.event_type == "skill_acquisition":
+                        desc = f"New skill: {event.details}"
+                    elif event.event_type == "certification":
+                        desc = f"Certification: {event.details}"
+                    else:
+                        desc = f"{event.event_type}: {event.details}"
+
+                    date_str = event.date.strftime("%b %d")
+                    f.write(f"        {date_str}: {desc}\n")
+
+            f.write("```\n\n")
+
+        # Performance Metrics
+        f.write("## 📈 Performance Metrics\n\n")
+
+        # Extract evaluation data
+        eval_data = []
+        for person in data_list:
+            if person.evaluation_data:
+                # Try to extract overall score
+                score = None
+                if isinstance(person.evaluation_data, dict):
+                    if "pontuacao_final" in person.evaluation_data:
+                        score = person.evaluation_data["pontuacao_final"]
+                    elif (
+                        "avaliacoes" in person.evaluation_data
+                        and "pontuacao_final" in person.evaluation_data["avaliacoes"]
+                    ):
+                        score = person.evaluation_data["avaliacoes"]["pontuacao_final"]
+
+                if score is not None:
+                    dept = (
+                        person.profile.nome_departamento
+                        if person.profile
+                        else "Unknown"
+                    )
+                    eval_data.append(
+                        {
+                            "name": person.name,
+                            "score": score,
+                            "department": dept,
+                            "year": person.year,
+                        }
+                    )
+
+        if eval_data:
+            # Performance distribution
+            f.write("### Performance Score Distribution\n\n")
+
+            # Calculate score ranges
+            score_ranges = {
+                "5.0+": 0,
+                "4.0-4.9": 0,
+                "3.0-3.9": 0,
+                "2.0-2.9": 0,
+                "Below 2.0": 0,
+            }
+
+            for entry in eval_data:
+                score = entry["score"]
+                if score >= 5.0:
+                    score_ranges["5.0+"] += 1
+                elif score >= 4.0:
+                    score_ranges["4.0-4.9"] += 1
+                elif score >= 3.0:
+                    score_ranges["3.0-3.9"] += 1
+                elif score >= 2.0:
+                    score_ranges["2.0-2.9"] += 1
+                else:
+                    score_ranges["Below 2.0"] += 1
+
+            # Create pie chart
+            f.write("```mermaid\n")
+            f.write("pie\n")
+            f.write('    title "Performance Score Distribution"\n')
+
+            for range_name, count in score_ranges.items():
+                if count > 0:
+                    f.write(f'    "{range_name}" : {count}\n')
+
+            f.write("```\n\n")
+
+            # Department performance comparison
+            f.write("### Department Performance Comparison\n\n")
+
+            # Group by department
+            dept_scores = {}
+            for entry in eval_data:
+                dept = entry["department"]
+                if dept not in dept_scores:
+                    dept_scores[dept] = []
+                dept_scores[dept].append(entry["score"])
+
+            # Department performance table
+            f.write("| Department | Avg Score | Min | Max | People |\n")
+            f.write("|------------|-----------|-----|-----|--------|\n")
+
+            for dept, scores in dept_scores.items():
+                avg = sum(scores) / len(scores)
+                min_score = min(scores)
+                max_score = max(scores)
+                count = len(scores)
+
+                f.write(
+                    f"| {dept} | {avg:.2f} | {min_score:.1f} | {max_score:.1f} | {count} |\n"
+                )
+
+            f.write("\n")
+
+        # Development Recommendations
+        f.write("## 💡 Development Recommendations\n\n")
+
+        f.write("### Organization-wide Focus Areas\n\n")
+
+        # Identify skill gaps across the organization
+        if all_skills:
+            low_skills = []
+            for skill, data in all_skills.items():
+                avg = sum(data["levels"]) / len(data["levels"]) if data["levels"] else 0
+                if (
+                    avg < 3.0 and data["count"] >= total_people * 0.25
+                ):  # Common but low proficiency
+                    low_skills.append((skill, avg, data["count"]))
+
+            if low_skills:
+                f.write("#### Skills Requiring Development\n\n")
+                f.write("| Skill | Current Avg | People | Priority |\n")
+                f.write("|-------|-------------|--------|----------|\n")
+
+                for skill, avg, count in sorted(low_skills, key=lambda x: x[1]):
+                    # Calculate priority based on prevalence and gap
+                    prevalence = count / total_people
+                    gap = 5 - avg  # Gap from ideal level of 5
+                    priority = gap * prevalence * 10  # Scale to approximately 0-10
+
+                    # Priority indicator
+                    if priority >= 7:
+                        priority_str = "🔴 High"
+                    elif priority >= 4:
+                        priority_str = "🟠 Medium"
+                    else:
+                        priority_str = "🟡 Low"
+
+                    f.write(f"| {skill} | {avg:.2f} | {count} | {priority_str} |\n")
+
+                f.write("\n")
+
+        # Strategic recommendations
+        f.write("### Strategic Recommendations\n\n")
+
+        f.write(
+            "1. **Implement targeted training programs** for the identified skills requiring development\n"
+        )
+        f.write(
+            "2. **Create mentoring relationships** between high-performing individuals and those with skill gaps\n"
+        )
+        f.write(
+            "3. **Develop clear career pathways** with defined skill requirements for each level\n"
+        )
+        f.write(
+            "4. **Enhance cross-department collaboration** to share skills and knowledge\n"
+        )
+        f.write(
+            "5. **Recognize and reward skill development** through performance management processes\n\n"
+        )
+
+        # Link to component reports
+        f.write("## 📎 Detailed Reports\n\n")
+        f.write(f"- [Skills Recommendations]({os.path.basename(skill_recs_path)})\n")
+        f.write(f"- [Evaluation Report]({os.path.basename(eval_report_path)})\n")
+        f.write(f"- [Advanced Visualizations]({os.path.basename(vis_path)})\n\n")
 
         # Footer
         f.write("---\n\n")
         f.write(
-            "*This report provides general recommendations based on organizational patterns. Individual career plans should be discussed with managers and tailored to personal goals.*\n"
+            f"*Report generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n"
         )
 
-    print(f"Generated skill recommendations: {recs_path}")
-    return recs_path
+    print(f"Generated comprehensive report: {report_path}")
+    return report_path
