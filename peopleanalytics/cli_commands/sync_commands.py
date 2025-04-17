@@ -109,6 +109,32 @@ class SyncCommand:
             dest="report_year_comparison",
         )
 
+        # Talent development reports options (all enabled by default)
+        parser.add_argument(
+            "--no-9box",
+            action="store_true",
+            help="Disable 9-Box Matrix reports",
+            dest="no_9box",
+        )
+        parser.add_argument(
+            "--no-career-sim",
+            action="store_true",
+            help="Disable Career Simulation reports",
+            dest="no_career_sim",
+        )
+        parser.add_argument(
+            "--no-network",
+            action="store_true",
+            help="Disable Influence Network reports",
+            dest="no_network",
+        )
+        parser.add_argument(
+            "--talent-report-dir",
+            type=str,
+            default="output/talent_reports",
+            help="Directory to store talent development reports",
+        )
+
         # Feature toggles (disable features)
         parser.add_argument(
             "--no-viz",
@@ -213,9 +239,88 @@ class SyncCommand:
         if hasattr(args, "report_year_comparison"):
             self.sync.report_year_comparison = args.report_year_comparison
 
+        # Talent development options - enabled by default
+        self.sync.use_9box = True
+        self.sync.use_career_sim = True
+        self.sync.use_network = True
+
+        # Allow disabling individual talent reports
+        if hasattr(args, "no_9box") and args.no_9box:
+            self.sync.use_9box = False
+        if hasattr(args, "no_career_sim") and args.no_career_sim:
+            self.sync.use_career_sim = False
+        if hasattr(args, "no_network") and args.no_network:
+            self.sync.use_network = False
+        if hasattr(args, "talent_report_dir"):
+            self.sync.talent_report_dir = args.talent_report_dir
+
         # Execute
         logger.info("Starting sync command execution")
-        return self.sync.execute()
+
+        print("People Analytics Data Processor")
+        print("===============================")
+        print(f"Data path: {self.sync.data_dir}")
+        print(f"Output path: {self.sync.output_dir}")
+
+        if self.sync.force:
+            print("Forcing reprocessing of all files")
+
+        if self.sync.verbose:
+            print(f"Formats: {self.sync.selected_formats}")
+
+            if self.sync.pessoa_filter:
+                print(f"Filtering by pessoa: {self.sync.pessoa_filter}")
+            if self.sync.ano_filter:
+                print(f"Filtering by ano: {self.sync.ano_filter}")
+
+            print(f"Ignore errors: {self.sync.ignore_errors}")
+            print(f"Skip visualizations: {self.sync.skip_viz}")
+            print(f"Compress results: {self.sync.zip}")
+            print(f"Skip dashboard: {self.sync.skip_dashboard}")
+            print(f"Export to Excel: {self.sync.export_excel}")
+            print(f"Parallel processing: {self.sync.parallel}")
+            print(f"Rich markdown reports: {self.sync.rich_markdown}")
+
+            # Print skills analysis options if enabled
+            if self.sync.generate_evaluation_report:
+                print("Skills report generation: Enabled")
+            if self.sync.generate_skill_recommendations:
+                print("Skill recommendations: Enabled")
+            if self.sync.include_radar_charts:
+                print("Skills radar charts: Enabled")
+            if self.sync.generate_skill_analytics:
+                print("Comprehensive skill analytics: Enabled")
+
+            # Print talent development options
+            if self.sync.use_9box:
+                print("9-Box Matrix reports: Enabled")
+            if self.sync.use_career_sim:
+                print("Career Simulation reports: Enabled")
+            if self.sync.use_network:
+                print("Influence Network reports: Enabled")
+            print(f"Talent reports directory: {self.sync.talent_report_dir}")
+
+        print("Expected data structure: <pessoa>/<ano>/resultado.json")
+        print(f"Processing started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("===============================")
+
+        try:
+            # Execute sync process
+            print("Starting data analysis and processing...")
+            results = self.sync.sync()
+
+            # Print results
+            for result in results:
+                print(result)
+
+            print("Analysis processing completed successfully.")
+            return 0
+        except Exception as e:
+            print(f"ERROR in sync processing: {str(e)}")
+            if not self.sync.ignore_errors:
+                return 1
+            print("Continuing with reduced functionality due to error...")
+            return 0
 
 
 class DataSync:
@@ -263,6 +368,12 @@ class DataSync:
         self.generate_comprehensive_report = True
         self.generate_interactive_report = True
         self.generate_comparison_templates = True
+
+        # Talent development options - all enabled by default
+        self.use_9box = True
+        self.use_career_sim = True
+        self.use_network = True
+        self.talent_report_dir = "output/talent_reports"
 
         # Valid formats
         self.valid_formats = {
@@ -397,99 +508,90 @@ class DataSync:
         self.current_progress = 0
         self.last_progress_report = 0
 
-    def execute(self):
-        """Execute the sync command"""
+    def _compress_output(self):
+        """Compress output if requested"""
+        pass  # Placeholder
 
-        print("People Analytics Data Processor")
-        print("===============================")
-        print(f"Data path: {self.data_dir}")
-        print(f"Output path: {self.output_dir}")
+    def sync(self):
+        """
+        Execute the sync process.
 
-        if self.force:
-            print("Forcing reprocessing of all files")
+        This is the main method for data synchronization that processes
+        all directories and files according to the configured options.
 
-        if self.verbose:
-            print(f"Formats: {self.selected_formats}")
-
-            if self.pessoa_filter:
-                print(f"Filtering by pessoa: {self.pessoa_filter}")
-            if self.ano_filter:
-                print(f"Filtering by ano: {self.ano_filter}")
-
-            print(f"Ignore errors: {self.ignore_errors}")
-            print(f"Skip visualizations: {self.skip_viz}")
-            print(f"Compress results: {self.zip}")
-            print(f"Skip dashboard: {self.skip_dashboard}")
-            print(f"Export to Excel: {self.export_excel}")
-            print(f"Parallel processing: {self.parallel}")
-            print(f"Rich markdown reports: {self.rich_markdown}")
-
-            # Print skills analysis options if enabled
-            if self.generate_evaluation_report:
-                print("Skills report generation: Enabled")
-            if self.generate_skill_recommendations:
-                print("Skill recommendations: Enabled")
-            if self.include_radar_charts:
-                print("Skills radar charts: Enabled")
-            if self.generate_skill_analytics:
-                print("Comprehensive skill analytics: Enabled")
-
-        print("Expected data structure: <pessoa>/<ano>/resultado.json")
-        print(f"Processing started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print("===============================")
-
-        # Ensure directories exist
-        self._ensure_directories()
-
-        # Use DataSync class directly instead of Sync class
-        data_sync = DataSync(self.data_dir, self.output_dir)
-
-        # Configure sync options
-        data_sync.force = self.force
-        data_sync.skip_viz = self.skip_viz
-        data_sync.ignore_errors = self.ignore_errors
-        data_sync.pessoa_filter = self.pessoa_filter
-        data_sync.ano_filter = self.ano_filter
-        data_sync.selected_formats = self.selected_formats
-        data_sync.parallel = self.parallel
-        data_sync.workers = self.workers
-        data_sync.batch_size = self.batch_size
-        data_sync.zip = self.zip
-        data_sync.export_excel = self.export_excel
-        data_sync.skip_dashboard = self.skip_dashboard
-        data_sync.rich_markdown = self.rich_markdown
-
-        # Configure skills analysis options - all enabled by default
-        data_sync.generate_evaluation_report = self.generate_evaluation_report
-        data_sync.report_output_dir = self.report_output_dir
-        data_sync.report_include_org_chart = self.report_include_org_chart
-        data_sync.report_include_skills = self.report_include_skills
-        data_sync.report_year_comparison = self.report_year_comparison
-        data_sync.generate_interactive_report = self.generate_interactive_report
-        data_sync.generate_comparison_templates = self.generate_comparison_templates
-        data_sync.include_radar_charts = self.include_radar_charts
-        data_sync.include_mermaid_diagrams = self.include_mermaid_diagrams
-        data_sync.generate_skill_recommendations = self.generate_skill_recommendations
-        data_sync.generate_skill_analytics = self.generate_skill_analytics
-        data_sync.generate_comprehensive_report = self.generate_comprehensive_report
+        Returns:
+            List of result messages
+        """
+        results = []
 
         try:
-            # Execute sync process
-            print("Starting data analysis and processing...")
-            results = data_sync.sync()
+            # Log start message
+            start_message = (
+                f"Starting sync at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+            results.append(start_message)
 
-            # Print results
-            for result in results:
-                print(result)
+            # Process the pessoa/ano structure
+            valid_directories = self._process_pessoa_ano_structure()
 
-            print("Analysis processing completed successfully.")
-            return 0
+            if not valid_directories:
+                message = "No valid directories found for processing"
+                results.append(message)
+                return results
+
+            # Process directories (sequential or parallel)
+            if self.parallel:
+                success = self._process_directories_parallel(valid_directories)
+            else:
+                success = self._process_directories_sequential(valid_directories)
+
+            # Complete processing
+            if success:
+                results.append(
+                    f"Successfully processed {len(self.processed_directories)} directories"
+                )
+                if self.processed_directories:
+                    results.append("Processed directories:")
+                    for directory in self.processed_directories:
+                        results.append(f"  - {directory}")
+            else:
+                results.append(
+                    f"Process completed with errors in {len(self.errors)} directories"
+                )
+                if self.errors:
+                    results.append("Errors:")
+                    for error in self.errors:
+                        results.append(f"  - {error}")
+
+            # Generate talent development reports
+            if (
+                hasattr(self, "use_9box")
+                or hasattr(self, "use_career_sim")
+                or hasattr(self, "use_network")
+            ):
+                results.append("Generating talent development reports...")
+                if self._generate_talent_development_reports():
+                    results.append("Talent development reports generated successfully")
+                else:
+                    results.append("Error generating talent development reports")
+
+            # Complete processing (compress, etc.)
+            self._complete_processing()
+
+            # Log end message
+            end_message = (
+                f"Sync completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+            results.append(end_message)
+
+            return results
+
         except Exception as e:
-            print(f"ERROR in sync processing: {str(e)}")
+            error_message = f"Error in sync process: {str(e)}"
+            results.append(error_message)
             if not self.ignore_errors:
-                return 1
-            print("Continuing with reduced functionality due to error...")
-            return 0
+                raise
+            return results
 
     def _process_file(self, file_path, file_format):
         """Process a file based on its format"""
@@ -2113,3 +2215,320 @@ class DataSync:
             if not self.ignore_errors:
                 raise
             return None
+
+    def _generate_markdown_report(self, pessoa_name, ano_name, data, output_dir):
+        """Generate a markdown report for a person/year combination.
+
+        Args:
+            pessoa_name: Name of the person
+            ano_name: Year/period
+            data: Processed data
+            output_dir: Output directory
+
+        Returns:
+            Path to the generated markdown file
+        """
+        try:
+            # Create markdown directory
+            md_dir = self.output_dir / "markdown"
+            md_dir.mkdir(exist_ok=True, parents=True)
+
+            # Create markdown file
+            file_path = md_dir / f"{pessoa_name}_{ano_name}_report.md"
+
+            with open(file_path, "w", encoding="utf-8") as f:
+                # Header
+                f.write(f"# Performance Report: {pessoa_name} - {ano_name}\n\n")
+
+                # Timestamp
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"*Generated on: {timestamp}*\n\n")
+
+                # Summary section
+                f.write("## Summary\n\n")
+                f.write("This is an automatically generated performance report.\n\n")
+
+                # Data summary
+                if isinstance(data, dict):
+                    # Extract key metrics if available
+                    if "data" in data and isinstance(data["data"], dict):
+                        if "conceito_ciclo_filho_descricao" in data["data"]:
+                            f.write(
+                                f"**Conceito:** {data['data']['conceito_ciclo_filho_descricao']}\n\n"
+                            )
+
+                        # Add direcionadores if available
+                        if "direcionadores" in data["data"] and isinstance(
+                            data["data"]["direcionadores"], list
+                        ):
+                            f.write("## Direcionadores\n\n")
+                            for idx, direcionador in enumerate(
+                                data["data"]["direcionadores"], 1
+                            ):
+                                if (
+                                    isinstance(direcionador, dict)
+                                    and "direcionador" in direcionador
+                                ):
+                                    f.write(
+                                        f"### {idx}. {direcionador['direcionador']}\n\n"
+                                    )
+
+                                    # Add pergunta final if available
+                                    if "pergunta_final" in direcionador:
+                                        f.write(
+                                            f"**Pergunta:** {direcionador['pergunta_final']}\n\n"
+                                        )
+
+                                    # Add comportamentos if available
+                                    if "comportamentos" in direcionador and isinstance(
+                                        direcionador["comportamentos"], list
+                                    ):
+                                        f.write("#### Comportamentos\n\n")
+                                        for comp_idx, comportamento in enumerate(
+                                            direcionador["comportamentos"], 1
+                                        ):
+                                            if (
+                                                isinstance(comportamento, dict)
+                                                and "comportamento" in comportamento
+                                            ):
+                                                f.write(
+                                                    f"- {comportamento['comportamento']}\n"
+                                                )
+                                        f.write("\n")
+
+                # Placeholder for additional sections
+                f.write("## Additional Information\n\n")
+                f.write(
+                    "For more detailed analysis, please refer to the full report.\n\n"
+                )
+
+                # Footer
+                f.write("---\n")
+                f.write(
+                    "*This report was generated by the People Analytics platform.*\n"
+                )
+
+            if self.verbose:
+                print(f"Generated markdown report: {file_path}")
+
+            return file_path
+
+        except Exception as e:
+            if self.verbose:
+                print(f"Error generating markdown report: {e}")
+            raise
+
+    def _generate_talent_development_reports(self):
+        """Generate talent development reports.
+
+        This method uses the talent development modules to generate advanced reports.
+        Returns:
+            True if successful, False otherwise.
+        """
+        try:
+            from peopleanalytics.data_pipeline import DataPipeline
+            from peopleanalytics.talent_development import (
+                CareerSimulator,
+                DynamicMatrix9Box,
+                InfluenceNetwork,
+            )
+
+            # Initialize reports directory
+            talent_reports_dir = (
+                Path(self.talent_report_dir)
+                if hasattr(self, "talent_report_dir")
+                else Path(self.output_dir) / "talent_reports"
+            )
+            talent_reports_dir.mkdir(exist_ok=True, parents=True)
+
+            # Initialize data pipeline
+            data_pipeline = DataPipeline(str(self.data_dir))
+
+            # Process each directory for people data
+            processed_people = set()
+            for directory in self.processed_directories:
+                try:
+                    # Extract person and year
+                    parts = directory.split("/")
+                    if len(parts) >= 2:
+                        person_name = parts[0]
+                        if person_name not in processed_people:
+                            processed_people.add(person_name)
+
+                            # Generate 9-Box Matrix reports
+                            if hasattr(self, "use_9box") and self.use_9box:
+                                try:
+                                    matrix = DynamicMatrix9Box(data_pipeline)
+                                    # Generate visualization and report
+                                    report_dir = talent_reports_dir / "matrix_9box"
+                                    report_dir.mkdir(exist_ok=True, parents=True)
+
+                                    # Use visualize_matrix method instead of visualize
+                                    viz_path = (
+                                        report_dir / f"{person_name}_matrix_9box.png"
+                                    )
+                                    matrix.visualize_matrix(
+                                        person_id=person_name, output_path=viz_path
+                                    )
+
+                                    # Generate comprehensive report
+                                    matrix.generate_report(
+                                        person_id=person_name, output_path=report_dir
+                                    )
+
+                                    if self.verbose:
+                                        print(
+                                            f"Generated 9-Box Matrix report for {person_name}"
+                                        )
+                                except Exception as e:
+                                    if self.verbose:
+                                        print(
+                                            f"Error generating 9-Box Matrix report for {person_name}: {e}"
+                                        )
+                                    if not self.ignore_errors:
+                                        raise
+
+                            # Generate Career Simulation reports
+                            if hasattr(self, "use_career_sim") and self.use_career_sim:
+                                try:
+                                    # Create career sim directory
+                                    sim_dir = talent_reports_dir / "career_sim"
+                                    sim_dir.mkdir(exist_ok=True, parents=True)
+
+                                    # Create a placeholder report for now since we don't have the position data
+                                    report_path = (
+                                        sim_dir / f"{person_name}_career_sim_report.md"
+                                    )
+                                    with open(report_path, "w") as f:
+                                        f.write(
+                                            f"# Career Simulation Report for {person_name}\n\n"
+                                        )
+                                        f.write(
+                                            f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                                        )
+                                        f.write("## Career Path Simulation\n\n")
+                                        f.write(
+                                            "This is a placeholder for the career simulation report. "
+                                        )
+                                        f.write(
+                                            "In a production environment, this would contain:\n\n"
+                                        )
+                                        f.write(
+                                            "- Projected career paths based on skills and interests\n"
+                                        )
+                                        f.write(
+                                            "- Recommended skill development areas\n"
+                                        )
+                                        f.write(
+                                            "- Timeline estimates for career progression\n"
+                                        )
+                                        f.write(
+                                            "- Alternative career tracks that match skill profile\n\n"
+                                        )
+                                        f.write("## Next Steps\n\n")
+                                        f.write(
+                                            "1. Discuss career goals with your manager\n"
+                                        )
+                                        f.write(
+                                            "2. Focus on developing key skills identified in your evaluation\n"
+                                        )
+                                        f.write(
+                                            "3. Consider training opportunities in adjacent skill areas\n"
+                                        )
+
+                                    if self.verbose:
+                                        print(
+                                            f"Created placeholder Career Simulation report for {person_name}"
+                                        )
+                                except Exception as e:
+                                    if self.verbose:
+                                        print(
+                                            f"Error generating Career Simulation report for {person_name}: {e}"
+                                        )
+                                    if not self.ignore_errors:
+                                        raise
+
+                            # Generate Influence Network reports
+                            if hasattr(self, "use_network") and self.use_network:
+                                try:
+                                    # Create network directory
+                                    net_dir = talent_reports_dir / "influence_network"
+                                    net_dir.mkdir(exist_ok=True, parents=True)
+
+                                    # Create a placeholder report for now
+                                    report_path = (
+                                        net_dir / f"{person_name}_network_report.md"
+                                    )
+                                    with open(report_path, "w") as f:
+                                        f.write(
+                                            f"# Influence Network Analysis for {person_name}\n\n"
+                                        )
+                                        f.write(
+                                            f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                                        )
+                                        f.write("## Network Impact Summary\n\n")
+                                        f.write(
+                                            "This is a placeholder for the influence network analysis. "
+                                        )
+                                        f.write(
+                                            "In a production environment, this would contain:\n\n"
+                                        )
+                                        f.write(
+                                            "- Analysis of your impact on other team members\n"
+                                        )
+                                        f.write(
+                                            "- Visualization of knowledge flow and influence patterns\n"
+                                        )
+                                        f.write("- Key collaborative relationships\n")
+                                        f.write("- Social capital assessment\n\n")
+                                        f.write("## Network Metrics\n\n")
+                                        f.write("| Metric | Value | Percentile |\n")
+                                        f.write("|--------|-------|------------|\n")
+                                        f.write("| Influence Reach | -- | -- |\n")
+                                        f.write("| Knowledge Impact | -- | -- |\n")
+                                        f.write("| Collaboration Score | -- | -- |\n")
+                                        f.write("| Network Centrality | -- | -- |\n\n")
+                                        f.write("## Recommendations\n\n")
+                                        f.write(
+                                            "1. Expand your cross-functional collaborations\n"
+                                        )
+                                        f.write(
+                                            "2. Share knowledge through documentation and mentoring\n"
+                                        )
+                                        f.write(
+                                            "3. Engage with broader organizational initiatives\n"
+                                        )
+
+                                    if self.verbose:
+                                        print(
+                                            f"Created placeholder Influence Network report for {person_name}"
+                                        )
+                                except Exception as e:
+                                    if self.verbose:
+                                        print(
+                                            f"Error generating Influence Network report for {person_name}: {e}"
+                                        )
+                                    if not self.ignore_errors:
+                                        raise
+
+                except Exception as e:
+                    if self.verbose:
+                        print(
+                            f"Error processing talent reports for directory {directory}: {e}"
+                        )
+                    if not self.ignore_errors:
+                        raise
+
+            return True
+        except ImportError as e:
+            if self.verbose:
+                print(f"Talent development modules not available: {e}")
+            return False
+        except Exception as e:
+            if self.verbose:
+                print(f"Error generating talent development reports: {e}")
+            if not self.ignore_errors:
+                raise
+            return False
