@@ -194,6 +194,32 @@ class SyncCommand:
             help="Show minimal information during processing",
         )
 
+        # Add peer group and year-over-year analysis options
+        parser.add_argument(
+            "--peer-analysis",
+            action="store_true",
+            help="Generate peer group comparison analysis",
+            dest="peer_analysis",
+        )
+        parser.add_argument(
+            "--yoy-analysis",
+            action="store_true",
+            help="Generate year-over-year performance analysis",
+            dest="yoy_analysis",
+        )
+        parser.add_argument(
+            "--weighted-scoring",
+            action="store_true",
+            help="Use weighted scoring for skills by category",
+            dest="weighted_scoring",
+        )
+        parser.add_argument(
+            "--analysis-output-dir",
+            type=str,
+            default="output/analysis",
+            help="Directory to store analysis reports",
+        )
+
     def execute(self, args):
         """Execute the sync command"""
         logger = setup_logger("sync")
@@ -254,6 +280,16 @@ class SyncCommand:
         if hasattr(args, "talent_report_dir"):
             self.sync.talent_report_dir = args.talent_report_dir
 
+        # Peer group and year-over-year analysis options
+        if hasattr(args, "peer_analysis"):
+            self.sync.peer_analysis = args.peer_analysis
+        if hasattr(args, "yoy_analysis"):
+            self.sync.yoy_analysis = args.yoy_analysis
+        if hasattr(args, "weighted_scoring"):
+            self.sync.weighted_scoring = args.weighted_scoring
+        if hasattr(args, "analysis_output_dir"):
+            self.sync.analysis_output_dir = args.analysis_output_dir
+
         # Execute
         logger.info("Starting sync command execution")
 
@@ -299,6 +335,16 @@ class SyncCommand:
             if self.sync.use_network:
                 print("Influence Network reports: Enabled")
             print(f"Talent reports directory: {self.sync.talent_report_dir}")
+
+            # Print analysis options
+            if self.sync.peer_analysis:
+                print("Peer group analysis: Enabled")
+            if self.sync.yoy_analysis:
+                print("Year-over-year analysis: Enabled")
+            if self.sync.weighted_scoring:
+                print("Weighted skill scoring: Enabled")
+            if hasattr(self.sync, "analysis_output_dir"):
+                print(f"Analysis reports directory: {self.sync.analysis_output_dir}")
 
         print("Expected data structure: <pessoa>/<ano>/resultado.json")
         print(f"Processing started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -441,6 +487,12 @@ class DataSync:
         # Criar diretórios necessários
         self._ensure_directories()
 
+        # Peer group and year-over-year analysis options
+        self.peer_analysis = False
+        self.yoy_analysis = False
+        self.weighted_scoring = False
+        self.analysis_output_dir = "output/analysis"
+
     def _ensure_directories(self):
         """Garante que todos os diretórios necessários existam."""
         # Skip if directories not set yet
@@ -463,6 +515,16 @@ class DataSync:
 
         # Diretório de log
         Path("logs").mkdir(exist_ok=True, parents=True)
+
+        # Diretórios de análise
+        if hasattr(self, "analysis_output_dir"):
+            Path(self.analysis_output_dir).mkdir(exist_ok=True, parents=True)
+            Path(self.analysis_output_dir, "peer_comparison").mkdir(
+                exist_ok=True, parents=True
+            )
+            Path(self.analysis_output_dir, "year_over_year").mkdir(
+                exist_ok=True, parents=True
+            )
 
     def _report_progress(self, increment=1, force=False):
         """
@@ -574,6 +636,19 @@ class DataSync:
                     results.append("Talent development reports generated successfully")
                 else:
                     results.append("Error generating talent development reports")
+
+            # Generate analysis reports if enabled
+            if (
+                hasattr(self, "peer_analysis")
+                and self.peer_analysis
+                or hasattr(self, "yoy_analysis")
+                and self.yoy_analysis
+            ):
+                results.append("Generating analysis reports...")
+                if self._generate_analysis_reports():
+                    results.append("Analysis reports generated successfully")
+                else:
+                    results.append("Error generating analysis reports")
 
             # Complete processing (compress, etc.)
             self._complete_processing()
@@ -2532,3 +2607,236 @@ class DataSync:
             if not self.ignore_errors:
                 raise
             return False
+
+    def _generate_analysis_reports(self) -> bool:
+        """Generate peer group and year-over-year analysis reports.
+
+        This method analyzes evaluation data to generate comparison reports
+        against peer groups and across multiple years.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            from peopleanalytics.domain.peer_analysis import PeerGroupAnalysis
+            from peopleanalytics.domain.skill_base import SkillMatrix
+
+            # Create analysis directories
+            analysis_dir = Path(self.analysis_output_dir)
+            peer_dir = analysis_dir / "peer_comparison"
+            yoy_dir = analysis_dir / "year_over_year"
+
+            os.makedirs(peer_dir, exist_ok=True)
+            os.makedirs(yoy_dir, exist_ok=True)
+
+            # Initialize the analyzer
+            analyzer = PeerGroupAnalysis()
+
+            # Find all processed people and their data
+            all_people_data = self._collect_processed_people_data()
+
+            if not all_people_data:
+                print("No processed data found for analysis")
+                return False
+
+            # Process each person
+            for person_name, person_data in all_people_data.items():
+                try:
+                    # Skip if no years data available
+                    if not person_data["years"]:
+                        continue
+
+                    # Extract the skills data
+                    skills_by_year = person_data["skills_by_year"]
+                    peer_skills_by_year = person_data["peer_skills_by_year"]
+                    skill_categories = person_data.get("skill_categories", {})
+
+                    # Generate peer group comparison for the most recent year
+                    latest_year = max(skills_by_year.keys())
+
+                    if self.peer_analysis and latest_year in skills_by_year:
+                        person_scores = skills_by_year[latest_year]
+                        peer_scores = peer_skills_by_year.get(latest_year, {})
+
+                        if person_scores and peer_scores:
+                            comparison_results = analyzer.compare_with_peer_group(
+                                person_scores, peer_scores, skill_categories
+                            )
+
+                            # Generate report
+                            report_file = analyzer.generate_peer_comparison_report(
+                                person_name,
+                                latest_year,
+                                comparison_results,
+                                str(peer_dir),
+                            )
+
+                            if self.verbose:
+                                print(
+                                    f"Generated peer comparison report for {person_name}"
+                                )
+
+                    # Generate year-over-year analysis if we have multiple years
+                    if self.yoy_analysis and len(skills_by_year) > 1:
+                        yoy_results = analyzer.analyze_year_over_year(
+                            skills_by_year, peer_skills_by_year, skill_categories
+                        )
+
+                        # Generate report
+                        report_file = analyzer.generate_year_over_year_report(
+                            person_name, yoy_results, str(yoy_dir)
+                        )
+
+                        if self.verbose:
+                            print(
+                                f"Generated year-over-year analysis for {person_name}"
+                            )
+
+                except Exception as e:
+                    if self.verbose:
+                        print(f"Error generating analysis for {person_name}: {e}")
+                    if not self.ignore_errors:
+                        raise
+
+            return True
+
+        except ImportError as e:
+            if self.verbose:
+                print(f"Analysis modules not available: {e}")
+            return False
+        except Exception as e:
+            if self.verbose:
+                print(f"Error generating analysis reports: {e}")
+            if not self.ignore_errors:
+                raise
+            return False
+
+    def _collect_processed_people_data(self):
+        """Collect processed data for all people.
+
+        Returns:
+            Dictionary mapping person names to their data across years
+        """
+        all_people_data = {}
+        data_dir = self.output_dir / "data"
+
+        # Skip if data directory doesn't exist
+        if not data_dir.exists():
+            return all_people_data
+
+        # Process all JSON files in the data directory
+        for data_file in data_dir.glob("*.json"):
+            try:
+                # Extract person and year from filename (format: person_year.json)
+                filename = data_file.stem
+                if "_" not in filename:
+                    continue
+
+                parts = filename.split("_")
+                person_name = "_".join(parts[:-1])  # Handle names with underscores
+                year = parts[-1]
+
+                # Read data file
+                with open(data_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                # Skip if not a valid data file
+                if not isinstance(data, dict):
+                    continue
+
+                # Initialize person data if first encounter
+                if person_name not in all_people_data:
+                    all_people_data[person_name] = {
+                        "years": [],
+                        "skills_by_year": {},
+                        "peer_skills_by_year": {},
+                        "skill_categories": {},
+                    }
+
+                # Add year to the list
+                all_people_data[person_name]["years"].append(year)
+
+                # Extract skill scores
+                skills = {}
+
+                # Extract competencias
+                if "competencias" in data and isinstance(data["competencias"], dict):
+                    for skill, score in data["competencias"].items():
+                        skills[skill] = float(score)
+
+                        # Extract skill category from pilares if available
+                        if "categorias" in data and skill in data["categorias"]:
+                            all_people_data[person_name]["skill_categories"][skill] = (
+                                data["categorias"][skill]
+                            )
+                        elif "pilares" in data and isinstance(data["pilares"], dict):
+                            # Try to infer category from pilares
+                            # This is a placeholder; real implementation would need to map
+                            # skills to their categories more accurately
+                            if "técnico" in data["pilares"] and skill in [
+                                "Python",
+                                "SQL",
+                                "Java",
+                                "JavaScript",
+                                "DevOps",
+                                "Data Analysis",
+                            ]:
+                                all_people_data[person_name]["skill_categories"][
+                                    skill
+                                ] = "technical"
+                            elif "comportamental" in data["pilares"] and skill in [
+                                "Communication",
+                                "Teamwork",
+                                "Problem Solving",
+                                "Creativity",
+                            ]:
+                                all_people_data[person_name]["skill_categories"][
+                                    skill
+                                ] = "behavioral"
+                            elif "liderança" in data["pilares"] and skill in [
+                                "Leadership",
+                                "Strategy",
+                                "Mentoring",
+                                "Decision Making",
+                            ]:
+                                all_people_data[person_name]["skill_categories"][
+                                    skill
+                                ] = "leadership"
+
+                # Store skills for this year
+                all_people_data[person_name]["skills_by_year"][year] = skills
+
+                # Create placeholder for peer group data (will be populated later)
+                if year not in all_people_data[person_name]["peer_skills_by_year"]:
+                    all_people_data[person_name]["peer_skills_by_year"][year] = {}
+
+            except Exception as e:
+                if self.verbose:
+                    print(f"Error processing {data_file}: {e}")
+                if not self.ignore_errors:
+                    raise
+
+        # After collecting all data, populate peer group information
+        for person_name, person_data in all_people_data.items():
+            for year in person_data["years"]:
+                # Get all other people with data for this year
+                peer_data = {}
+
+                for peer_name, peer_info in all_people_data.items():
+                    # Skip self
+                    if peer_name == person_name:
+                        continue
+
+                    # Skip peers without data for this year
+                    if year not in peer_info["skills_by_year"]:
+                        continue
+
+                    # Add peer's skills data
+                    peer_skills = peer_info["skills_by_year"][year]
+                    if peer_skills:
+                        peer_data[peer_name] = peer_skills
+
+                # Store peer data for this year
+                person_data["peer_skills_by_year"][year] = peer_data
+
+        return all_people_data
