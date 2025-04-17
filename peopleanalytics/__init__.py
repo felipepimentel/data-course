@@ -5,6 +5,11 @@ Este pacote fornece ferramentas para análise de desempenho, feedback estruturad
 progressão de carreira e análise de equipes em um sistema unificado.
 """
 
+# Configure matplotlib to use non-interactive backend
+import matplotlib
+
+matplotlib.use("Agg")  # Set backend to Agg (non-interactive)
+
 __version__ = "3.0.0"
 
 # Configuração básica de logging

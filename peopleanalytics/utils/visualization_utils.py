@@ -10,9 +10,14 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import matplotlib.pyplot as plt
+# Configure matplotlib to use non-interactive backend
+import matplotlib
 import numpy as np
 import pandas as pd
+
+matplotlib.use("Agg")  # Set backend to Agg (non-interactive)
+
+import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.figure import Figure
 

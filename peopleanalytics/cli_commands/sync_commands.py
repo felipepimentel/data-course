@@ -13,6 +13,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
+# Configure matplotlib to use non-interactive backend
+import matplotlib
+
+matplotlib.use("Agg")  # Set backend to Agg (non-interactive)
+
 from ..domain.evaluation import EvaluationScore
 
 
