@@ -471,22 +471,53 @@ class DataPipeline:
             profile_data = data.get("profile", None)
             career_data = data.get("career_progression", None)
 
-            # Save results data
+            # Save results in selected output format(s)
+            # For now, we just save the JSON output
             results_file = person_dir / "resultado.json"
             with open(results_file, "w", encoding="utf-8") as f:
                 json.dump(results_data, f, ensure_ascii=False, indent=2)
+                self.logger.debug(f"Saved {results_file}")
 
             # Save profile data if available
+            profile_file = person_dir / "perfil.json"
             if profile_data:
-                profile_file = person_dir / "perfil.json"
                 with open(profile_file, "w", encoding="utf-8") as f:
                     json.dump(profile_data, f, ensure_ascii=False, indent=2)
+                    self.logger.debug(f"Saved {profile_file}")
 
             # Save career data if available
             if career_data:
                 career_file = person_dir / "carreira.json"
                 with open(career_file, "w", encoding="utf-8") as f:
                     json.dump(career_data, f, ensure_ascii=False, indent=2)
+                    self.logger.debug(f"Saved {career_file}")
+
+            # Track successful processing
+            self.processed_files.append(str(results_file))
+
+            # Generate evaluation report if requested
+            if self.options.get("generate_evaluation_report", False):
+                try:
+                    from peopleanalytics.data_model import PersonData
+                    from peopleanalytics.reports_generator import generate_report
+
+                    # Load the person data from files
+                    person_data = PersonData.load_from_file(str(person_dir))
+
+                    # Generate the report
+                    report_output_dir = self.options.get(
+                        "report_output_dir", "output/reports"
+                    )
+                    report_path = generate_report(
+                        "evaluation", [person_data], report_output_dir
+                    )
+
+                    self.logger.info(f"Generated evaluation report: {report_path}")
+
+                except Exception as e:
+                    self.logger.error(f"Error generating evaluation report: {str(e)}")
+                    if not self.options.get("ignore_errors", False):
+                        raise
 
             return True
 

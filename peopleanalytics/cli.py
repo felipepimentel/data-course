@@ -209,6 +209,53 @@ class SyncCommand:
             dest="no_markdown",
         )
 
+        # Enhanced reports options
+        parser.add_argument(
+            "--generate-evaluation-report",
+            action="store_true",
+            help="Generate a comprehensive evaluation report with Mermaid charts and detailed comparisons",
+        )
+        parser.add_argument(
+            "--report-output-dir",
+            default="output/reports",
+            help="Directory for storing generated reports",
+        )
+        parser.add_argument(
+            "--report-include-org-chart",
+            action="store_true",
+            help="Include organizational charts in reports",
+        )
+        parser.add_argument(
+            "--report-include-skills",
+            action="store_true",
+            help="Include detailed skill analysis in reports",
+        )
+        parser.add_argument(
+            "--report-year-comparison",
+            action="store_true",
+            help="Include year-over-year comparisons in reports",
+        )
+        parser.add_argument(
+            "--generate-interactive-report",
+            action="store_true",
+            help="Generate an interactive HTML report with dynamic charts",
+        )
+        parser.add_argument(
+            "--generate-comparison-templates",
+            action="store_true",
+            help="Generate templates for year-over-year and person-to-person comparisons",
+        )
+        parser.add_argument(
+            "--include-radar-charts",
+            action="store_true",
+            help="Include radar charts for skill visualization in reports",
+        )
+        parser.add_argument(
+            "--include-mermaid-diagrams",
+            action="store_true",
+            help="Include Mermaid diagrams in all reports",
+        )
+
         # Performance options
         parser.add_argument(
             "--no-parallel",
@@ -265,6 +312,17 @@ class SyncCommand:
         sync.batch_size = args.batch_size
         # Progress is always on unless quiet is specified
         sync.progress = not args.quiet
+
+        # Enhanced report options
+        sync.generate_evaluation_report = args.generate_evaluation_report
+        sync.report_output_dir = args.report_output_dir
+        sync.report_include_org_chart = args.report_include_org_chart
+        sync.report_include_skills = args.report_include_skills
+        sync.report_year_comparison = args.report_year_comparison
+        sync.generate_interactive_report = args.generate_interactive_report
+        sync.generate_comparison_templates = args.generate_comparison_templates
+        sync.include_radar_charts = args.include_radar_charts
+        sync.include_mermaid_diagrams = args.include_mermaid_diagrams
 
         # Execute
         self.logger.info("Starting sync command execution")
