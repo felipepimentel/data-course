@@ -1,0 +1,51 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Report Formats
+
+The People Analytics system generates rich Markdown reports with visualizations, tables, and metrics.
+
+## Report Types
+
+### 1. Individual Reports
+Located in `output/markdown/` and person-specific directories:
+- Comprehensive performance evaluation
+- Competency analysis with visual indicators
+- Historical trend analysis
+- Development recommendations
+
+### 2. Talent Development Reports
+Located in `output/talent_reports/`:
+- **9-Box Matrix** (`matrix_9box/`): Performance vs. potential mapping
+- **Career Simulation** (`career_simulation/`): Career path projections
+- **Influence Network** (`influence_network/`): Social network analysis
+
+### 3. Analysis Reports
+Located in `output/analysis/`:
+- **Peer Comparison** (`peer_comparison/`): Cross-employee analysis
+- **Year-over-Year** (`year_over_year/`): Multi-year trend analysis
+
+## Report Features
+
+All reports include:
+- **Mermaid.js Diagrams**: Interactive visualizations (charts, graphs, networks)
+- **Rich Tables**: Structured data with formatting
+- **Visual Indicators**: Emojis and formatting for status representation
+- **Actionable Recommendations**: Data-driven insights
+
+## Implementation
+
+Reports are generated in [sync_commands.py](mdc:peopleanalytics/cli_commands/sync_commands.py) with these key methods:
+- `_generate_markdown_report()`: Individual person reports
+- `_generate_talent_development_reports()`: Organization-wide talent reports
+- `_generate_analysis_reports()`: Cross-organizational analysis
+
+## Viewing Reports
+
+Reports can be viewed in any Markdown viewer that supports Mermaid.js diagrams:
+- GitHub
+- VS Code with Markdown Preview
+- Obsidian
+- Any modern Markdown viewer

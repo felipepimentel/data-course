@@ -10,17 +10,16 @@ import sys
 
 from rich.console import Console
 
-# Import essential modules for comprehensive analysis
-# Import domain models for data processing
-# Import talent development modules for advanced analysis
-from peopleanalytics.cli_commands import (
-    SyncCommand,
+from peopleanalytics.cli_commands.analysis_commands import AnalysisCommand
+from peopleanalytics.cli_commands.career_commands import CareerSimCommand
+from peopleanalytics.cli_commands.doc_commands import DocCommand
+from peopleanalytics.cli_commands.skills_commands import (
+    SkillsAnalysisCommand,
+    SkillsRadarCommand,
 )
 
-# Map commands to their corresponding classes
-COMMANDS = {
-    "sync": SyncCommand,
-}
+# Import command classes
+from peopleanalytics.cli_commands.sync_commands import SyncCommand
 
 
 def main():
@@ -41,16 +40,31 @@ def show_skills_analyzer_help():
     print("\nCustom report output directory:")
     print("  python -m peopleanalytics sync --data-dir=data --output-dir=output \\")
     print("    --report-output-dir=custom_reports")
+    print("\nGenerate skill radar charts:")
+    print(
+        "  python -m peopleanalytics skills-radar --data-dir=data --output-dir=output/viz"
+    )
+    print("\nPerform comprehensive skills analysis:")
+    print(
+        "  python -m peopleanalytics skills-analysis --data-dir=data --output-dir=output/analysis"
+    )
     print("-------------------------------")
 
 
 class CLI:
-    """Command-line interface for People Analytics."""
+    """Command-line interface for peopleanalytics."""
 
     def __init__(self):
         """Initialize the CLI."""
         self.console = Console()
-        self.commands = COMMANDS
+        self._commands = {
+            "sync": SyncCommand(),
+            "doc": DocCommand(),
+            "analysis": AnalysisCommand(),
+            "career-sim": CareerSimCommand(),
+            "skills-radar": SkillsRadarCommand(),
+            "skills-analysis": SkillsAnalysisCommand(),
+        }
 
     def run(self, args=None):
         """Run the command-line interface.
@@ -85,15 +99,12 @@ class CLI:
             return 0
 
         # Get the command object
-        command_class = self.commands.get(parsed_args.command)
-        if not command_class:
+        command = self._commands.get(parsed_args.command)
+        if not command:
             self.console.print(
                 f"[bold red]Error:[/] Unknown command '{parsed_args.command}'"
             )
             return 1
-
-        # Create command instance
-        command = command_class()
 
         # Execute the command
         try:
@@ -103,34 +114,65 @@ class CLI:
             self.console.print(f"[bold red]Error:[/] {str(e)}")
             return 1
 
-    def create_parser(self):
-        """
-        Create the argument parser for the CLI.
+    def create_parser(self) -> argparse.ArgumentParser:
+        """Create the argument parser for the CLI.
 
         Returns:
-            ArgumentParser: The configured argument parser.
+            An argparse.ArgumentParser instance
         """
         parser = argparse.ArgumentParser(
-            description="People Analytics CLI",
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            description="People Analytics Data Processor", prog="peopleanalytics"
+        )
+        parser.add_argument(
+            "--verbose", action="store_true", help="Enable verbose output"
+        )
+        parser.add_argument(
+            "--log-level",
+            choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+            default="INFO",
+            help="Set the logging level",
+        )
+        parser.add_argument(
+            "--config",
+            type=str,
+            help="Path to configuration file",
+        )
+        parser.add_argument(
+            "--version", action="store_true", help="Print version and exit"
         )
 
-        # Create subparsers for each command
-        subparsers = parser.add_subparsers(
-            title="commands",
-            dest="command",
-            help="Command to execute",
-        )
+        # Add subcommands
+        subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
-        # Add parsers for each command
-        for command_name, command_class in COMMANDS.items():
-            command_parser = subparsers.add_parser(
-                command_name,
-                help=f"{command_name.capitalize()} command",
-                formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-            )
-            command = command_class()
-            command.add_arguments(command_parser)
+        # Add sync command
+        sync_parser = subparsers.add_parser("sync", help="Synchronize and process data")
+        self._commands["sync"].add_arguments(sync_parser)
+
+        # Add doc command
+        doc_parser = subparsers.add_parser("doc", help="Generate documentation")
+        self._commands["doc"].add_arguments(doc_parser)
+
+        # Add analysis command
+        analysis_parser = subparsers.add_parser("analysis", help="Run analysis tools")
+        self._commands["analysis"].add_arguments(analysis_parser)
+
+        # Add career simulation command
+        career_parser = subparsers.add_parser(
+            "career-sim", help="Run career simulation tools"
+        )
+        self._commands["career-sim"].add_arguments(career_parser)
+
+        # Add skills radar command
+        skills_radar_parser = subparsers.add_parser(
+            "skills-radar", help="Generate skill radar charts"
+        )
+        self._commands["skills-radar"].add_arguments(skills_radar_parser)
+
+        # Add skills analysis command
+        skills_analysis_parser = subparsers.add_parser(
+            "skills-analysis", help="Perform comprehensive skills analysis"
+        )
+        self._commands["skills-analysis"].add_arguments(skills_analysis_parser)
 
         return parser
 

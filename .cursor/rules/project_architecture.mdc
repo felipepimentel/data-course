@@ -1,0 +1,15 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# People Analytics Project Architecture
+
+The People Analytics system follows a modular architecture centered around the sync command which handles all data processing and report generation.
+
+## Entry Point
+
+The system has a single entry point through [peopleanalytics/cli.py](mdc:peopleanalytics/cli.py):
+
+```bash
+python -m peopleanalytics sync --data-dir=data --output-dir=output

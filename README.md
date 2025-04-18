@@ -1,110 +1,74 @@
-# People Analytics
+# People Analytics System
 
-A comprehensive people analytics tool that processes employee data to generate insights on performance, skills, and career development.
+## Overview
 
-## Features
-
-- Data synchronization and consolidation
-- Comprehensive evaluation reports
-- Skills analysis and recommendations
-- Career progression tracking
-- Manager feedback processing
-- Talent development metrics
+The People Analytics system analyzes employee data to generate comprehensive performance reports, talent development recommendations, and organization-wide insights.
 
 ## Installation
 
+1. Clone the repository:
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/peopleanalytics.git
-cd peopleanalytics
+git clone https://github.com/yourusername/data-course.git
+cd data-course
+```
 
-# Install dependencies
-pip install -e .
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
+### Executing Commands
+
+Always execute commands through the main CLI interface:
+
+```bash
+python -m peopleanalytics [command] [options]
+```
+
+### Sync Command
+
+The primary command for data processing and report generation:
+
+```bash
+python -m peopleanalytics sync --data-dir=data --output-dir=output
+```
+
+#### Key Options
+
+- `--data-dir=DIR`: Source directory containing input data
+- `--output-dir=DIR`: Output directory for reports
+- `--pessoa=NAME`: Process a specific person only
+- `--ano=YEAR`: Process a specific year only
+- `--include-org-chart`: Include organizational chart in reports
+- `--peer-analysis`: Generate peer group comparison analysis
+- `--yoy-analysis`: Generate year-over-year performance analysis
+
+For complete documentation, run:
+
+```bash
+python -m peopleanalytics sync --help
 ```
 
 ## Data Structure
 
-The system expects data in the following structure:
+The system expects data organized in a structure like:
 ```
 data/
-├── career_progression/
-│   └── person1.json
-├── person1/
-│   └── 2023/
-│       ├── resultado.json
-│       └── perfil.json
-├── person2/
-│   └── 2023/
-│       ├── resultado.json
-│       └── perfil.json
+  <pessoa>/
+    <ano>/
+      resultado.json
 ```
 
-## Basic Usage
+## Report Types
 
-Run the sync command to process data:
+The system generates several report types:
 
-```bash
-python -m peopleanalytics sync --data-dir=data --output-dir=output
-```
-
-## Skills Analyzer
-
-The package includes a powerful skills analyzer that can:
-
-1. Generate comprehensive skills reports
-2. Create skill recommendations and learning paths
-3. Visualize skills using radar charts
-4. Produce year-over-year skill growth analysis
-
-### Using the Skills Analyzer
-
-The skills analyzer is enabled by default and will generate comprehensive skills reports, recommendations, and visualizations automatically when you run the sync command:
-
-```bash
-python -m peopleanalytics sync --data-dir=data --output-dir=output
-```
-
-#### Customizing the Skills Analysis
-
-You can customize the analysis with additional options:
-
-```bash
-python -m peopleanalytics sync --data-dir=data --output-dir=output \
-  --include-org-chart --year-comparison
-```
-
-#### Custom report output directory:
-```bash
-python -m peopleanalytics sync --data-dir=data --output-dir=output \
-  --report-output-dir=custom_reports
-```
-
-## Skills Report Features
-
-The skills reports include:
-
-- Top skills by frequency and proficiency
-- Skill gaps analysis
-- Skill growth over time
-- Department and position skill patterns
-- Recommended learning paths
-- Visualization via radar charts and mermaid diagrams
-
-## Output
-
-Reports are generated in the output directory with the following structure:
-
-```
-output/
-├── reports/
-│   ├── skills_evaluation.md
-│   ├── skill_recommendations.md
-│   └── comprehensive_analysis.md
-├── visualizations/
-│   ├── radar_charts/
-│   └── mermaid/
-```
+1. **Individual Reports**: Person-specific performance evaluations
+2. **Talent Development Reports**: 9-Box Matrix, Career Simulation, Influence Network
+3. **Analysis Reports**: Peer Comparison, Year-over-Year Analysis
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+See the LICENSE file for details.

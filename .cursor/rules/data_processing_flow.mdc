@@ -1,0 +1,12 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Data Processing Flow
+
+The People Analytics system follows a structured data processing pipeline that converts raw input files into rich Markdown reports.
+
+## Data Directory Structure
+
+The system expects data in the following structure:

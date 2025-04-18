@@ -1,0 +1,100 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# CLI Commands Reference
+
+The People Analytics system has a single entry point through [cli.py](mdc:peopleanalytics/cli.py), which handles all command-line operations.
+
+## Primary Command: Sync
+
+The `sync` command serves as the **primary entry point** that handles both data ingestion and all report generation:
+
+```bash
+python -m peopleanalytics sync [options]
+```
+
+### Key Options
+
+- `--data-dir=DIR`: Source directory containing input data (default: `data`)
+- `--output-dir=DIR`: Output directory for reports (default: `output`)
+- `--pessoa=NAME`: Process a specific person only
+- `--ano=YEAR`: Process a specific year only
+- `--no-markdown`: Disable rich Markdown reports (enabled by default)
+- `--generate-json`: Generate JSON output files (disabled by default)
+- `--include-org-chart`: Include organizational chart in reports
+- `--peer-analysis`: Generate peer group comparison analysis
+- `--yoy-analysis`: Generate year-over-year performance analysis
+- `--weighted-scoring`: Use weighted scoring for skills by category
+- `--force`: Force reprocessing of files even if they already exist
+
+### Performance Options
+
+- `--no-parallel`: Use sequential processing instead of parallel (parallel is default)
+- `--workers=N`: Number of worker threads for parallel processing (0 = auto)
+- `--batch-size=N`: Batch size for parallel processing (0 = all)
+- `--quiet`: Show minimal information during processing
+
+### Talent Development Report Options
+
+- `--no-9box`: Disable 9-Box Matrix reports
+- `--no-career-sim`: Disable Career Simulation reports
+- `--no-network`: Disable Influence Network reports
+- `--talent-report-dir=DIR`: Directory to store talent development reports (default: `output/talent_reports`)
+
+### Output Format Options
+
+- `--report-output-dir=DIR`: Directory to store generated reports (default: `output/reports`)
+- `--analysis-output-dir=DIR`: Directory to store analysis reports (default: `output/analysis`)
+- `--no-viz`: Skip generation of visualizations
+- `--no-zip`: Don't compress output directory after processing
+- `--no-dashboard`: Skip generation of dashboard
+- `--no-excel`: Skip Excel export
+
+### Expected Data Structure
+
+The system expects data organized in a structure like:
+```
+data/
+  <pessoa>/
+    <ano>/
+      resultado.json
+```
+
+### Complete Example
+
+For full report generation with all features enabled:
+
+```bash
+python -m peopleanalytics sync --data-dir=data --output-dir=output --include-org-chart --peer-analysis --yoy-analysis
+```
+
+### Simplified Usage
+
+For quick processing with default options:
+
+```bash
+python -m peopleanalytics sync
+```
+
+### Error Handling
+
+To continue processing despite errors:
+
+```bash
+python -m peopleanalytics sync --ignore-errors
+```
+
+### Important Notes
+
+1. **Always Use Direct CLI Execution**: Never create or use wrapper scripts. Always execute commands directly through the main CLI interface.
+
+2. **Command Structure**: Every command should follow this pattern:
+   ```bash
+   python -m peopleanalytics [command] [options]
+   ```
+
+3. **Module Import**: Using `python -m peopleanalytics` ensures proper module initialization and path handling.
+
+All implementation details can be found in [sync_commands.py](mdc:peopleanalytics/cli_commands/sync_commands.py)

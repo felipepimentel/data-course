@@ -1,0 +1,102 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Troubleshooting Guide
+
+This document provides solutions for common issues encountered in the People Analytics system.
+
+## Common Errors
+
+### 1. Missing Module Errors
+
+When you encounter errors about missing modules like:
+
+```
+ModuleNotFoundError: No module named 'peopleanalytics.talent_development.social_capital'
+```
+
+**Solution**: 
+- The system is designed to gracefully handle missing optional modules
+- The verbose_print method will show which modules are missing
+- No action needed unless you specifically need that feature
+
+### 2. Missing Parameter Errors
+
+Errors like:
+```
+ERROR: _generate_talent_development_reports() missing 1 required positional argument: 'all_people_data'
+```
+
+**Solution**:
+- Method signatures changed but calls weren't updated
+- Fix the method call to include all required parameters
+
+### 3. Input Data Issues
+
+```
+No result files found in [directory]
+```
+
+**Solution**:
+- Check that your data directory follows the expected structure: [pessoa]/[ano]/resultado.json
+- Verify file permissions
+- Try using the --force flag
+
+## Debugging Techniques
+
+1. **Enable verbose output**:
+   ```bash
+   python -m peopleanalytics sync --verbose
+   ```
+
+2. **Set logging level**:
+   ```bash
+   python -m peopleanalytics sync --log-level=DEBUG
+   ```
+
+3. **Run with ignore-errors**:
+   ```bash
+   python -m peopleanalytics sync --ignore-errors
+   ```
+
+4. **Check logs**:
+   - Log files are saved in the logs/ directory
+   - Each run creates a timestamped log file
+
+## Performance Issues
+
+If processing is slow:
+
+1. **Enable parallel processing** (default):
+   ```bash
+   python -m peopleanalytics sync
+   ```
+
+2. **Adjust worker count**:
+   ```bash
+   python -m peopleanalytics sync --workers=8
+   ```
+
+3. **Adjust batch size**:
+   ```bash
+   python -m peopleanalytics sync --batch-size=10
+   ```
+
+## Maintenance Tasks
+
+1. **Clear output directory**:
+   ```bash
+   rm -rf output/*
+   ```
+
+2. **Reset logs**:
+   ```bash
+   rm -rf logs/*
+   ```
+
+3. **Run simplified sync command**:
+   ```bash
+   python sync_cmd.py
+   ```
