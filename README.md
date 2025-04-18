@@ -69,6 +69,48 @@ The system generates several report types:
 2. **Talent Development Reports**: 9-Box Matrix, Career Simulation, Influence Network
 3. **Analysis Reports**: Peer Comparison, Year-over-Year Analysis
 
+## Talent Development Reports
+
+The system includes a standalone script for generating talent development reports without running the full sync process. These reports provide insights into employee performance, potential, career paths, and organizational networks.
+
+### Available Reports
+
+1. **9-Box Matrix Report**: Maps employees on a grid based on performance and potential
+2. **Career Simulation Report**: Projects potential career paths for employees
+3. **Influence Network Report**: Visualizes informal influence networks within the organization
+4. **Talent Dashboard**: Provides a consolidated view of key talent metrics
+
+### Running the Report Generator
+
+```bash
+# Generate all reports with default settings
+./sync_cmd.py
+
+# Generate reports for a specific person
+./sync_cmd.py --pessoa pessoa1 --output-dir output/pessoa1_reports
+
+# Generate only specific reports
+./sync_cmd.py --no-9box --no-career
+
+# Show all available options
+./sync_cmd.py --help
+```
+
+### Command Line Options
+
+```
+--data-dir DATA_DIR     Directory containing talent data (default: data/synthetic)
+--output-dir OUTPUT_DIR Directory for generated reports (default: output/talent_reports_test)
+--no-9box               Skip generation of 9-Box Matrix report
+--no-career             Skip generation of Career Simulation report
+--no-network            Skip generation of Influence Network report
+--no-dashboard          Skip generation of Talent Dashboard
+--pessoa PESSOA         Generate reports for a specific person only
+--verbose               Show verbose output
+```
+
+The reports are generated in Markdown format with Mermaid.js visualizations, making them viewable in any modern Markdown viewer.
+
 ## License
 
 See the LICENSE file for details.
