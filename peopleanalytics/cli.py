@@ -17,8 +17,6 @@ from peopleanalytics.cli_commands.skills_commands import (
     SkillsAnalysisCommand,
     SkillsRadarCommand,
 )
-
-# Import command classes
 from peopleanalytics.cli_commands.sync_commands import SyncCommand
 
 

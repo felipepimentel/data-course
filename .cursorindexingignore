@@ -1,2 +1,24 @@
 # Don't index SpecStory auto-save files, but allow explicit context inclusion via @ references
 .specstory/**
+node_modules/**
+logs/**
+*.log
+*.log.*
+*.log.*.*
+*.log.*.*.*
+*.log.*.*.*.*
+output/**
+*.output
+*.output.*
+*.output.*.*
+*.output.*.*.*
+*.output.*.*.*.*
+
+*.duckdb
+*.db
+*.json
+*.xlsx
+*.csv
+*.zip
+*.png
+
